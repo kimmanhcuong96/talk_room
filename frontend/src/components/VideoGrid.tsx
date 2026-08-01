@@ -21,6 +21,18 @@ type VideoGridProps = {
   remotePeers: RemotePeer[];
 };
 
+type Participant = {
+  id: string;
+  stream: MediaStream | null;
+  thumbnailStream: MediaStream | null;
+  nickname: string;
+  avatar: string;
+  micEnabled: boolean;
+  cameraEnabled: boolean;
+  screenSharing: boolean;
+  muted: boolean;
+};
+
 function createPreviewStream(source: MediaStream | null, screenSharing: boolean, mode: "stage" | "thumbnail") {
   if (!source) {
     return null;
@@ -41,6 +53,38 @@ function createPreviewStream(source: MediaStream | null, screenSharing: boolean,
   })();
 
   return new MediaStream([...audioTracks, ...(videoTrack ? [videoTrack] : [])]);
+}
+
+type ParticipantVideoTileProps = {
+  participant: Participant;
+  mode: "stage" | "thumbnail";
+  language: Language;
+  selected?: boolean;
+  onClick: () => void;
+};
+
+function ParticipantVideoTile({ participant, mode, language, selected = false, onClick }: ParticipantVideoTileProps) {
+  const sourceStream = mode === "thumbnail" ? participant.thumbnailStream : participant.stream;
+  const previewStream = useMemo(
+    () => createPreviewStream(sourceStream, participant.screenSharing, mode),
+    [mode, participant.screenSharing, sourceStream]
+  );
+
+  return (
+    <VideoTile
+      stream={previewStream}
+      nickname={participant.nickname}
+      avatar={participant.avatar}
+      micEnabled={participant.micEnabled}
+      cameraEnabled={mode === "stage" ? participant.cameraEnabled || participant.screenSharing : participant.cameraEnabled}
+      screenSharing={mode === "stage" ? participant.screenSharing : false}
+      language={language}
+      muted={participant.muted || (mode === "thumbnail" && selected)}
+      compact={mode === "thumbnail"}
+      selected={selected}
+      onClick={onClick}
+    />
+  );
 }
 
 export function VideoGrid({ localStream, localCameraStream, localUser, language, remotePeers }: VideoGridProps) {
@@ -92,15 +136,10 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
     return (
       <div className="flex h-full min-h-0 flex-col gap-2 sm:gap-3">
         <div className="min-h-0 flex-1">
-          <VideoTile
-            stream={createPreviewStream(featuredParticipant.stream, featuredParticipant.screenSharing, "stage")}
-            nickname={featuredParticipant.nickname}
-            avatar={featuredParticipant.avatar}
-            micEnabled={featuredParticipant.micEnabled}
-            cameraEnabled={featuredParticipant.cameraEnabled || featuredParticipant.screenSharing}
-            screenSharing={featuredParticipant.screenSharing}
+          <ParticipantVideoTile
+            participant={featuredParticipant}
+            mode="stage"
             language={language}
-            muted={featuredParticipant.muted}
             selected
             onClick={() => setFeaturedParticipantId(null)}
           />
@@ -110,16 +149,10 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
           <div className="flex h-16 shrink-0 items-center justify-start gap-2 overflow-hidden sm:h-20 sm:gap-3">
             {thumbnailParticipants.map((participant) => (
               <div key={participant.id} className="h-full w-24 shrink-0 sm:w-28">
-                <VideoTile
-                  stream={createPreviewStream(participant.thumbnailStream, participant.screenSharing, "thumbnail")}
-                  nickname={participant.nickname}
-                  avatar={participant.avatar}
-                  micEnabled={participant.micEnabled}
-                  cameraEnabled={participant.cameraEnabled}
-                  screenSharing={false}
+                <ParticipantVideoTile
+                  participant={participant}
+                  mode="thumbnail"
                   language={language}
-                  muted={participant.muted}
-                  compact
                   selected={participant.id === featuredParticipant.id}
                   onClick={() => setFeaturedParticipantId(participant.id)}
                 />

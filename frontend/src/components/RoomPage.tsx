@@ -26,6 +26,7 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
   const [chatOpen, setChatOpen] = useState(false);
   const [roomConnectionError, setRoomConnectionError] = useState<string | null>(null);
   const [mediaNotice, setMediaNotice] = useState<string | null>(null);
+  const [screenShareBlocked, setScreenShareBlocked] = useState(false);
   const { stream, error, micEnabled, cameraEnabled, hasMicrophone, hasCamera, toggleMic, toggleCamera } = useLocalMedia();
   const {
     stream: screenStream,
@@ -52,7 +53,8 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
   const serverLocalUser = users.find((user) => user.socketId === socket.id);
   const screenShareOwner = users.find((user) => user.screenSharing);
   const screenTrackId = isScreenSharing ? screenStream?.getVideoTracks()[0]?.id ?? null : null;
-  const canToggleScreenShare = !screenShareOwner || screenShareOwner.socketId === socket.id;
+  const screenShareSupported = canShareScreen && !screenShareBlocked;
+  const canToggleScreenShare = !screenShareBlocked && (!screenShareOwner || screenShareOwner.socketId === socket.id);
   const hasJoinedRoom = users.some((user) => user.socketId === socket.id);
   const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
   const screenShareError = screenShareErrorKey ? t(screenShareErrorKey) : null;
@@ -107,6 +109,12 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
       setMediaNotice(screenShareError);
     }
   }, [screenShareError]);
+
+  useEffect(() => {
+    if (screenShareErrorKey === "screenShareUnavailable") {
+      setScreenShareBlocked(true);
+    }
+  }, [screenShareErrorKey]);
 
   useEffect(() => {
     if (!mediaNotice) {
@@ -188,7 +196,7 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
           canToggleMic={hasMicrophone}
           canToggleCamera={hasCamera}
           canShareScreen={canToggleScreenShare}
-          screenShareSupported={canShareScreen}
+          screenShareSupported={screenShareSupported}
           screenSharing={isScreenSharing}
           language={language}
           onToggleMic={toggleMic}

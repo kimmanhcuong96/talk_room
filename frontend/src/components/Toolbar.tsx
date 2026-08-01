@@ -57,7 +57,7 @@ export function Toolbar({
         disabled={!canShareScreen}
         onClick={onToggleScreenShare}
       >
-        {screenSharing ? <ScreenShareOff size={20} /> : <ScreenShare size={20} />}
+        {screenSharing || !screenShareSupported ? <ScreenShareOff size={20} /> : <ScreenShare size={20} />}
       </IconButton>
       <IconButton label={t("leaveRoom")} danger onClick={onLeave}>
         <LogOut size={20} />

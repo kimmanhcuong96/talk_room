@@ -55,6 +55,15 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
   const hasJoinedRoom = users.some((user) => user.socketId === socket.id);
   const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
   const screenShareError = screenShareErrorKey ? t(screenShareErrorKey) : null;
+  const handleToggleScreenShare = async () => {
+    if (!canToggleScreenShare) {
+      setMediaNotice(t("screenShareDenied"));
+      return;
+    }
+
+    setMediaNotice(null);
+    await toggleScreenShare();
+  };
 
   useEffect(() => {
     const previousHtmlOverflow = document.documentElement.style.overflow;
@@ -162,7 +171,7 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
           language={language}
           onToggleMic={toggleMic}
           onToggleCamera={toggleCamera}
-          onToggleScreenShare={toggleScreenShare}
+          onToggleScreenShare={handleToggleScreenShare}
           onLeave={onLeave}
         />
       </section>

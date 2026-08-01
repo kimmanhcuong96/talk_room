@@ -32,17 +32,23 @@ export function VideoTile({
   onClick
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const { isSpeaking, level } = useSpeaking(stream, micEnabled);
   const hasLiveVideo = stream?.getVideoTracks().some((track) => track.readyState === "live") ?? false;
+  const showVideo = Boolean(stream && cameraEnabled && hasLiveVideo);
 
   useEffect(() => {
     if (videoRef.current && videoRef.current.srcObject !== stream) {
       videoRef.current.srcObject = stream;
     }
-  }, [cameraEnabled, stream]);
+    if (audioRef.current && audioRef.current.srcObject !== stream) {
+      audioRef.current.srcObject = stream;
+    }
+  }, [showVideo, stream]);
 
   const barLevels = [0.45, 0.75, 1];
   const t = (key: Parameters<typeof translate>[1]) => translate(language, key);
+  const screenShareMediaFrame = compact ? "absolute inset-x-0 top-0 bottom-8" : "absolute inset-x-0 top-0 bottom-10";
 
   return (
     <div
@@ -69,16 +75,29 @@ export function VideoTile({
             : "border-white/10"
       }`}
     >
-      {stream && cameraEnabled && hasLiveVideo ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={muted}
-          className={`h-full w-full ${screenSharing ? "object-contain" : "scale-x-[-1] object-cover"}`}
-        />
+      {showVideo ? (
+        screenSharing ? (
+          <div className={`${screenShareMediaFrame} grid place-items-center bg-black`}>
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted={muted}
+              className="h-full w-full object-contain"
+            />
+          </div>
+        ) : (
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted={muted}
+            className="h-full w-full scale-x-[-1] object-cover"
+          />
+        )
       ) : (
         <div className="grid h-full w-full place-items-center bg-field">
+          {stream && !muted ? <audio ref={audioRef} autoPlay playsInline /> : null}
           <div className="relative">
             <AvatarBadge avatar={avatar} size={compact ? "md" : "lg"} />
             {isSpeaking ? (

@@ -25,7 +25,9 @@ const io: AppServer = new Server(httpServer, {
   cors: {
     origin: env.clientOrigins,
     methods: ["GET", "POST"]
-  }
+  },
+  pingInterval: 3000,
+  pingTimeout: 3000
 });
 
 registerSocketHandlers(io);

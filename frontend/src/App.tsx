@@ -133,6 +133,24 @@ export function App() {
     window.history.pushState({}, "", homePath());
   };
 
+  useEffect(() => {
+    if (!activeRoom) {
+      return;
+    }
+
+    const leaveRoomBeforePageExit = () => {
+      socket.emit("leave-room");
+    };
+
+    window.addEventListener("pagehide", leaveRoomBeforePageExit);
+    window.addEventListener("beforeunload", leaveRoomBeforePageExit);
+
+    return () => {
+      window.removeEventListener("pagehide", leaveRoomBeforePageExit);
+      window.removeEventListener("beforeunload", leaveRoomBeforePageExit);
+    };
+  }, [activeRoom, socket]);
+
   if (activeRoom && selectedRoom) {
     return (
       <RoomPage

@@ -126,6 +126,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
               micEnabled: knownUser?.micEnabled ?? true,
               cameraEnabled: knownUser?.cameraEnabled ?? true,
               screenSharing: knownUser?.screenSharing ?? false,
+              screenTrackId: knownUser?.screenTrackId ?? null,
               stream: remoteStream
             }
           ];
@@ -181,7 +182,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
       closePeer(socketId);
     };
 
-    const handleMediaStatus = (payload: { socketId: string; micEnabled: boolean; cameraEnabled: boolean; screenSharing: boolean }) => {
+    const handleMediaStatus = (payload: { socketId: string; micEnabled: boolean; cameraEnabled: boolean; screenSharing: boolean; screenTrackId: string | null }) => {
       setUsers((current) =>
         current.map((user) => (user.socketId === payload.socketId ? { ...user, ...payload } : user))
       );

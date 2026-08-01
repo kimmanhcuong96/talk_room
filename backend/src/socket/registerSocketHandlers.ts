@@ -54,7 +54,8 @@ export function registerSocketHandlers(io: AppServer) {
         avatar: createRandomAvatar(),
         micEnabled: false,
         cameraEnabled: false,
-        screenSharing: false
+        screenSharing: false,
+        screenTrackId: null
       });
 
       if (!result.ok) {
@@ -127,7 +128,8 @@ export function registerSocketHandlers(io: AppServer) {
           socketId: socket.id,
           micEnabled: user.micEnabled,
           cameraEnabled: user.cameraEnabled,
-          screenSharing: user.screenSharing
+          screenSharing: user.screenSharing,
+          screenTrackId: user.screenTrackId
         });
         io.to(roomId).emit("room-users", getRoomUsers(roomId));
       }

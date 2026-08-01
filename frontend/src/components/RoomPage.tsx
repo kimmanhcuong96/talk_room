@@ -51,6 +51,7 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
   const { messages, sendMessage } = useChat(socket, true);
   const serverLocalUser = users.find((user) => user.socketId === socket.id);
   const screenShareOwner = users.find((user) => user.screenSharing);
+  const screenTrackId = isScreenSharing ? screenStream?.getVideoTracks()[0]?.id ?? null : null;
   const canToggleScreenShare = !screenShareOwner || screenShareOwner.socketId === socket.id;
   const hasJoinedRoom = users.some((user) => user.socketId === socket.id);
   const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
@@ -85,8 +86,8 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
   }, []);
 
   useEffect(() => {
-    socket.emit("media-status", { micEnabled, cameraEnabled, screenSharing: isScreenSharing });
-  }, [cameraEnabled, isScreenSharing, micEnabled, socket]);
+    socket.emit("media-status", { micEnabled, cameraEnabled, screenSharing: isScreenSharing, screenTrackId });
+  }, [cameraEnabled, isScreenSharing, micEnabled, screenTrackId, socket]);
 
   useEffect(() => {
     const handleScreenShareDenied = () => {
@@ -127,9 +128,10 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
       avatar: serverLocalUser?.avatar ?? getFallbackAvatar(nickname),
       micEnabled,
       cameraEnabled,
-      screenSharing: isScreenSharing
+      screenSharing: isScreenSharing,
+      screenTrackId
     }),
-    [cameraEnabled, isScreenSharing, micEnabled, nickname, serverLocalUser?.avatar]
+    [cameraEnabled, isScreenSharing, micEnabled, nickname, screenTrackId, serverLocalUser?.avatar]
   );
 
   return (

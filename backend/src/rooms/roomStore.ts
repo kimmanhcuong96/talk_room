@@ -96,7 +96,7 @@ export function removeUser(socketId: string): { roomId: string; user?: RoomUser 
   return undefined;
 }
 
-export function updateUserMedia(socketId: string, media: Pick<RoomUser, "micEnabled" | "cameraEnabled" | "screenSharing">): RoomUser | undefined {
+export function updateUserMedia(socketId: string, media: Pick<RoomUser, "micEnabled" | "cameraEnabled" | "screenSharing" | "screenTrackId">): RoomUser | undefined {
   for (const room of rooms.values()) {
     const user = room.users.find((candidate) => candidate.socketId === socketId);
 
@@ -104,6 +104,7 @@ export function updateUserMedia(socketId: string, media: Pick<RoomUser, "micEnab
       user.micEnabled = media.micEnabled;
       user.cameraEnabled = media.cameraEnabled;
       user.screenSharing = media.screenSharing;
+      user.screenTrackId = media.screenSharing ? media.screenTrackId : null;
       return user;
     }
   }

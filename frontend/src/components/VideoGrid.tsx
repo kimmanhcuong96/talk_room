@@ -16,6 +16,7 @@ type VideoGridProps = {
     micEnabled: boolean;
     cameraEnabled: boolean;
     screenSharing: boolean;
+    screenTrackId: string | null;
   };
   language: Language;
   remotePeers: RemotePeer[];
@@ -30,23 +31,25 @@ type Participant = {
   micEnabled: boolean;
   cameraEnabled: boolean;
   screenSharing: boolean;
+  screenTrackId: string | null;
   muted: boolean;
 };
 
-function createPreviewStream(source: MediaStream | null, screenSharing: boolean, mode: "stage" | "thumbnail") {
+function createPreviewStream(source: MediaStream | null, screenSharing: boolean, screenTrackId: string | null, mode: "stage" | "thumbnail") {
   if (!source) {
     return null;
   }
 
   const audioTracks = source.getAudioTracks();
   const videoTracks = source.getVideoTracks().filter((track) => track.readyState === "live");
+  const screenTrack = screenTrackId ? videoTracks.find((track) => track.id === screenTrackId) : undefined;
   const videoTrack = (() => {
     if (mode === "stage") {
-      return screenSharing ? videoTracks.at(-1) : videoTracks[0];
+      return screenSharing ? screenTrack ?? videoTracks.at(-1) : videoTracks[0];
     }
 
     if (screenSharing) {
-      return videoTracks.length > 1 ? videoTracks[0] : undefined;
+      return videoTracks.find((track) => track.id !== screenTrackId);
     }
 
     return videoTracks[0];
@@ -65,9 +68,10 @@ type ParticipantVideoTileProps = {
 
 function ParticipantVideoTile({ participant, mode, language, selected = false, onClick }: ParticipantVideoTileProps) {
   const sourceStream = mode === "thumbnail" ? participant.thumbnailStream : participant.stream;
+  const sourceTrackSignature = getTrackSignature(sourceStream);
   const previewStream = useMemo(
-    () => createPreviewStream(sourceStream, participant.screenSharing, mode),
-    [mode, participant.screenSharing, sourceStream]
+    () => createPreviewStream(sourceStream, participant.screenSharing, participant.screenTrackId, mode),
+    [mode, participant.screenSharing, participant.screenTrackId, sourceStream, sourceTrackSignature]
   );
 
   return (
@@ -87,6 +91,10 @@ function ParticipantVideoTile({ participant, mode, language, selected = false, o
   );
 }
 
+function getTrackSignature(stream: MediaStream | null) {
+  return stream?.getTracks().map((track) => `${track.kind}:${track.id}:${track.readyState}`).join("|") ?? "";
+}
+
 export function VideoGrid({ localStream, localCameraStream, localUser, language, remotePeers }: VideoGridProps) {
   const [featuredParticipantId, setFeaturedParticipantId] = useState<string | null>(null);
   const totalUsers = remotePeers.length + 1;
@@ -101,6 +109,7 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
         micEnabled: localUser.micEnabled,
         cameraEnabled: localUser.cameraEnabled,
         screenSharing: localUser.screenSharing,
+        screenTrackId: localUser.screenTrackId,
         muted: true
       },
       ...remotePeers.map((peer) => ({
@@ -112,10 +121,11 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
         micEnabled: peer.micEnabled,
         cameraEnabled: peer.cameraEnabled,
         screenSharing: peer.screenSharing,
+        screenTrackId: peer.screenTrackId,
         muted: false
       }))
     ],
-    [localCameraStream, localStream, localUser.avatar, localUser.cameraEnabled, localUser.micEnabled, localUser.nickname, localUser.screenSharing, remotePeers]
+    [localCameraStream, localStream, localUser.avatar, localUser.cameraEnabled, localUser.micEnabled, localUser.nickname, localUser.screenSharing, localUser.screenTrackId, remotePeers]
   );
   const featuredParticipant = participants.find((participant) => participant.id === featuredParticipantId);
   const thumbnailParticipants = featuredParticipant ? participants : [];

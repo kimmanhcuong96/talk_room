@@ -30,34 +30,23 @@ async function requestLocalStream() {
     throw new Error("Media devices are unavailable on this browser origin.");
   }
 
-  const hasAudioInput = await hasInputDevice("audioinput");
-  const hasVideoInput = await hasInputDevice("videoinput");
-
-  if (!hasAudioInput && !hasVideoInput) {
-    throw new Error("No media input devices found.");
-  }
-
   try {
-    return await navigator.mediaDevices.getUserMedia({ audio: hasAudioInput, video: hasVideoInput });
+    return await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
   } catch (combinedError) {
     const tracks: MediaStreamTrack[] = [];
 
-    if (hasAudioInput) {
-      try {
-        const audioOnly = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        tracks.push(...audioOnly.getAudioTracks());
-      } catch {
-        // Missing or denied microphone should not block camera/avatar-only room entry.
-      }
+    try {
+      const audioOnly = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      tracks.push(...audioOnly.getAudioTracks());
+    } catch {
+      // Missing or denied microphone should not block camera/avatar-only room entry.
     }
 
-    if (hasVideoInput) {
-      try {
-        const videoOnly = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
-        tracks.push(...videoOnly.getVideoTracks());
-      } catch {
-        // Missing or denied camera is fine because the app can show the avatar.
-      }
+    try {
+      const videoOnly = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+      tracks.push(...videoOnly.getVideoTracks());
+    } catch {
+      // Missing or denied camera is fine because the app can show the avatar.
     }
 
     if (tracks.length > 0) {

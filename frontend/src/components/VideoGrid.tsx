@@ -9,6 +9,7 @@ type RemotePeer = RoomUser & {
 
 type VideoGridProps = {
   localStream: MediaStream | null;
+  localCameraStream: MediaStream | null;
   localUser: {
     nickname: string;
     avatar: string;
@@ -20,7 +21,29 @@ type VideoGridProps = {
   remotePeers: RemotePeer[];
 };
 
-export function VideoGrid({ localStream, localUser, language, remotePeers }: VideoGridProps) {
+function createPreviewStream(source: MediaStream | null, screenSharing: boolean, mode: "stage" | "thumbnail") {
+  if (!source) {
+    return null;
+  }
+
+  const audioTracks = source.getAudioTracks();
+  const videoTracks = source.getVideoTracks().filter((track) => track.readyState === "live");
+  const videoTrack = (() => {
+    if (mode === "stage") {
+      return screenSharing ? videoTracks.at(-1) : videoTracks[0];
+    }
+
+    if (screenSharing) {
+      return videoTracks.length > 1 ? videoTracks[0] : undefined;
+    }
+
+    return videoTracks[0];
+  })();
+
+  return new MediaStream([...audioTracks, ...(videoTrack ? [videoTrack] : [])]);
+}
+
+export function VideoGrid({ localStream, localCameraStream, localUser, language, remotePeers }: VideoGridProps) {
   const [featuredParticipantId, setFeaturedParticipantId] = useState<string | null>(null);
   const totalUsers = remotePeers.length + 1;
   const participants = useMemo(
@@ -28,6 +51,7 @@ export function VideoGrid({ localStream, localUser, language, remotePeers }: Vid
       {
         id: "local",
         stream: localStream,
+        thumbnailStream: localCameraStream,
         nickname: `${localUser.nickname} (You)`,
         avatar: localUser.avatar,
         micEnabled: localUser.micEnabled,
@@ -38,20 +62,19 @@ export function VideoGrid({ localStream, localUser, language, remotePeers }: Vid
       ...remotePeers.map((peer) => ({
         id: peer.socketId,
         stream: peer.stream,
+        thumbnailStream: peer.stream,
         nickname: peer.nickname,
         avatar: peer.avatar,
         micEnabled: peer.micEnabled,
-        cameraEnabled: peer.cameraEnabled || peer.screenSharing,
+        cameraEnabled: peer.cameraEnabled,
         screenSharing: peer.screenSharing,
         muted: false
       }))
     ],
-    [localStream, localUser.avatar, localUser.cameraEnabled, localUser.micEnabled, localUser.nickname, localUser.screenSharing, remotePeers]
+    [localCameraStream, localStream, localUser.avatar, localUser.cameraEnabled, localUser.micEnabled, localUser.nickname, localUser.screenSharing, remotePeers]
   );
   const featuredParticipant = participants.find((participant) => participant.id === featuredParticipantId);
-  const thumbnailParticipants = featuredParticipant
-    ? participants.filter((participant) => participant.id !== featuredParticipant.id)
-    : [];
+  const thumbnailParticipants = featuredParticipant ? participants : [];
 
   useEffect(() => {
     const screenSharingParticipant = participants.find((participant) => participant.screenSharing);
@@ -70,11 +93,12 @@ export function VideoGrid({ localStream, localUser, language, remotePeers }: Vid
       <div className="flex h-full min-h-0 flex-col gap-2 sm:gap-3">
         <div className="min-h-0 flex-1">
           <VideoTile
-            stream={featuredParticipant.stream}
+            stream={createPreviewStream(featuredParticipant.stream, featuredParticipant.screenSharing, "stage")}
             nickname={featuredParticipant.nickname}
             avatar={featuredParticipant.avatar}
             micEnabled={featuredParticipant.micEnabled}
-            cameraEnabled={featuredParticipant.cameraEnabled}
+            cameraEnabled={featuredParticipant.cameraEnabled || featuredParticipant.screenSharing}
+            screenSharing={featuredParticipant.screenSharing}
             language={language}
             muted={featuredParticipant.muted}
             selected
@@ -87,14 +111,16 @@ export function VideoGrid({ localStream, localUser, language, remotePeers }: Vid
             {thumbnailParticipants.map((participant) => (
               <div key={participant.id} className="h-full w-24 shrink-0 sm:w-28">
                 <VideoTile
-                  stream={participant.stream}
+                  stream={createPreviewStream(participant.thumbnailStream, participant.screenSharing, "thumbnail")}
                   nickname={participant.nickname}
                   avatar={participant.avatar}
                   micEnabled={participant.micEnabled}
                   cameraEnabled={participant.cameraEnabled}
+                  screenSharing={false}
                   language={language}
                   muted={participant.muted}
                   compact
+                  selected={participant.id === featuredParticipant.id}
                   onClick={() => setFeaturedParticipantId(participant.id)}
                 />
               </div>
@@ -115,6 +141,7 @@ export function VideoGrid({ localStream, localUser, language, remotePeers }: Vid
             avatar={localUser.avatar}
             micEnabled={localUser.micEnabled}
             cameraEnabled={localUser.cameraEnabled}
+            screenSharing={localUser.screenSharing}
             language={language}
             muted
             onClick={() => setFeaturedParticipantId("local")}
@@ -141,6 +168,7 @@ export function VideoGrid({ localStream, localUser, language, remotePeers }: Vid
             avatar={participant.avatar}
             micEnabled={participant.micEnabled}
             cameraEnabled={participant.cameraEnabled}
+            screenSharing={participant.screenSharing}
             language={language}
             muted={participant.muted}
             onClick={() => setFeaturedParticipantId(participant.id)}

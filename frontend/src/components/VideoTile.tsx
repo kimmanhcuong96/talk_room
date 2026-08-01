@@ -10,6 +10,7 @@ type VideoTileProps = {
   avatar: string;
   micEnabled: boolean;
   cameraEnabled: boolean;
+  screenSharing?: boolean;
   language: Language;
   muted?: boolean;
   compact?: boolean;
@@ -23,6 +24,7 @@ export function VideoTile({
   avatar,
   micEnabled,
   cameraEnabled,
+  screenSharing = false,
   language,
   muted = false,
   compact = false,
@@ -31,6 +33,7 @@ export function VideoTile({
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const { isSpeaking, level } = useSpeaking(stream, micEnabled);
+  const hasLiveVideo = stream?.getVideoTracks().some((track) => track.readyState === "live") ?? false;
 
   useEffect(() => {
     if (videoRef.current && videoRef.current.srcObject !== stream) {
@@ -66,8 +69,14 @@ export function VideoTile({
             : "border-white/10"
       }`}
     >
-      {stream && cameraEnabled ? (
-        <video ref={videoRef} autoPlay playsInline muted={muted} className="h-full w-full scale-x-[-1] object-cover" />
+      {stream && cameraEnabled && hasLiveVideo ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted={muted}
+          className={`h-full w-full object-cover ${screenSharing ? "" : "scale-x-[-1]"}`}
+        />
       ) : (
         <div className="grid h-full w-full place-items-center bg-field">
           <div className="relative">

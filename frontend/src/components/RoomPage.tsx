@@ -40,7 +40,11 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
       return stream;
     }
 
-    return new MediaStream([...(stream?.getAudioTracks() ?? []), ...screenStream.getVideoTracks()]);
+    return new MediaStream([
+      ...(stream?.getAudioTracks() ?? []),
+      ...(stream?.getVideoTracks() ?? []),
+      ...screenStream.getVideoTracks()
+    ]);
   }, [isScreenSharing, screenStream, stream]);
   const { users, remotePeers } = useWebRTC(socket, presentationStream);
   const { messages, sendMessage } = useChat(socket, true);
@@ -112,7 +116,7 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
       nickname,
       avatar: serverLocalUser?.avatar ?? getFallbackAvatar(nickname),
       micEnabled,
-      cameraEnabled: cameraEnabled || isScreenSharing,
+      cameraEnabled,
       screenSharing: isScreenSharing
     }),
     [cameraEnabled, isScreenSharing, micEnabled, nickname, serverLocalUser?.avatar]
@@ -143,7 +147,7 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
               {error ?? screenShareError ?? mediaNotice}
             </div>
           ) : null}
-          <VideoGrid localStream={presentationStream} localUser={localUser} language={language} remotePeers={remotePeers} />
+          <VideoGrid localStream={presentationStream} localCameraStream={stream} localUser={localUser} language={language} remotePeers={remotePeers} />
         </div>
 
         <Toolbar

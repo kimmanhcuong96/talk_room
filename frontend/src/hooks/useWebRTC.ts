@@ -101,12 +101,6 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
         const incomingTracks = event.streams[0]?.getTracks() ?? [event.track];
 
         incomingTracks.forEach((track) => {
-          remoteStream.getTracks().forEach((existingTrack) => {
-            if (existingTrack.kind === track.kind && existingTrack.id !== track.id) {
-              remoteStream.removeTrack(existingTrack);
-            }
-          });
-
           if (!remoteStream.getTracks().some((existingTrack) => existingTrack.id === track.id)) {
             remoteStream.addTrack(track);
           }

@@ -35,9 +35,17 @@ Frontend:
 
 ## Deployment
 
-- Frontend: deploy `frontend/` to Vercel.
-- Backend: deploy `backend/` to Railway or Render.
+- Frontend: deploy `frontend/` to GitHub Pages with the included GitHub Actions workflow.
+- Backend: deploy `backend/` to Railway, Render, Koyeb, or another Node.js host.
 - Configure `VITE_SOCKET_URL` to point to the deployed backend.
 - Configure `CLIENT_ORIGIN` on the backend to the deployed frontend URL.
+
+### GitHub Pages
+
+1. In the GitHub repository, open **Settings > Pages**.
+2. Set **Build and deployment > Source** to **GitHub Actions**.
+3. Open **Settings > Secrets and variables > Actions > Variables**.
+4. Add `VITE_SOCKET_URL` with the deployed backend URL, for example `https://your-app.onrender.com`.
+5. Push to `master` or run **Deploy frontend to GitHub Pages** manually from the **Actions** tab.
 
 The server only manages rooms, chat, presence, and WebRTC signaling. Audio and video are never relayed through the server.

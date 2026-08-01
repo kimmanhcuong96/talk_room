@@ -42,6 +42,7 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
 
     return new MediaStream([
       ...(stream?.getAudioTracks() ?? []),
+      ...screenStream.getAudioTracks(),
       ...(stream?.getVideoTracks() ?? []),
       ...screenStream.getVideoTracks()
     ]);

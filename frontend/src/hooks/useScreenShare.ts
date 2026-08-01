@@ -32,7 +32,7 @@ export function useScreenShare() {
     try {
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
-        audio: false
+        audio: true
       });
 
       displayStream.getVideoTracks().forEach((track) => {

@@ -4,7 +4,7 @@ import { RoomAccessPage } from "./components/RoomAccessPage";
 import { RoomPage } from "./components/RoomPage";
 import { useRooms } from "./hooks/useRooms";
 import { useSocket } from "./hooks/useSocket";
-import { getRoomIdFromPath, roomPath } from "./lib/routes";
+import { getRoomIdFromPath, homePath, roomPath } from "./lib/routes";
 
 const NICKNAME_STORAGE_KEY = "english-talk-rooms:nickname";
 
@@ -62,7 +62,7 @@ export function App() {
       setPendingJoin(null);
       setActiveRoom(null);
       setRouteRoomId(null);
-      window.history.pushState({}, "", "/");
+      window.history.pushState({}, "", homePath());
       setError("That room is full. Please choose another room.");
     };
 
@@ -70,7 +70,7 @@ export function App() {
       setPendingJoin(null);
       setActiveRoom(null);
       setRouteRoomId(null);
-      window.history.pushState({}, "", "/");
+      window.history.pushState({}, "", homePath());
       setError(message);
     };
 
@@ -130,7 +130,7 @@ export function App() {
     setActiveRoom(null);
     setPendingJoin(null);
     setRouteRoomId(null);
-    window.history.pushState({}, "", "/");
+    window.history.pushState({}, "", homePath());
   };
 
   if (activeRoom && selectedRoom) {

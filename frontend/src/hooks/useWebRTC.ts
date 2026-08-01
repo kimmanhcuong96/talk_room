@@ -12,6 +12,7 @@ const rtcConfig: RTCConfiguration = {
 
 export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
   const peersRef = useRef(new Map<string, RTCPeerConnection>());
+  const makingOfferRef = useRef(new Map<string, boolean>());
   const localStreamRef = useRef<MediaStream | null>(null);
   const usersRef = useRef<RoomUser[]>([]);
   const [users, setUsers] = useState<RoomUser[]>([]);
@@ -41,8 +42,28 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
   const closePeer = useCallback((socketId: string) => {
     peersRef.current.get(socketId)?.close();
     peersRef.current.delete(socketId);
+    makingOfferRef.current.delete(socketId);
     setRemotePeers((current) => current.map((peer) => (peer.socketId === socketId ? { ...peer, stream: null } : peer)));
   }, []);
+
+  const createAndSendOffer = useCallback(
+    async (peerId: string) => {
+      const connection = peersRef.current.get(peerId);
+      if (!connection || connection.signalingState !== "stable" || makingOfferRef.current.get(peerId)) {
+        return;
+      }
+
+      try {
+        makingOfferRef.current.set(peerId, true);
+        const offer = await connection.createOffer();
+        await connection.setLocalDescription(offer);
+        socket.emit("offer", { to: peerId, description: offer });
+      } finally {
+        makingOfferRef.current.set(peerId, false);
+      }
+    },
+    [socket]
+  );
 
   const ensurePeerConnection = useCallback(
     (peerId: string) => {
@@ -66,6 +87,10 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
         if (event.candidate) {
           socket.emit("ice-candidate", { to: peerId, candidate: event.candidate.toJSON() });
         }
+      };
+
+      connection.onnegotiationneeded = () => {
+        void createAndSendOffer(peerId);
       };
 
       connection.ontrack = (event) => {
@@ -103,7 +128,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
       peersRef.current.set(peerId, connection);
       return connection;
     },
-    [closePeer, socket]
+    [closePeer, createAndSendOffer, socket]
   );
 
   useEffect(() => {
@@ -135,9 +160,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
         return;
       }
 
-      const offer = await connection.createOffer();
-      await connection.setLocalDescription(offer);
-      socket.emit("offer", { to: user.socketId, description: offer });
+      await createAndSendOffer(user.socketId);
     };
 
     const handleUserLeft = ({ socketId }: { socketId: string }) => {
@@ -158,6 +181,10 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
       const connection = ensurePeerConnection(from);
       if (!connection) {
         return;
+      }
+
+      if (connection.signalingState !== "stable") {
+        await connection.setLocalDescription({ type: "rollback" });
       }
 
       await connection.setRemoteDescription(description);
@@ -200,10 +227,11 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
       socket.off("ice-candidate", handleIceCandidate);
       peersRef.current.forEach((connection) => connection.close());
       peersRef.current.clear();
+      makingOfferRef.current.clear();
       setRemotePeers([]);
       setUsers([]);
     };
-  }, [closePeer, ensurePeerConnection, socket]);
+  }, [closePeer, createAndSendOffer, ensurePeerConnection, socket]);
 
   return { users, remotePeers };
 }

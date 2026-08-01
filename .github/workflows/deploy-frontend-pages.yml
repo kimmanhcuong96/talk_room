@@ -34,6 +34,7 @@ jobs:
         run: npm run build -w frontend
         env:
           VITE_SOCKET_URL: ${{ vars.VITE_SOCKET_URL }}
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

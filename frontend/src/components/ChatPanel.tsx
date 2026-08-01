@@ -1,5 +1,5 @@
 import { Send, X } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { formatTime } from "../lib/time";
 import type { ChatMessage } from "../types/realtime";
 import { AvatarBadge } from "./AvatarBadge";
@@ -15,6 +15,19 @@ type ChatPanelProps = {
 
 export function ChatPanel({ messages, open, onClose, onSend }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
+  const messagesRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const messageList = messagesRef.current;
+    if (!messageList) {
+      return;
+    }
+
+    messageList.scrollTo({
+      top: messageList.scrollHeight,
+      behavior: "smooth"
+    });
+  }, [messages.length, open]);
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -41,7 +54,7 @@ export function ChatPanel({ messages, open, onClose, onSend }: ChatPanelProps) {
         </button>
       </div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      <div ref={messagesRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {messages.map((message) => (
           <div key={message.id} className="rounded-md bg-white/5 px-3 py-2">
             <div className="flex items-center justify-between gap-2 text-xs text-white/45">

@@ -50,7 +50,7 @@ Server responsibilities:
 - Room user count.
 - In-memory chat history per room.
 - WebRTC signaling: offer, answer, ICE candidate.
-- User media status: mic/camera enabled flags.
+- User media status: mic, camera, screen sharing, and active screen track metadata.
 
 Client responsibilities:
 
@@ -59,6 +59,7 @@ Client responsibilities:
 - Local language preference persistence in `localStorage`.
 - Client-side i18n rendering.
 - Local media capture and device availability checks.
+- Screen sharing capture when supported by the browser.
 - WebRTC peer connection management.
 - Client-side active speaker detection.
 - Responsive video/chat layout.
@@ -218,13 +219,32 @@ Navigation:
 - Three-user rooms should keep the second row visually balanced.
 - Mobile room layout should fit the viewport without unnecessary page scrolling.
 - Mobile video tiles should use a portrait-friendly shape.
+- Users can click a participant tile to open stage/presentation mode.
+- Stage mode shows the selected participant large in the room.
+- In stage mode, all participants remain visible as smaller thumbnails in one row at the bottom.
+- The selected participant thumbnail remains visible in the thumbnail row.
 - Show nickname.
 - Show avatar.
 - Show mic status.
 - Show camera status.
 - Auto rearrange when users leave.
 - Remote users must still appear as avatar placeholders even if no media stream exists.
-- Video should be mirrored so users see themselves naturally.
+- Camera video should be mirrored so users see themselves naturally.
+- Screen share video must not be mirrored and must fit fully inside the stage frame without cropping.
+
+## Screen Sharing
+
+- Users can share their screen from the room toolbar when the browser supports `getDisplayMedia`.
+- Only one user in a room can share screen at a time.
+- When one user is sharing screen, other users cannot start screen sharing.
+- If a user starts screen sharing, that user is automatically opened in stage mode for everyone in the room.
+- Screen share video is shown in the large stage frame.
+- The sharing user's thumbnail should show their normal camera state or avatar, not a duplicate of the shared screen.
+- Users can keep camera and microphone active while sharing screen.
+- If supported by the browser/source, screen share audio should be sent to other users.
+- Screen sharing is P2P through WebRTC; the server does not relay screen video or audio.
+- The client tracks the active `screenTrackId` so camera video and screen share video are not confused when both are active.
+- If screen sharing is unsupported or denied, show a translated in-room media notice and keep the user connected normally.
 
 ## Toolbar
 
@@ -232,6 +252,7 @@ Controls:
 
 - Toggle microphone.
 - Toggle camera.
+- Toggle screen sharing.
 - Leave room.
 
 Default state:
@@ -335,7 +356,9 @@ rooms = {
         nickname,
         avatar,
         micEnabled,
-        cameraEnabled
+        cameraEnabled,
+        screenSharing,
+        screenTrackId
       }
     ],
     messages: [
@@ -375,6 +398,7 @@ Server to client:
 - `user-joined`
 - `user-left`
 - `user-media-status`
+- `screen-share-denied`
 - `receive-message`
 - `offer`
 - `answer`

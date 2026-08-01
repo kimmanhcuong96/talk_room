@@ -97,7 +97,11 @@ export function HomePage({
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-mint">English Talk Rooms</p>
           <h1 className="mt-2 text-4xl font-semibold text-white sm:text-5xl">{t("title")}</h1>
-          <p className={`mt-3 text-sm ${isConnected ? "text-mint" : "text-white/45"}`}>
+          <p className={`mt-3 flex items-center gap-2 text-sm ${isConnected ? "text-mint" : "text-coral"}`}>
+            <span
+              aria-hidden="true"
+              className={`h-2.5 w-2.5 rounded-full ${isConnected ? "bg-mint shadow-[0_0_10px_rgba(117,242,184,0.7)]" : "bg-coral shadow-[0_0_10px_rgba(255,122,105,0.6)]"}`}
+            />
             {isConnected ? t("serverConnected") : t("connectingServer")}
           </p>
         </div>

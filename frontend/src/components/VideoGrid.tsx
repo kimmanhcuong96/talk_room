@@ -1,6 +1,7 @@
 import type { RoomUser } from "../types/realtime";
 import type { Language } from "../lib/i18n";
 import { VideoTile } from "./VideoTile";
+import { useEffect, useMemo, useState } from "react";
 
 type RemotePeer = RoomUser & {
   stream: MediaStream | null;
@@ -13,33 +14,96 @@ type VideoGridProps = {
     avatar: string;
     micEnabled: boolean;
     cameraEnabled: boolean;
+    screenSharing: boolean;
   };
   language: Language;
   remotePeers: RemotePeer[];
 };
 
 export function VideoGrid({ localStream, localUser, language, remotePeers }: VideoGridProps) {
+  const [featuredParticipantId, setFeaturedParticipantId] = useState<string | null>(null);
   const totalUsers = remotePeers.length + 1;
-  const participants = [
-    {
-      id: "local",
-      stream: localStream,
-      nickname: `${localUser.nickname} (You)`,
-      avatar: localUser.avatar,
-      micEnabled: localUser.micEnabled,
-      cameraEnabled: localUser.cameraEnabled,
-      muted: true
-    },
-    ...remotePeers.map((peer) => ({
-      id: peer.socketId,
-      stream: peer.stream,
-      nickname: peer.nickname,
-      avatar: peer.avatar,
-      micEnabled: peer.micEnabled,
-      cameraEnabled: peer.cameraEnabled,
-      muted: false
-    }))
-  ];
+  const participants = useMemo(
+    () => [
+      {
+        id: "local",
+        stream: localStream,
+        nickname: `${localUser.nickname} (You)`,
+        avatar: localUser.avatar,
+        micEnabled: localUser.micEnabled,
+        cameraEnabled: localUser.cameraEnabled,
+        screenSharing: localUser.screenSharing,
+        muted: true
+      },
+      ...remotePeers.map((peer) => ({
+        id: peer.socketId,
+        stream: peer.stream,
+        nickname: peer.nickname,
+        avatar: peer.avatar,
+        micEnabled: peer.micEnabled,
+        cameraEnabled: peer.cameraEnabled || peer.screenSharing,
+        screenSharing: peer.screenSharing,
+        muted: false
+      }))
+    ],
+    [localStream, localUser.avatar, localUser.cameraEnabled, localUser.micEnabled, localUser.nickname, localUser.screenSharing, remotePeers]
+  );
+  const featuredParticipant = participants.find((participant) => participant.id === featuredParticipantId);
+  const thumbnailParticipants = featuredParticipant
+    ? participants.filter((participant) => participant.id !== featuredParticipant.id)
+    : [];
+
+  useEffect(() => {
+    const screenSharingParticipant = participants.find((participant) => participant.screenSharing);
+    if (screenSharingParticipant) {
+      setFeaturedParticipantId(screenSharingParticipant.id);
+      return;
+    }
+
+    if (featuredParticipantId && !participants.some((participant) => participant.id === featuredParticipantId)) {
+      setFeaturedParticipantId(null);
+    }
+  }, [featuredParticipantId, participants]);
+
+  if (featuredParticipant) {
+    return (
+      <div className="flex h-full min-h-0 flex-col gap-2 sm:gap-3">
+        <div className="min-h-0 flex-1">
+          <VideoTile
+            stream={featuredParticipant.stream}
+            nickname={featuredParticipant.nickname}
+            avatar={featuredParticipant.avatar}
+            micEnabled={featuredParticipant.micEnabled}
+            cameraEnabled={featuredParticipant.cameraEnabled}
+            language={language}
+            muted={featuredParticipant.muted}
+            selected
+            onClick={() => setFeaturedParticipantId(null)}
+          />
+        </div>
+
+        {thumbnailParticipants.length > 0 ? (
+          <div className="flex h-16 shrink-0 items-center justify-start gap-2 overflow-hidden sm:h-20 sm:gap-3">
+            {thumbnailParticipants.map((participant) => (
+              <div key={participant.id} className="h-full w-24 shrink-0 sm:w-28">
+                <VideoTile
+                  stream={participant.stream}
+                  nickname={participant.nickname}
+                  avatar={participant.avatar}
+                  micEnabled={participant.micEnabled}
+                  cameraEnabled={participant.cameraEnabled}
+                  language={language}
+                  muted={participant.muted}
+                  compact
+                  onClick={() => setFeaturedParticipantId(participant.id)}
+                />
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   if (remotePeers.length === 0) {
     return (
@@ -53,6 +117,7 @@ export function VideoGrid({ localStream, localUser, language, remotePeers }: Vid
             cameraEnabled={localUser.cameraEnabled}
             language={language}
             muted
+            onClick={() => setFeaturedParticipantId("local")}
           />
         </div>
       </div>
@@ -78,6 +143,7 @@ export function VideoGrid({ localStream, localUser, language, remotePeers }: Vid
             cameraEnabled={participant.cameraEnabled}
             language={language}
             muted={participant.muted}
+            onClick={() => setFeaturedParticipantId(participant.id)}
           />
         </div>
       ))}

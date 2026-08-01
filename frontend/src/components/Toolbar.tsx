@@ -1,4 +1,4 @@
-import { LogOut, Mic, MicOff, Video, VideoOff } from "lucide-react";
+import { LogOut, Mic, MicOff, ScreenShare, ScreenShareOff, Video, VideoOff } from "lucide-react";
 import { type Language, translate } from "../lib/i18n";
 import { IconButton } from "./IconButton";
 
@@ -7,9 +7,12 @@ type ToolbarProps = {
   cameraEnabled: boolean;
   canToggleMic: boolean;
   canToggleCamera: boolean;
+  canShareScreen: boolean;
+  screenSharing: boolean;
   language: Language;
   onToggleMic: () => void;
   onToggleCamera: () => void;
+  onToggleScreenShare: () => void;
   onLeave: () => void;
 };
 
@@ -18,9 +21,12 @@ export function Toolbar({
   cameraEnabled,
   canToggleMic,
   canToggleCamera,
+  canShareScreen,
+  screenSharing,
   language,
   onToggleMic,
   onToggleCamera,
+  onToggleScreenShare,
   onLeave
 }: ToolbarProps) {
   const t = (key: Parameters<typeof translate>[1]) => translate(language, key);
@@ -42,6 +48,14 @@ export function Toolbar({
         onClick={onToggleCamera}
       >
         {cameraEnabled ? <Video size={20} /> : <VideoOff size={20} />}
+      </IconButton>
+      <IconButton
+        label={canShareScreen ? (screenSharing ? t("screenShareOff") : t("screenShareOn")) : t("screenShareUnavailable")}
+        active={screenSharing}
+        disabled={!canShareScreen}
+        onClick={onToggleScreenShare}
+      >
+        {screenSharing ? <ScreenShareOff size={20} /> : <ScreenShare size={20} />}
       </IconButton>
       <IconButton label={t("leaveRoom")} danger onClick={onLeave}>
         <LogOut size={20} />

@@ -56,6 +56,8 @@ Client responsibilities:
 
 - UI rendering.
 - Local nickname persistence in `localStorage`.
+- Local language preference persistence in `localStorage`.
+- Client-side i18n rendering.
 - Local media capture and device availability checks.
 - WebRTC peer connection management.
 - Client-side active speaker detection.
@@ -123,6 +125,24 @@ Behavior:
 - Join is disabled when nickname is empty or room is full.
 - Search filters rooms by topic/name.
 - Density selector changes room grid density.
+- Language can be changed only on Home.
+- Language selection is persisted and reused after reload.
+
+## Internationalization
+
+Supported languages:
+
+- English.
+- Vietnamese.
+- Chinese.
+- Japanese.
+
+Behavior:
+
+- The app uses a small local i18n dictionary.
+- The selected language is stored in `localStorage`.
+- Home, ready access, room controls, chat labels, media status labels, and room connection errors must use translated text.
+- Language switching is available only on Home to keep the in-room experience stable.
 
 ## Room URL And Ready Access Flow
 
@@ -158,6 +178,14 @@ Navigation:
 - Ready page has `Back to rooms`.
 - Room connection failure overlay has `Back to rooms`.
 - Leaving room returns to `/`.
+- Browser tab close, browser close, reload, or page navigation should proactively emit `leave-room` when possible.
+
+## Presence Reliability
+
+- Users who leave normally should be removed from the room immediately.
+- Users who close the tab/browser or lose connection should be removed by Socket.IO heartbeat detection.
+- Production heartbeat target is a short detection window of about 6 seconds by using 3-second ping interval and 3-second ping timeout.
+- The backend should broadcast updated room users and room counts after a user leaves or is disconnected.
 
 ## Nickname
 
@@ -186,12 +214,17 @@ Navigation:
 
 - Responsive grid.
 - Target desktop layout is 2x2 for up to 4 users.
+- Single-user rooms should center the user.
+- Three-user rooms should keep the second row visually balanced.
+- Mobile room layout should fit the viewport without unnecessary page scrolling.
+- Mobile video tiles should use a portrait-friendly shape.
 - Show nickname.
 - Show avatar.
 - Show mic status.
 - Show camera status.
 - Auto rearrange when users leave.
 - Remote users must still appear as avatar placeholders even if no media stream exists.
+- Video should be mirrored so users see themselves naturally.
 
 ## Toolbar
 
@@ -361,20 +394,23 @@ Mobile:
 
 - Video full width.
 - Chat collapsible.
+- Chat can be hidden with a mobile swipe gesture.
 - Room access and error states must be usable on small screens.
 
 ## Deployment
 
 Frontend:
 
-- Vercel.
-- SPA rewrites must route all paths to `index.html`.
-- `frontend/vercel.json` provides the rewrite needed for `/room/:roomId`.
+- GitHub Pages.
+- Vite base path must support repository subpath deployment.
+- SPA fallback must support direct access and reload on `/room/:roomId`.
+- The frontend build must produce a `404.html` fallback for GitHub Pages.
 
 Backend:
 
-- Railway or Render.
+- Render.
 - Configure CORS with comma-separated `CLIENT_ORIGIN` values.
+- Socket.IO should use short heartbeat settings so closed tabs or browsers are removed from rooms quickly.
 
 Environment:
 

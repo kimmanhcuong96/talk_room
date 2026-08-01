@@ -1,6 +1,6 @@
 export type Language = "en" | "vi" | "zh" | "ja";
 
-type TranslationKey =
+export type TranslationKey =
   | "aboutUs"
   | "backToRooms"
   | "buyMeCoffee"
@@ -32,6 +32,11 @@ type TranslationKey =
   | "search"
   | "searchPlaceholder"
   | "serverConnected"
+  | "screenShareDenied"
+  | "screenShareOff"
+  | "screenShareOn"
+  | "screenShareStartFailed"
+  | "screenShareUnavailable"
   | "speakers"
   | "speaking"
   | "title"
@@ -72,6 +77,11 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     search: "Search",
     searchPlaceholder: "Search by Topic & User",
     serverConnected: "Server connected",
+    screenShareDenied: "Someone is already sharing their screen.",
+    screenShareOff: "Stop sharing screen",
+    screenShareOn: "Share screen",
+    screenShareStartFailed: "Could not start screen sharing.",
+    screenShareUnavailable: "Screen sharing is unavailable",
     speakers: "{count}/4 speakers",
     speaking: "Speaking",
     title: "Practice speaking now",
@@ -111,6 +121,11 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     search: "Tìm kiếm",
     searchPlaceholder: "Tìm theo chủ đề & người dùng",
     serverConnected: "Đã kết nối server",
+    screenShareDenied: "Đã có người đang chia sẻ màn hình.",
+    screenShareOff: "Dừng chia sẻ màn hình",
+    screenShareOn: "Chia sẻ màn hình",
+    screenShareStartFailed: "Không thể bắt đầu chia sẻ màn hình.",
+    screenShareUnavailable: "Không thể chia sẻ màn hình",
     speakers: "{count}/4 người",
     speaking: "Đang nói",
     title: "Luyện nói ngay",
@@ -150,6 +165,11 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     search: "搜索",
     searchPlaceholder: "按主题和用户搜索",
     serverConnected: "服务器已连接",
+    screenShareDenied: "已有用户正在共享屏幕。",
+    screenShareOff: "停止共享屏幕",
+    screenShareOn: "共享屏幕",
+    screenShareStartFailed: "无法开始屏幕共享。",
+    screenShareUnavailable: "屏幕共享不可用",
     speakers: "{count}/4 人",
     speaking: "正在说话",
     title: "立即练习口语",
@@ -189,6 +209,11 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     search: "検索",
     searchPlaceholder: "トピックとユーザーで検索",
     serverConnected: "サーバーに接続済み",
+    screenShareDenied: "他のユーザーがすでに画面共有しています。",
+    screenShareOff: "画面共有を停止",
+    screenShareOn: "画面を共有",
+    screenShareStartFailed: "画面共有を開始できませんでした。",
+    screenShareUnavailable: "画面共有は利用できません",
     speakers: "{count}/4 人",
     speaking: "発話中",
     title: "今すぐスピーキング練習",

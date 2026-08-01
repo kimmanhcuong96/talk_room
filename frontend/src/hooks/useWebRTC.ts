@@ -25,13 +25,17 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
   useEffect(() => {
     localStreamRef.current = localStream;
 
-    if (!localStream) {
-      return;
-    }
-
     peersRef.current.forEach((connection) => {
+      const nextTrackIds = new Set(localStream?.getTracks().map((track) => track.id) ?? []);
+
+      connection.getSenders().forEach((sender) => {
+        if (sender.track && !nextTrackIds.has(sender.track.id)) {
+          connection.removeTrack(sender);
+        }
+      });
+
       const existingTrackIds = new Set(connection.getSenders().map((sender) => sender.track?.id));
-      localStream.getTracks().forEach((track) => {
+      localStream?.getTracks().forEach((track) => {
         if (!existingTrackIds.has(track.id)) {
           connection.addTrack(track, localStream);
         }
@@ -94,8 +98,22 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
       };
 
       connection.ontrack = (event) => {
-        event.streams[0]?.getTracks().forEach((track) => {
-          remoteStream.addTrack(track);
+        const incomingTracks = event.streams[0]?.getTracks() ?? [event.track];
+
+        incomingTracks.forEach((track) => {
+          remoteStream.getTracks().forEach((existingTrack) => {
+            if (existingTrack.kind === track.kind && existingTrack.id !== track.id) {
+              remoteStream.removeTrack(existingTrack);
+            }
+          });
+
+          if (!remoteStream.getTracks().some((existingTrack) => existingTrack.id === track.id)) {
+            remoteStream.addTrack(track);
+          }
+
+          track.addEventListener("ended", () => {
+            remoteStream.removeTrack(track);
+          });
         });
 
         setRemotePeers((current) => {
@@ -113,6 +131,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
               avatar: knownUser?.avatar ?? "🐣",
               micEnabled: knownUser?.micEnabled ?? true,
               cameraEnabled: knownUser?.cameraEnabled ?? true,
+              screenSharing: knownUser?.screenSharing ?? false,
               stream: remoteStream
             }
           ];
@@ -168,7 +187,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
       closePeer(socketId);
     };
 
-    const handleMediaStatus = (payload: { socketId: string; micEnabled: boolean; cameraEnabled: boolean }) => {
+    const handleMediaStatus = (payload: { socketId: string; micEnabled: boolean; cameraEnabled: boolean; screenSharing: boolean }) => {
       setUsers((current) =>
         current.map((user) => (user.socketId === payload.socketId ? { ...user, ...payload } : user))
       );

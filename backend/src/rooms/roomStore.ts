@@ -96,13 +96,14 @@ export function removeUser(socketId: string): { roomId: string; user?: RoomUser 
   return undefined;
 }
 
-export function updateUserMedia(socketId: string, media: Pick<RoomUser, "micEnabled" | "cameraEnabled">): RoomUser | undefined {
+export function updateUserMedia(socketId: string, media: Pick<RoomUser, "micEnabled" | "cameraEnabled" | "screenSharing">): RoomUser | undefined {
   for (const room of rooms.values()) {
     const user = room.users.find((candidate) => candidate.socketId === socketId);
 
     if (user) {
       user.micEnabled = media.micEnabled;
       user.cameraEnabled = media.cameraEnabled;
+      user.screenSharing = media.screenSharing;
       return user;
     }
   }

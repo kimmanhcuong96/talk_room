@@ -2,6 +2,7 @@ import { Home, MessageSquare } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useChat } from "../hooks/useChat";
 import { useLocalMedia } from "../hooks/useLocalMedia";
+import { useScreenShare } from "../hooks/useScreenShare";
 import { useWebRTC } from "../hooks/useWebRTC";
 import { getFallbackAvatar } from "../lib/avatar";
 import { type Language, translate } from "../lib/i18n";
@@ -24,12 +25,31 @@ type RoomPageProps = {
 export function RoomPage({ socket, room, nickname, isConnected, connectionError, language, onLeave }: RoomPageProps) {
   const [chatOpen, setChatOpen] = useState(false);
   const [roomConnectionError, setRoomConnectionError] = useState<string | null>(null);
+  const [mediaNotice, setMediaNotice] = useState<string | null>(null);
   const { stream, error, micEnabled, cameraEnabled, hasMicrophone, hasCamera, toggleMic, toggleCamera } = useLocalMedia();
-  const { users, remotePeers } = useWebRTC(socket, stream);
+  const {
+    stream: screenStream,
+    errorKey: screenShareErrorKey,
+    isScreenSharing,
+    canShareScreen,
+    toggleScreenShare,
+    stopScreenShare
+  } = useScreenShare();
+  const presentationStream = useMemo(() => {
+    if (!isScreenSharing || !screenStream) {
+      return stream;
+    }
+
+    return new MediaStream([...(stream?.getAudioTracks() ?? []), ...screenStream.getVideoTracks()]);
+  }, [isScreenSharing, screenStream, stream]);
+  const { users, remotePeers } = useWebRTC(socket, presentationStream);
   const { messages, sendMessage } = useChat(socket, true);
   const serverLocalUser = users.find((user) => user.socketId === socket.id);
+  const screenShareOwner = users.find((user) => user.screenSharing);
+  const canToggleScreenShare = canShareScreen && (!screenShareOwner || screenShareOwner.socketId === socket.id);
   const hasJoinedRoom = users.some((user) => user.socketId === socket.id);
   const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
+  const screenShareError = screenShareErrorKey ? t(screenShareErrorKey) : null;
 
   useEffect(() => {
     const previousHtmlOverflow = document.documentElement.style.overflow;
@@ -51,8 +71,21 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
   }, []);
 
   useEffect(() => {
-    socket.emit("media-status", { micEnabled, cameraEnabled });
-  }, [cameraEnabled, micEnabled, socket]);
+    socket.emit("media-status", { micEnabled, cameraEnabled, screenSharing: isScreenSharing });
+  }, [cameraEnabled, isScreenSharing, micEnabled, socket]);
+
+  useEffect(() => {
+    const handleScreenShareDenied = () => {
+      stopScreenShare();
+      setMediaNotice(t("screenShareDenied"));
+    };
+
+    socket.on("screen-share-denied", handleScreenShareDenied);
+
+    return () => {
+      socket.off("screen-share-denied", handleScreenShareDenied);
+    };
+  }, [socket, stopScreenShare, t]);
 
   useEffect(() => {
     if (!isConnected) {
@@ -79,9 +112,10 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
       nickname,
       avatar: serverLocalUser?.avatar ?? getFallbackAvatar(nickname),
       micEnabled,
-      cameraEnabled
+      cameraEnabled: cameraEnabled || isScreenSharing,
+      screenSharing: isScreenSharing
     }),
-    [cameraEnabled, micEnabled, nickname, serverLocalUser?.avatar]
+    [cameraEnabled, isScreenSharing, micEnabled, nickname, serverLocalUser?.avatar]
   );
 
   return (
@@ -104,12 +138,12 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
         </header>
 
         <div className="relative min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
-          {error ? (
+          {error || screenShareError || mediaNotice ? (
             <div className="absolute inset-x-2 top-2 z-20 rounded-md border border-coral/40 bg-coral/20 px-3 py-2 text-xs text-coral shadow-lg shadow-black/20 backdrop-blur sm:inset-x-4 sm:top-4 sm:text-sm">
-              {error}
+              {error ?? screenShareError ?? mediaNotice}
             </div>
           ) : null}
-          <VideoGrid localStream={stream} localUser={localUser} language={language} remotePeers={remotePeers} />
+          <VideoGrid localStream={presentationStream} localUser={localUser} language={language} remotePeers={remotePeers} />
         </div>
 
         <Toolbar
@@ -117,9 +151,12 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
           cameraEnabled={cameraEnabled}
           canToggleMic={hasMicrophone}
           canToggleCamera={hasCamera}
+          canShareScreen={canToggleScreenShare}
+          screenSharing={isScreenSharing}
           language={language}
           onToggleMic={toggleMic}
           onToggleCamera={toggleCamera}
+          onToggleScreenShare={toggleScreenShare}
           onLeave={onLeave}
         />
       </section>

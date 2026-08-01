@@ -6,6 +6,7 @@ export type RoomUser = {
   avatar: string;
   micEnabled: boolean;
   cameraEnabled: boolean;
+  screenSharing: boolean;
 };
 
 export type RoomSummary = {
@@ -29,7 +30,7 @@ export type ClientToServerEvents = {
   "join-room": (payload: { roomId: string; nickname: string }) => void;
   "leave-room": () => void;
   "send-message": (payload: { text: string }) => void;
-  "media-status": (payload: { micEnabled: boolean; cameraEnabled: boolean }) => void;
+  "media-status": (payload: { micEnabled: boolean; cameraEnabled: boolean; screenSharing: boolean }) => void;
   offer: (payload: { to: string; description: RTCSessionDescriptionInit }) => void;
   answer: (payload: { to: string; description: RTCSessionDescriptionInit }) => void;
   "ice-candidate": (payload: { to: string; candidate: RTCIceCandidateInit }) => void;
@@ -43,7 +44,8 @@ export type ServerToClientEvents = {
   "join-error": (message: string) => void;
   "user-joined": (user: RoomUser) => void;
   "user-left": (payload: { socketId: string }) => void;
-  "user-media-status": (payload: { socketId: string; micEnabled: boolean; cameraEnabled: boolean }) => void;
+  "user-media-status": (payload: { socketId: string; micEnabled: boolean; cameraEnabled: boolean; screenSharing: boolean }) => void;
+  "screen-share-denied": () => void;
   "receive-message": (message: ChatMessage) => void;
   offer: (payload: { from: string; description: RTCSessionDescriptionInit }) => void;
   answer: (payload: { from: string; description: RTCSessionDescriptionInit }) => void;

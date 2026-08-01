@@ -53,7 +53,8 @@ export function registerSocketHandlers(io: AppServer) {
         nickname: cleanNickname,
         avatar: createRandomAvatar(),
         micEnabled: false,
-        cameraEnabled: false
+        cameraEnabled: false,
+        screenSharing: false
       });
 
       if (!result.ok) {
@@ -110,13 +111,23 @@ export function registerSocketHandlers(io: AppServer) {
 
     socket.on("media-status", (payload) => {
       const roomId = socket.data.roomId;
+      const anotherScreenSharer = roomId
+        ? getRoomUsers(roomId).some((user) => user.socketId !== socket.id && user.screenSharing)
+        : false;
+
+      if (payload.screenSharing && anotherScreenSharer) {
+        socket.emit("screen-share-denied");
+        return;
+      }
+
       const user = updateUserMedia(socket.id, payload);
 
       if (roomId && user) {
         socket.to(roomId).emit("user-media-status", {
           socketId: socket.id,
           micEnabled: user.micEnabled,
-          cameraEnabled: user.cameraEnabled
+          cameraEnabled: user.cameraEnabled,
+          screenSharing: user.screenSharing
         });
         io.to(roomId).emit("room-users", getRoomUsers(roomId));
       }

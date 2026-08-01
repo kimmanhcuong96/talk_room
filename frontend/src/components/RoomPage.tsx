@@ -50,7 +50,7 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
   const { messages, sendMessage } = useChat(socket, true);
   const serverLocalUser = users.find((user) => user.socketId === socket.id);
   const screenShareOwner = users.find((user) => user.screenSharing);
-  const canToggleScreenShare = canShareScreen && (!screenShareOwner || screenShareOwner.socketId === socket.id);
+  const canToggleScreenShare = !screenShareOwner || screenShareOwner.socketId === socket.id;
   const hasJoinedRoom = users.some((user) => user.socketId === socket.id);
   const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
   const screenShareError = screenShareErrorKey ? t(screenShareErrorKey) : null;
@@ -156,6 +156,7 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
           canToggleMic={hasMicrophone}
           canToggleCamera={hasCamera}
           canShareScreen={canToggleScreenShare}
+          screenShareSupported={canShareScreen}
           screenSharing={isScreenSharing}
           language={language}
           onToggleMic={toggleMic}

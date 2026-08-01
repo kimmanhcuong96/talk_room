@@ -75,7 +75,7 @@ export function VideoTile({
           autoPlay
           playsInline
           muted={muted}
-          className={`h-full w-full object-cover ${screenSharing ? "" : "scale-x-[-1]"}`}
+          className={`h-full w-full ${screenSharing ? "object-contain" : "scale-x-[-1] object-cover"}`}
         />
       ) : (
         <div className="grid h-full w-full place-items-center bg-field">

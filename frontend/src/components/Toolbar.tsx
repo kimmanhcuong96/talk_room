@@ -8,6 +8,7 @@ type ToolbarProps = {
   canToggleMic: boolean;
   canToggleCamera: boolean;
   canShareScreen: boolean;
+  screenShareSupported: boolean;
   screenSharing: boolean;
   language: Language;
   onToggleMic: () => void;
@@ -22,6 +23,7 @@ export function Toolbar({
   canToggleMic,
   canToggleCamera,
   canShareScreen,
+  screenShareSupported,
   screenSharing,
   language,
   onToggleMic,
@@ -50,7 +52,7 @@ export function Toolbar({
         {cameraEnabled ? <Video size={20} /> : <VideoOff size={20} />}
       </IconButton>
       <IconButton
-        label={canShareScreen ? (screenSharing ? t("screenShareOff") : t("screenShareOn")) : t("screenShareUnavailable")}
+        label={screenShareSupported ? (screenSharing ? t("screenShareOff") : t("screenShareOn")) : t("screenShareUnavailable")}
         active={screenSharing}
         disabled={!canShareScreen}
         onClick={onToggleScreenShare}

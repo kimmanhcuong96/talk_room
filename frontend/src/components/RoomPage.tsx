@@ -103,6 +103,26 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
   }, [socket, stopScreenShare, t]);
 
   useEffect(() => {
+    if (screenShareError) {
+      setMediaNotice(screenShareError);
+    }
+  }, [screenShareError]);
+
+  useEffect(() => {
+    if (!mediaNotice) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setMediaNotice(null);
+    }, 3500);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [mediaNotice]);
+
+  useEffect(() => {
     if (!isConnected) {
       setRoomConnectionError(connectionError ?? t("roomConnectionLost"));
       return;
@@ -154,9 +174,9 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
         </header>
 
         <div className="relative min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
-          {error || screenShareError || mediaNotice ? (
+          {error || mediaNotice ? (
             <div className="absolute inset-x-2 top-2 z-20 rounded-md border border-coral/40 bg-coral/20 px-3 py-2 text-xs text-coral shadow-lg shadow-black/20 backdrop-blur sm:inset-x-4 sm:top-4 sm:text-sm">
-              {error ?? screenShareError ?? mediaNotice}
+              {error ?? mediaNotice}
             </div>
           ) : null}
           <VideoGrid localStream={presentationStream} localCameraStream={stream} localUser={localUser} language={language} remotePeers={remotePeers} />

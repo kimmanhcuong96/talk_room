@@ -26,12 +26,12 @@ export function VideoTile({ stream, nickname, avatar, micEnabled, cameraEnabled,
 
   return (
     <div
-      className={`relative aspect-video overflow-hidden rounded-lg border bg-black transition ${
+      className={`relative h-full min-h-0 w-full overflow-hidden rounded-lg border bg-black transition ${
         isSpeaking ? "border-mint shadow-glow" : "border-white/10"
       }`}
     >
       {stream && cameraEnabled ? (
-        <video ref={videoRef} autoPlay playsInline muted={muted} className="h-full w-full object-cover" />
+        <video ref={videoRef} autoPlay playsInline muted={muted} className="h-full w-full scale-x-[-1] object-cover" />
       ) : (
         <div className="grid h-full w-full place-items-center bg-field">
           <div className="relative">

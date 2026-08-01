@@ -29,6 +29,25 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
   const hasJoinedRoom = users.some((user) => user.socketId === socket.id);
 
   useEffect(() => {
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousBodyHeight = document.body.style.height;
+    const previousBodyOverscroll = document.body.style.overscrollBehavior;
+
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.body.style.height = "100dvh";
+    document.body.style.overscrollBehavior = "none";
+
+    return () => {
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.body.style.height = previousBodyHeight;
+      document.body.style.overscrollBehavior = previousBodyOverscroll;
+    };
+  }, []);
+
+  useEffect(() => {
     socket.emit("media-status", { micEnabled, cameraEnabled });
   }, [cameraEnabled, micEnabled, socket]);
 
@@ -63,27 +82,30 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
   );
 
   return (
-    <main className="flex h-screen overflow-hidden bg-ink text-white">
+    <main className="fixed inset-0 flex h-[100dvh] max-h-[100dvh] overflow-hidden bg-ink text-white">
       <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b border-white/10 px-4 sm:px-6">
+        <header className="flex h-12 shrink-0 items-center justify-between border-b border-white/10 px-3 sm:h-16 sm:px-6">
           <div className="min-w-0">
-            <h1 className="truncate text-lg font-semibold">{room.name}</h1>
-            <p className="text-sm text-white/50">{remotePeers.length + 1}/4 speakers</p>
+            <h1 className="truncate text-base font-semibold sm:text-lg">{room.name}</h1>
+            <p className="text-xs text-white/50 sm:text-sm">{remotePeers.length + 1}/4 speakers</p>
           </div>
           <button
             aria-label="Open chat"
             title="Open chat"
             type="button"
             onClick={() => setChatOpen(true)}
-            className="grid h-10 w-10 place-items-center rounded-md border border-white/10 bg-white/5 text-white/80 lg:hidden"
+            className="grid h-9 w-9 place-items-center rounded-md border border-white/10 bg-white/5 text-white/80 lg:hidden"
           >
             <MessageSquare size={19} />
           </button>
         </header>
 
-        {error ? <div className="border-b border-coral/40 bg-coral/15 px-4 py-2 text-sm text-coral">{error}</div> : null}
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4">
+        <div className="relative min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
+          {error ? (
+            <div className="absolute inset-x-2 top-2 z-20 rounded-md border border-coral/40 bg-coral/20 px-3 py-2 text-xs text-coral shadow-lg shadow-black/20 backdrop-blur sm:inset-x-4 sm:top-4 sm:text-sm">
+              {error}
+            </div>
+          ) : null}
           <VideoGrid localStream={stream} localUser={localUser} remotePeers={remotePeers} />
         </div>
 

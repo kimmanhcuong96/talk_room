@@ -1,5 +1,5 @@
 import { Send, X } from "lucide-react";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, TouchEvent, useEffect, useRef, useState } from "react";
 import { formatTime } from "../lib/time";
 import type { ChatMessage } from "../types/realtime";
 import { AvatarBadge } from "./AvatarBadge";
@@ -16,6 +16,7 @@ type ChatPanelProps = {
 export function ChatPanel({ messages, open, onClose, onSend }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const messagesRef = useRef<HTMLDivElement | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const messageList = messagesRef.current;
@@ -35,8 +36,37 @@ export function ChatPanel({ messages, open, onClose, onSend }: ChatPanelProps) {
     setDraft("");
   };
 
+  const handleTouchStart = (event: TouchEvent<HTMLElement>) => {
+    const touch = event.touches[0];
+    if (!touch) {
+      return;
+    }
+
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchEnd = (event: TouchEvent<HTMLElement>) => {
+    const start = touchStartRef.current;
+    const touch = event.changedTouches[0];
+    touchStartRef.current = null;
+
+    if (!start || !touch || !open || window.innerWidth >= 1024) {
+      return;
+    }
+
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    const isHorizontalSwipe = Math.abs(deltaX) > 70 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4;
+
+    if (isHorizontalSwipe && deltaX > 0) {
+      onClose();
+    }
+  };
+
   return (
     <aside
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       className={`fixed inset-y-0 right-0 z-30 flex w-full max-w-[320px] flex-col border-l border-white/10 bg-panel shadow-2xl shadow-black/30 transition-transform duration-200 lg:static lg:translate-x-0 ${
         open ? "translate-x-0" : "translate-x-full"
       }`}

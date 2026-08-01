@@ -21,7 +21,7 @@ export function Toolbar({
   onLeave
 }: ToolbarProps) {
   return (
-    <div className="relative z-20 flex items-center justify-center gap-3 border-t border-white/10 bg-ink/95 px-4 py-3">
+    <div className="relative z-20 flex shrink-0 items-center justify-center gap-3 border-t border-white/10 bg-ink/95 px-3 py-2 sm:px-4 sm:py-3">
       <IconButton
         label={canToggleMic ? (micEnabled ? "Mute microphone" : "Unmute microphone") : "No microphone found"}
         active={micEnabled}

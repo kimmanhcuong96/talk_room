@@ -21,7 +21,7 @@ export function IconButton({ label, active = false, danger = false, children, cl
     <button
       aria-label={label}
       title={label}
-      className={`grid h-11 w-11 place-items-center rounded-md border transition ${tone} ${className}`}
+      className={`grid h-10 w-10 place-items-center rounded-md border transition sm:h-11 sm:w-11 ${tone} ${className}`}
       type="button"
       {...props}
     >

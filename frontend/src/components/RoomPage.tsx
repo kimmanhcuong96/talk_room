@@ -4,6 +4,7 @@ import { useChat } from "../hooks/useChat";
 import { useLocalMedia } from "../hooks/useLocalMedia";
 import { useWebRTC } from "../hooks/useWebRTC";
 import { getFallbackAvatar } from "../lib/avatar";
+import { type Language, translate } from "../lib/i18n";
 import type { AppSocket } from "../lib/socket";
 import type { RoomSummary } from "../types/realtime";
 import { ChatPanel } from "./ChatPanel";
@@ -16,10 +17,11 @@ type RoomPageProps = {
   nickname: string;
   isConnected: boolean;
   connectionError: string | null;
+  language: Language;
   onLeave: () => void;
 };
 
-export function RoomPage({ socket, room, nickname, isConnected, connectionError, onLeave }: RoomPageProps) {
+export function RoomPage({ socket, room, nickname, isConnected, connectionError, language, onLeave }: RoomPageProps) {
   const [chatOpen, setChatOpen] = useState(false);
   const [roomConnectionError, setRoomConnectionError] = useState<string | null>(null);
   const { stream, error, micEnabled, cameraEnabled, hasMicrophone, hasCamera, toggleMic, toggleCamera } = useLocalMedia();
@@ -27,6 +29,7 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
   const { messages, sendMessage } = useChat(socket, true);
   const serverLocalUser = users.find((user) => user.socketId === socket.id);
   const hasJoinedRoom = users.some((user) => user.socketId === socket.id);
+  const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
 
   useEffect(() => {
     const previousHtmlOverflow = document.documentElement.style.overflow;
@@ -53,7 +56,7 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
 
   useEffect(() => {
     if (!isConnected) {
-      setRoomConnectionError(connectionError ?? "Lost connection to the room server.");
+      setRoomConnectionError(connectionError ?? t("roomConnectionLost"));
       return;
     }
 
@@ -63,13 +66,13 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
     }
 
     const timeoutId = window.setTimeout(() => {
-      setRoomConnectionError("Could not connect to this room.");
+      setRoomConnectionError(t("roomJoinTimeout"));
     }, 7000);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [connectionError, hasJoinedRoom, isConnected]);
+  }, [connectionError, hasJoinedRoom, isConnected, t]);
 
   const localUser = useMemo(
     () => ({
@@ -87,7 +90,7 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
         <header className="flex h-12 shrink-0 items-center justify-between border-b border-white/10 px-3 sm:h-16 sm:px-6">
           <div className="min-w-0">
             <h1 className="truncate text-base font-semibold sm:text-lg">{room.name}</h1>
-            <p className="text-xs text-white/50 sm:text-sm">{remotePeers.length + 1}/4 speakers</p>
+            <p className="text-xs text-white/50 sm:text-sm">{t("speakers", { count: remotePeers.length + 1 })}</p>
           </div>
           <button
             aria-label="Open chat"
@@ -106,7 +109,7 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
               {error}
             </div>
           ) : null}
-          <VideoGrid localStream={stream} localUser={localUser} remotePeers={remotePeers} />
+          <VideoGrid localStream={stream} localUser={localUser} language={language} remotePeers={remotePeers} />
         </div>
 
         <Toolbar
@@ -114,18 +117,19 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
           cameraEnabled={cameraEnabled}
           canToggleMic={hasMicrophone}
           canToggleCamera={hasCamera}
+          language={language}
           onToggleMic={toggleMic}
           onToggleCamera={toggleCamera}
           onLeave={onLeave}
         />
       </section>
 
-      <ChatPanel messages={messages} open={chatOpen} onClose={() => setChatOpen(false)} onSend={sendMessage} />
+      <ChatPanel messages={messages} open={chatOpen} language={language} onClose={() => setChatOpen(false)} onSend={sendMessage} />
 
       {roomConnectionError ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 px-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-lg border border-coral/40 bg-panel p-5 shadow-2xl shadow-black/40">
-            <h2 className="text-lg font-semibold text-white">Room connection failed</h2>
+            <h2 className="text-lg font-semibold text-white">{t("roomConnectionFailed")}</h2>
             <p className="mt-2 text-sm leading-6 text-white/70">{roomConnectionError}</p>
             <button
               type="button"
@@ -133,7 +137,7 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
               className="mt-5 inline-flex h-11 items-center gap-2 rounded-md bg-mint px-4 text-sm font-semibold text-ink transition hover:bg-mint/90"
             >
               <Home size={18} />
-              Back to rooms
+              {t("backToRooms")}
             </button>
           </div>
         </div>

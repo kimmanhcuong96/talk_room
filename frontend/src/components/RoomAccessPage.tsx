@@ -1,4 +1,5 @@
 import { ArrowLeft, DoorOpen, Users } from "lucide-react";
+import { type Language, translate } from "../lib/i18n";
 import type { RoomSummary } from "../types/realtime";
 
 type RoomAccessPageProps = {
@@ -6,6 +7,7 @@ type RoomAccessPageProps = {
   nickname: string;
   isConnected: boolean;
   error: string | null;
+  language: Language;
   onNicknameChange: (nickname: string) => void;
   onReady: () => void;
   onBack: () => void;
@@ -16,12 +18,14 @@ export function RoomAccessPage({
   nickname,
   isConnected,
   error,
+  language,
   onNicknameChange,
   onReady,
   onBack
 }: RoomAccessPageProps) {
   const isFull = room.users >= room.capacity;
   const disabled = !nickname.trim() || isFull;
+  const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
 
   return (
     <main className="grid min-h-screen place-items-center px-4 py-8 text-white">
@@ -32,29 +36,27 @@ export function RoomAccessPage({
           className="inline-flex h-10 items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 text-sm text-white/75 transition hover:bg-white/10"
         >
           <ArrowLeft size={17} />
-          Back to rooms
+          {t("backToRooms")}
         </button>
 
         <div className="mt-6">
-          <p className="text-sm font-medium uppercase tracking-wide text-mint">Ready access</p>
+          <p className="text-sm font-medium uppercase tracking-wide text-mint">{t("readyAccess")}</p>
           <h1 className="mt-2 text-3xl font-semibold text-white">{room.name}</h1>
           <div className="mt-3 flex items-center gap-2 text-sm text-white/60">
             <Users size={17} />
-            <span>
-              {room.users}/{room.capacity} speakers
-            </span>
+            <span>{t("speakers", { count: room.users })}</span>
           </div>
         </div>
 
         <label className="mt-6 block text-sm font-medium text-white/70" htmlFor="ready-nickname">
-          Nickname
+          {t("nickname")}
         </label>
         <input
           id="ready-nickname"
           maxLength={32}
           value={nickname}
           onChange={(event) => onNicknameChange(event.target.value)}
-          placeholder="Enter your nickname"
+          placeholder={t("nicknamePlaceholder")}
           className="mt-2 h-12 w-full rounded-md border border-white/10 bg-field px-4 text-white outline-none transition placeholder:text-white/35 focus:border-mint"
         />
 
@@ -67,7 +69,7 @@ export function RoomAccessPage({
           className="mt-5 inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-mint px-4 text-sm font-semibold text-ink transition hover:bg-mint/90 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
         >
           <DoorOpen size={19} />
-          {isFull ? "Room is full" : isConnected ? "Ready access" : "Connect and access"}
+          {isFull ? t("roomFull") : isConnected ? t("readyAccess") : t("connectAndAccess")}
         </button>
       </section>
     </main>

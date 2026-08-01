@@ -1,4 +1,5 @@
 import type { RoomUser } from "../types/realtime";
+import type { Language } from "../lib/i18n";
 import { VideoTile } from "./VideoTile";
 
 type RemotePeer = RoomUser & {
@@ -13,10 +14,11 @@ type VideoGridProps = {
     micEnabled: boolean;
     cameraEnabled: boolean;
   };
+  language: Language;
   remotePeers: RemotePeer[];
 };
 
-export function VideoGrid({ localStream, localUser, remotePeers }: VideoGridProps) {
+export function VideoGrid({ localStream, localUser, language, remotePeers }: VideoGridProps) {
   const totalUsers = remotePeers.length + 1;
   const participants = [
     {
@@ -49,6 +51,7 @@ export function VideoGrid({ localStream, localUser, remotePeers }: VideoGridProp
             avatar={localUser.avatar}
             micEnabled={localUser.micEnabled}
             cameraEnabled={localUser.cameraEnabled}
+            language={language}
             muted
           />
         </div>
@@ -73,6 +76,7 @@ export function VideoGrid({ localStream, localUser, remotePeers }: VideoGridProp
             avatar={participant.avatar}
             micEnabled={participant.micEnabled}
             cameraEnabled={participant.cameraEnabled}
+            language={language}
             muted={participant.muted}
           />
         </div>

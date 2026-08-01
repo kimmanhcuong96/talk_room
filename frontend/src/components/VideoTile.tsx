@@ -1,6 +1,7 @@
 import { Mic, MicOff, Video, VideoOff } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useSpeaking } from "../hooks/useSpeaking";
+import { type Language, translate } from "../lib/i18n";
 import { AvatarBadge } from "./AvatarBadge";
 
 type VideoTileProps = {
@@ -9,10 +10,11 @@ type VideoTileProps = {
   avatar: string;
   micEnabled: boolean;
   cameraEnabled: boolean;
+  language: Language;
   muted?: boolean;
 };
 
-export function VideoTile({ stream, nickname, avatar, micEnabled, cameraEnabled, muted = false }: VideoTileProps) {
+export function VideoTile({ stream, nickname, avatar, micEnabled, cameraEnabled, language, muted = false }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const { isSpeaking, level } = useSpeaking(stream, micEnabled);
 
@@ -23,6 +25,7 @@ export function VideoTile({ stream, nickname, avatar, micEnabled, cameraEnabled,
   }, [cameraEnabled, stream]);
 
   const barLevels = [0.45, 0.75, 1];
+  const t = (key: Parameters<typeof translate>[1]) => translate(language, key);
 
   return (
     <div
@@ -45,7 +48,7 @@ export function VideoTile({ stream, nickname, avatar, micEnabled, cameraEnabled,
 
       {isSpeaking ? (
         <div className="absolute left-3 top-3 rounded-md border border-mint/50 bg-mint/15 px-2 py-1 text-xs font-semibold text-mint">
-          Speaking
+          {t("speaking")}
         </div>
       ) : null}
 
@@ -58,7 +61,7 @@ export function VideoTile({ stream, nickname, avatar, micEnabled, cameraEnabled,
           <span className="flex items-center gap-1">
             {micEnabled ? <Mic size={16} className={isSpeaking ? "text-mint" : undefined} /> : <MicOff size={16} />}
             {micEnabled ? (
-              <span className="flex h-4 items-end gap-0.5" aria-label={isSpeaking ? "Speaking" : "Microphone on"}>
+              <span className="flex h-4 items-end gap-0.5" aria-label={isSpeaking ? t("speaking") : t("micUnmute")}>
                 {barLevels.map((barLevel) => {
                   const height = Math.max(3, Math.round(16 * Math.min(1, level / barLevel)));
                   return (

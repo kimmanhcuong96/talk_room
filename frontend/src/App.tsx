@@ -4,9 +4,11 @@ import { RoomAccessPage } from "./components/RoomAccessPage";
 import { RoomPage } from "./components/RoomPage";
 import { useRooms } from "./hooks/useRooms";
 import { useSocket } from "./hooks/useSocket";
+import { type Language, isLanguage, translate } from "./lib/i18n";
 import { getRoomIdFromPath, homePath, roomPath } from "./lib/routes";
 
 const NICKNAME_STORAGE_KEY = "english-talk-rooms:nickname";
+const LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
 
 type ActiveRoom = {
   roomId: string;
@@ -17,6 +19,10 @@ export function App() {
   const { socket, isConnected, connectionError } = useSocket();
   const rooms = useRooms(socket);
   const [nickname, setNickname] = useState(() => localStorage.getItem(NICKNAME_STORAGE_KEY) ?? "");
+  const [language, setLanguage] = useState<Language>(() => {
+    const storedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return isLanguage(storedLanguage) ? storedLanguage : "en";
+  });
   const [routeRoomId, setRouteRoomId] = useState(() => getRoomIdFromPath());
   const [activeRoom, setActiveRoom] = useState<ActiveRoom | null>(null);
   const [pendingJoin, setPendingJoin] = useState<ActiveRoom | null>(null);
@@ -63,7 +69,7 @@ export function App() {
       setActiveRoom(null);
       setRouteRoomId(null);
       window.history.pushState({}, "", homePath());
-      setError("That room is full. Please choose another room.");
+      setError(translate(language, "roomFullError"));
     };
 
     const handleJoinError = (message: string) => {
@@ -81,12 +87,12 @@ export function App() {
       socket.off("room-full", handleRoomFull);
       socket.off("join-error", handleJoinError);
     };
-  }, [socket]);
+  }, [language, socket]);
 
   const handleJoin = (roomId: string) => {
     const cleanNickname = nickname.trim();
     if (!cleanNickname) {
-      setError("Please enter a nickname.");
+      setError(translate(language, "nicknameRequired"));
       return;
     }
 
@@ -105,14 +111,14 @@ export function App() {
 
     const cleanNickname = nickname.trim();
     if (!cleanNickname) {
-      setError("Please enter a nickname.");
+      setError(translate(language, "nicknameRequired"));
       return;
     }
 
     if (!isConnected) {
       localStorage.setItem(NICKNAME_STORAGE_KEY, cleanNickname);
       setPendingJoin({ roomId: routeRoomId, nickname: cleanNickname });
-      setError("Connecting to the server...");
+      setError(`${translate(language, "connectingServer")}...`);
       socket.connect();
       return;
     }
@@ -123,6 +129,11 @@ export function App() {
   const handleNicknameChange = (nextNickname: string) => {
     setNickname(nextNickname);
     localStorage.setItem(NICKNAME_STORAGE_KEY, nextNickname);
+  };
+
+  const handleLanguageChange = (nextLanguage: Language) => {
+    setLanguage(nextLanguage);
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, nextLanguage);
   };
 
   const handleLeave = () => {
@@ -159,6 +170,7 @@ export function App() {
         nickname={activeRoom.nickname}
         isConnected={isConnected}
         connectionError={connectionError}
+        language={language}
         onLeave={handleLeave}
       />
     );
@@ -171,6 +183,7 @@ export function App() {
         nickname={nickname}
         isConnected={isConnected}
         error={error ?? connectionError}
+        language={language}
         onNicknameChange={handleNicknameChange}
         onReady={handleReadyAccess}
         onBack={handleLeave}
@@ -184,7 +197,9 @@ export function App() {
       nickname={nickname}
       isConnected={isConnected}
       error={error ?? connectionError}
+      language={language}
       onNicknameChange={handleNicknameChange}
+      onLanguageChange={handleLanguageChange}
       onJoin={handleJoin}
     />
   );

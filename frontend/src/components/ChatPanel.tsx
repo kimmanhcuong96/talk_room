@@ -1,5 +1,6 @@
 import { Send, X } from "lucide-react";
 import { FormEvent, TouchEvent, useEffect, useRef, useState } from "react";
+import { type Language, translate } from "../lib/i18n";
 import { formatTime } from "../lib/time";
 import type { ChatMessage } from "../types/realtime";
 import { AvatarBadge } from "./AvatarBadge";
@@ -9,14 +10,16 @@ const quickEmojis = ["😀", "😂", "👍", "❤️", "👏", "🎉", "✋", "�
 type ChatPanelProps = {
   messages: ChatMessage[];
   open: boolean;
+  language: Language;
   onClose: () => void;
   onSend: (text: string) => void;
 };
 
-export function ChatPanel({ messages, open, onClose, onSend }: ChatPanelProps) {
+export function ChatPanel({ messages, open, language, onClose, onSend }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const t = (key: Parameters<typeof translate>[1]) => translate(language, key);
 
   useEffect(() => {
     const messageList = messagesRef.current;
@@ -72,10 +75,10 @@ export function ChatPanel({ messages, open, onClose, onSend }: ChatPanelProps) {
       }`}
     >
       <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
-        <h2 className="text-base font-semibold text-white">Chat</h2>
+        <h2 className="text-base font-semibold text-white">{t("chat")}</h2>
         <button
-          aria-label="Close chat"
-          title="Close chat"
+          aria-label={t("closeChat")}
+          title={t("closeChat")}
           type="button"
           onClick={onClose}
           className="grid h-9 w-9 place-items-center rounded-md border border-white/10 bg-white/5 text-white/70 lg:hidden"
@@ -116,7 +119,7 @@ export function ChatPanel({ messages, open, onClose, onSend }: ChatPanelProps) {
           <input
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="Message"
+            placeholder={t("messagePlaceholder")}
             maxLength={500}
             className="h-11 min-w-0 flex-1 rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-mint"
           />

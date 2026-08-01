@@ -2,108 +2,294 @@
 
 ## Goal
 
-Build a lightweight web application for people to practice English
-speaking.
+Build a lightweight web application for people to practice English speaking in small public rooms.
 
-### Principles
+## Principles
 
--   No database
--   No authentication
--   No OAuth
--   No persistence
--   Maximum 4 users per room
--   20 predefined rooms
--   Lowest possible server cost
--   WebRTC P2P for media
+- No database.
+- No authentication.
+- No OAuth.
+- Runtime state is stored in server RAM only.
+- Maximum 4 users per room.
+- Exactly 20 predefined rooms.
+- Lowest possible server cost.
+- WebRTC mesh peer-to-peer for audio/video media.
+- The server must never relay audio or video.
 
 ## Tech Stack
 
 ### Frontend
 
--   React
--   Vite
--   TypeScript
--   Tailwind CSS
+- React.
+- Vite.
+- TypeScript.
+- Tailwind CSS.
+- Socket.IO client.
+- Lucide icons.
 
 ### Backend
 
--   Node.js
--   Express
--   Socket.IO
+- Node.js.
+- Express.
+- Socket.IO.
+- TypeScript.
 
 ### Realtime
 
--   WebRTC Mesh (P2P)
+- Socket.IO for room presence, chat, and WebRTC signaling.
+- WebRTC mesh P2P for media.
+- Google public STUN server.
+- TURN is optional for production hardening.
 
 ## Architecture
 
-Server responsibilities only: - Room management - WebRTC signaling -
-Chat messages - User join/leave
+Server responsibilities:
 
-Never relay video/audio through the server.
+- Room management.
+- User join/leave.
+- Room user count.
+- In-memory chat history per room.
+- WebRTC signaling: offer, answer, ICE candidate.
+- User media status: mic/camera enabled flags.
+
+Client responsibilities:
+
+- UI rendering.
+- Local nickname persistence in `localStorage`.
+- Local media capture and device availability checks.
+- WebRTC peer connection management.
+- Client-side active speaker detection.
+- Responsive video/chat layout.
 
 ## Rooms
 
 Exactly 20 predefined rooms.
 
-Each room: - Max 4 users - Hardcoded - No create/delete
+Each room:
 
-Suggested names: - English Beginner - English Intermediate - Daily
-Conversation - IELTS Speaking - Business English - Travel English -
-Pronunciation Practice - Free Talk - Movie Discussion - Book Club -
-Technology - Gaming - Culture Exchange - Debate - Vocabulary Practice -
-Grammar Practice - Interview English - Coffee Chat - Weekend Talk -
-Random Talk
+- Has a deterministic id: `room-1` through `room-20`.
+- Has a stable URL: `/room/:roomId`.
+- Max 4 users.
+- Hardcoded.
+- No create/delete in the MVP, even though the UI may include a disabled or placeholder "Create a new group" action.
+
+Room names:
+
+- English Beginner
+- English Intermediate
+- Daily Conversation
+- IELTS Speaking
+- Business English
+- Travel English
+- Pronunciation Practice
+- Free Talk
+- Movie Discussion
+- Book Club
+- Technology
+- Gaming
+- Culture Exchange
+- Debate
+- Vocabulary Practice
+- Grammar Practice
+- Interview English
+- Coffee Chat
+- Weekend Talk
+- Random Talk
 
 ## Home Page
 
-Display: - Room name - Current users (x/4) - Join button
+Display:
 
-Disable Join when room is full.
+- App title and server connection state.
+- Nickname input.
+- Action bar:
+  - Create a new group
+  - Buy me a coffee
+  - Free4Talk APP
+  - Privacy Policy
+  - Contact Us
+  - About Us
+- Search bar with placeholder `Search by Topic & User`.
+- Room density selector: `3x`, `2x`, `1x`.
+- Room cards:
+  - Room name.
+  - Current users `(x/4)`.
+  - Join button.
 
-## Join Flow
+Behavior:
 
-1.  User enters nickname.
-2.  Select room.
-3.  Join immediately.
+- Rooms are shown from a frontend fallback list immediately.
+- Socket room counts update the fallback room list when server data arrives.
+- Join is disabled when nickname is empty or room is full.
+- Search filters rooms by topic/name.
+- Density selector changes room grid density.
 
-No account or email.
+## Room URL And Ready Access Flow
+
+Room URLs must be deterministic:
+
+``` text
+/room/room-1
+/room/room-2
+...
+/room/room-20
+```
+
+Flow:
+
+1. User enters nickname on Home.
+2. User clicks Join on a room card.
+3. App navigates to `/room/:roomId`.
+4. User is not connected to the room yet.
+5. App shows a `Ready access` page.
+6. User may review or edit nickname.
+7. User clicks `Ready access`.
+8. App emits `join-room`.
+9. Only after this step does the user really enter the room and initialize media/WebRTC.
+
+Reload behavior:
+
+- If the browser reloads on `/room/:roomId`, the app opens the same room URL.
+- Reloaded users must see the `Ready access` page first.
+- They should not auto-join until clicking `Ready access`.
+
+Navigation:
+
+- Ready page has `Back to rooms`.
+- Room connection failure overlay has `Back to rooms`.
+- Leaving room returns to `/`.
+
+## Nickname
+
+- No account or email.
+- Nickname is required before joining.
+- Nickname is stored in `localStorage`.
+- Updating the nickname input updates `localStorage`.
+- On page reload, nickname is restored from `localStorage`.
+
+## User Avatar
+
+- Each user receives a random basic cute avatar when joining a room.
+- Avatar is generated by the backend and stored in RAM with the room user.
+- Avatar is sent with:
+  - `room-users`
+  - `user-joined`
+  - `receive-message`
+  - `chat-history`
+- Avatar is shown:
+  - When camera is off.
+  - When camera is unavailable.
+  - Before a media stream exists.
+  - Next to nickname in chat messages.
 
 ## Video Call
 
--   Responsive 2x2 grid
--   Show nickname
--   Show mic status
--   Show camera status
--   Auto rearrange when users leave
+- Responsive grid.
+- Target desktop layout is 2x2 for up to 4 users.
+- Show nickname.
+- Show avatar.
+- Show mic status.
+- Show camera status.
+- Auto rearrange when users leave.
+- Remote users must still appear as avatar placeholders even if no media stream exists.
 
 ## Toolbar
 
--   Toggle microphone
--   Toggle camera
--   Leave room
+Controls:
+
+- Toggle microphone.
+- Toggle camera.
+- Leave room.
+
+Default state:
+
+- Microphone is off when entering a room.
+- Camera is off when entering a room.
+- User sees avatar by default.
+
+Media availability:
+
+- If no microphone is detected, the mic button is disabled and cannot enable mic.
+- If no camera is detected, the camera button is disabled and cannot enable camera.
+- If microphone is disconnected while in room, mic is automatically disabled.
+- If camera is disconnected while in room, camera is automatically disabled.
+- Device changes are monitored via browser `devicechange` when available.
+
+Secure origin behavior:
+
+- Browser media APIs require HTTPS or localhost.
+- On plain LAN HTTP such as `http://192.168.x.x`, mic/camera may be unavailable.
+- The app must not crash in that case.
+- Users can still enter rooms with avatar-only mode, chat, and presence.
 
 ## Speaking Indicator
 
-Client-side active speaker detection. Highlight active speaker with
-green border.
+- Active speaker detection is client-side.
+- Use local audio analysis with Web Audio API.
+- Use RMS-based volume detection.
+- Use smoothing and hysteresis to reduce false positives from noise.
+- Highlight speaking user with:
+  - Green border.
+  - Mic volume bars.
+  - Speaking badge.
+  - Avatar pulse when camera is off.
 
 ## Chat
 
-Right-side fixed panel (\~320px).
+Right-side fixed panel, about `320px` wide.
 
-Features: - Realtime text chat - Timestamp (HH:mm) - Nickname - Enter to
-send - Send button - No history
+Features:
+
+- Realtime text chat.
+- Timestamp in `HH:mm`.
+- Nickname.
+- Avatar.
+- Enter to send.
+- Send button.
+- Quick emoji buttons.
+- Auto-scroll to bottom when new messages arrive or when user sends a message.
+- On mobile, chat is collapsible and scrolls to bottom when opened.
+
+Chat history:
+
+- Chat history is stored in server RAM per room.
+- When a new user joins a room, server sends existing room chat via `chat-history`.
+- History is not persisted across server restart.
 
 ## Quick Emoji
 
-Buttons: 😀 😂 👍 ❤️ 👏 🎉 ✋ 🤔
+Buttons:
 
-Click sends immediately as chat.
+- 😀
+- 😂
+- 👍
+- ❤️
+- 👏
+- 🎉
+- ✋
+- 🤔
+
+Clicking an emoji sends it immediately as a chat message.
+
+## Room Connection Errors
+
+If a user cannot connect to the room:
+
+- Show a clear in-room error overlay.
+- Include a `Back to rooms` button.
+- The user must be able to return to Home without refreshing the browser.
+
+Trigger cases:
+
+- Socket disconnected while in room.
+- Socket connect error.
+- No `room-users` confirmation after joining within a timeout.
+- Server emits `room-full`.
+- Server emits `join-error`.
 
 ## Memory Model
 
-Store everything in RAM only.
+Store all room state in RAM only.
 
 Example:
 
@@ -113,7 +299,21 @@ rooms = {
     users: [
       {
         socketId,
-        nickname
+        nickname,
+        avatar,
+        micEnabled,
+        cameraEnabled
+      }
+    ],
+    messages: [
+      {
+        id,
+        roomId,
+        socketId,
+        nickname,
+        avatar,
+        text,
+        timestamp
       }
     ]
   }
@@ -122,40 +322,94 @@ rooms = {
 
 ## Socket Events
 
-Client: - join-room - leave-room - send-message - offer - answer -
-ice-candidate
+Client to server:
 
-Server: - room-users - user-joined - user-left - receive-message -
-offer - answer - ice-candidate
+- `join-room`
+- `leave-room`
+- `send-message`
+- `media-status`
+- `offer`
+- `answer`
+- `ice-candidate`
+
+Server to client:
+
+- `room-list`
+- `room-users`
+- `chat-history`
+- `room-full`
+- `join-error`
+- `user-joined`
+- `user-left`
+- `user-media-status`
+- `receive-message`
+- `offer`
+- `answer`
+- `ice-candidate`
 
 ## UI
 
-Desktop: - Video left - Chat right
-
-Mobile: - Video full width - Collapsible chat
-
 Dark mode by default.
+
+Desktop:
+
+- Video left.
+- Chat right.
+- Chat panel fixed at about `320px`.
+
+Mobile:
+
+- Video full width.
+- Chat collapsible.
+- Room access and error states must be usable on small screens.
 
 ## Deployment
 
-Frontend: - Vercel
+Frontend:
 
-Backend: - Railway or Render
+- Vercel.
+- SPA rewrites must route all paths to `index.html`.
+- `frontend/vercel.json` provides the rewrite needed for `/room/:roomId`.
 
-Use Google public STUN server. TURN optional.
+Backend:
+
+- Railway or Render.
+- Configure CORS with comma-separated `CLIENT_ORIGIN` values.
+
+Environment:
+
+- Backend:
+  - `PORT`
+  - `CLIENT_ORIGIN`
+- Frontend:
+  - `VITE_SOCKET_URL`
+
+LAN testing:
+
+- Frontend can be served with Vite `--host 0.0.0.0`.
+- Backend must listen on a LAN-reachable port.
+- `VITE_SOCKET_URL` must use the host machine LAN IP, not `localhost`.
+- Mic/camera generally require HTTPS or localhost; LAN HTTP may only support avatar/chat/presence.
 
 ## Code Requirements
 
--   TypeScript everywhere
--   Clean architecture
--   Reusable React hooks
--   Separate UI, Socket.IO, and WebRTC logic
--   Keep dependencies minimal
+- TypeScript everywhere.
+- Clean architecture.
+- Reusable React hooks.
+- Separate UI, Socket.IO, media, and WebRTC logic.
+- Keep dependencies minimal.
+- No database client.
+- No auth framework.
+- No media relay server.
 
 ## Deliverables
 
-Produce a complete production-ready project including: - frontend/ -
-backend/ - README.md - .env.example
+Project structure:
+
+- `frontend/`
+- `backend/`
+- `README.md`
+- `.env.example`
 
 The application must run locally with:
 
@@ -164,4 +418,9 @@ npm install
 npm run dev
 ```
 
-and be easy to deploy.
+Quality checks:
+
+``` bash
+npm run typecheck
+npm run build
+```

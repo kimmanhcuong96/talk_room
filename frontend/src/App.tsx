@@ -4,6 +4,7 @@ import { RoomAccessPage } from "./components/RoomAccessPage";
 import { RoomPage } from "./components/RoomPage";
 import { useRooms } from "./hooks/useRooms";
 import { useSocket } from "./hooks/useSocket";
+import { clearStoredSession, getCurrentUser, loginWithGoogleIdToken, readStoredToken, storeSession, type AuthSession } from "./lib/auth";
 import { type Language, isLanguage, translate } from "./lib/i18n";
 import { getRoomIdFromPath, homePath, roomPath } from "./lib/routes";
 
@@ -27,6 +28,9 @@ export function App() {
   const [activeRoom, setActiveRoom] = useState<ActiveRoom | null>(null);
   const [pendingJoin, setPendingJoin] = useState<ActiveRoom | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isSigningIn, setIsSigningIn] = useState(() => Boolean(readStoredToken()));
 
   const routeRoom = useMemo(() => (routeRoomId ? rooms.find((room) => room.id === routeRoomId) : undefined), [rooms, routeRoomId]);
   const selectedRoom = useMemo(() => (activeRoom ? rooms.find((room) => room.id === activeRoom.roomId) : undefined), [activeRoom, rooms]);
@@ -136,6 +140,70 @@ export function App() {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, nextLanguage);
   };
 
+  useEffect(() => {
+    const token = readStoredToken();
+
+    if (!token) {
+      setIsSigningIn(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsSigningIn(true);
+
+    getCurrentUser(token)
+      .then((user) => {
+        if (!cancelled) {
+          setAuthSession({ token, user });
+          setAuthError(null);
+        }
+      })
+      .catch((loadError) => {
+        if (!cancelled) {
+          clearStoredSession();
+          setAuthSession(null);
+          setAuthError(loadError instanceof Error ? loadError.message : "Could not load user profile.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsSigningIn(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleGoogleCredential = useCallback(
+    async (idToken: string) => {
+      setIsSigningIn(true);
+      setAuthError(null);
+
+      try {
+        const session = await loginWithGoogleIdToken(idToken);
+        storeSession(session);
+        setAuthSession(session);
+
+        if (!nickname.trim()) {
+          handleNicknameChange(session.user.displayName);
+        }
+      } catch (signInError) {
+        setAuthError(signInError instanceof Error ? signInError.message : "Google sign-in failed.");
+      } finally {
+        setIsSigningIn(false);
+      }
+    },
+    [nickname]
+  );
+
+  const handleSignOut = () => {
+    clearStoredSession();
+    setAuthSession(null);
+    setAuthError(null);
+  };
+
   const handleLeave = () => {
     socket.emit("leave-room");
     setActiveRoom(null);
@@ -200,6 +268,11 @@ export function App() {
       language={language}
       onNicknameChange={handleNicknameChange}
       onLanguageChange={handleLanguageChange}
+      user={authSession?.user ?? null}
+      authError={authError}
+      isSigningIn={isSigningIn}
+      onGoogleCredential={handleGoogleCredential}
+      onSignOut={handleSignOut}
       onJoin={handleJoin}
     />
   );

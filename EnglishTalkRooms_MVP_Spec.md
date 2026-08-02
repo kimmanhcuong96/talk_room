@@ -6,15 +6,15 @@ Build a lightweight web application for people to practice English speaking in s
 
 ## Principles
 
-- No database.
-- No authentication.
-- No OAuth.
-- Runtime state is stored in server RAM only.
+- Use a lightweight database only for authenticated user profiles.
+- Use Google OAuth only for the first authentication version.
+- Keep realtime room state in server RAM only.
 - Maximum 4 users per room.
 - Exactly 20 predefined rooms.
 - Lowest possible server cost.
 - WebRTC mesh peer-to-peer for audio/video media.
 - The server must never relay audio or video.
+- The frontend must never create or update users directly.
 
 ## Tech Stack
 
@@ -33,6 +33,16 @@ Build a lightweight web application for people to practice English speaking in s
 - Express.
 - Socket.IO.
 - TypeScript.
+- PostgreSQL client.
+- Google ID token verification.
+- Application JWT issuance.
+
+### Database
+
+- Neon Postgres.
+- Backend-only database access.
+- No media or image binary storage.
+- No chat history persistence in the MVP.
 
 ### Realtime
 
@@ -51,10 +61,18 @@ Server responsibilities:
 - In-memory chat history per room.
 - WebRTC signaling: offer, answer, ICE candidate.
 - User media status: mic, camera, screen sharing, and active screen track metadata.
+- Google OAuth ID token verification.
+- User profile creation and updates.
+- Application JWT issuance.
+- Authenticated user profile lookup.
 
 Client responsibilities:
 
 - UI rendering.
+- Google Sign-In initiation.
+- Sending Google ID tokens to the backend.
+- Application JWT persistence in `localStorage`.
+- Rendering backend-verified user profile information.
 - Local nickname persistence in `localStorage`.
 - Local language preference persistence in `localStorage`.
 - Client-side i18n rendering.
@@ -128,6 +146,87 @@ Behavior:
 - Density selector changes room grid density.
 - Language can be changed only on Home.
 - Language selection is persisted and reused after reload.
+- User information is shown on Home when authenticated.
+- Google avatar is rendered directly from the backend-verified `avatarUrl`.
+
+## Authentication
+
+The first version supports Google Sign-In only.
+
+Flow:
+
+``` text
+User
+  -> Google OAuth Login
+  -> Google returns ID Token
+  -> Backend verifies ID Token
+  -> Backend extracts user information
+  -> Backend finds user by Google ID
+  -> Existing user: update profile and last_login
+  -> New user: create users row
+  -> Backend generates application JWT
+  -> Backend returns JWT and user profile
+```
+
+Google profile fields extracted from the verified ID token:
+
+- Google user ID: `sub`
+- Email: `email`
+- Display name: `name`
+- Avatar URL: `picture`
+
+Backend endpoints:
+
+- `POST /auth/google`
+  - Request body: `{ "idToken": "google-id-token" }`
+  - Verifies the Google ID token.
+  - Creates or updates the user row.
+  - Returns `{ token, user }`.
+- `GET /auth/me`
+  - Requires `Authorization: Bearer <application-jwt>`.
+  - Returns the backend-verified user profile for the stored JWT.
+
+Frontend behavior:
+
+- The frontend loads Google Identity Services.
+- The frontend sends only the Google ID token to the backend.
+- The frontend stores the application JWT in `localStorage`.
+- On reload, the frontend calls `GET /auth/me` before rendering user information.
+- The frontend does not create, update, or trust user profile data directly.
+
+Future OAuth providers should be isolated behind provider-specific verification modules so Facebook, GitHub, or Apple can be added without changing the user persistence flow.
+
+## Database
+
+Use Neon Postgres as the managed database provider.
+
+The backend connects through `DATABASE_URL`.
+
+Create a `users` table:
+
+| Column       | Type      | Description           |
+| ------------ | --------- | --------------------- |
+| id           | UUID      | Primary Key           |
+| google_id    | VARCHAR   | Unique Google User ID |
+| email        | VARCHAR   | User email            |
+| display_name | VARCHAR   | Display name          |
+| avatar_url   | TEXT      | Google avatar URL     |
+| created_at   | TIMESTAMPTZ | Account creation time |
+| last_login   | TIMESTAMPTZ | Last successful login |
+
+Constraints:
+
+- `google_id` must be unique.
+- `email` must be unique.
+- Index both `google_id` and `email`.
+
+Database usage rules:
+
+- Only the backend communicates with Neon.
+- Store only profile metadata and the Google avatar URL.
+- Do not upload or store avatar images.
+- Do not store image binaries.
+- Do not persist room state, WebRTC signaling, or chat history in the MVP.
 
 ## Internationalization
 
@@ -190,14 +289,17 @@ Navigation:
 
 ## Nickname
 
-- No account or email.
-- Nickname is required before joining.
+- A nickname is still required before joining a room.
+- Authenticated users may use their Google display name as the default nickname.
 - Nickname is stored in `localStorage`.
 - Updating the nickname input updates `localStorage`.
 - On page reload, nickname is restored from `localStorage`.
 
 ## User Avatar
 
+- Authenticated user information uses the Google avatar URL stored in the database.
+- The Google avatar URL is rendered directly by the frontend.
+- The backend must not proxy, cache, upload, or store Google avatar image binaries.
 - Each user receives a random basic cute avatar when joining a room.
 - Avatar is generated by the backend and stored in RAM with the room user.
 - Avatar is sent with:
@@ -433,16 +535,30 @@ Frontend:
 Backend:
 
 - Render.
+- Connect to Neon Postgres with `DATABASE_URL`.
 - Configure CORS with comma-separated `CLIENT_ORIGIN` values.
 - Socket.IO should use short heartbeat settings so closed tabs or browsers are removed from rooms quickly.
+- Run the users table migration before enabling Google Sign-In.
+
+Database:
+
+- Neon Postgres.
+- Use the pooled connection string for serverless-style deployment if required by the hosting plan.
+- Keep database usage limited to authenticated user profiles in the MVP.
 
 Environment:
 
 - Backend:
   - `PORT`
   - `CLIENT_ORIGIN`
+  - `DATABASE_URL`
+  - `GOOGLE_CLIENT_ID`
+  - `JWT_SECRET`
+  - `JWT_EXPIRES_IN`
 - Frontend:
   - `VITE_SOCKET_URL`
+  - `VITE_API_URL`
+  - `VITE_GOOGLE_CLIENT_ID`
 
 LAN testing:
 
@@ -458,8 +574,7 @@ LAN testing:
 - Reusable React hooks.
 - Separate UI, Socket.IO, media, and WebRTC logic.
 - Keep dependencies minimal.
-- No database client.
-- No auth framework.
+- No heavyweight auth framework.
 - No media relay server.
 
 ## Deliverables

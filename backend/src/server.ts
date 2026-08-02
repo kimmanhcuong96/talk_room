@@ -2,7 +2,9 @@ import cors from "cors";
 import express from "express";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
+import { authRouter } from "./auth/authRoutes.js";
 import { env } from "./config/env.js";
+import { HttpError } from "./errors/httpError.js";
 import { getRoomSummaries } from "./rooms/roomStore.js";
 import { registerSocketHandlers } from "./socket/registerSocketHandlers.js";
 import type { AppServer } from "./types/socket.js";
@@ -18,6 +20,18 @@ app.get("/health", (_request, response) => {
 
 app.get("/rooms", (_request, response) => {
   response.json(getRoomSummaries());
+});
+
+app.use("/auth", authRouter);
+
+app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
+  if (error instanceof HttpError) {
+    response.status(error.statusCode).json({ error: error.message });
+    return;
+  }
+
+  console.error(error);
+  response.status(500).json({ error: "Internal server error." });
 });
 
 const httpServer = createServer(app);

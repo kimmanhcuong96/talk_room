@@ -28,10 +28,50 @@ Backend:
 
 - `PORT`: Express and Socket.IO port
 - `CLIENT_ORIGIN`: comma-separated allowed frontend origins
+- `DATABASE_URL`: Postgres connection string used by the backend for users
+- `GOOGLE_CLIENT_ID`: Google OAuth web client ID used to verify ID tokens
+- `JWT_SECRET`: long random secret used to sign application JWTs
+- `JWT_EXPIRES_IN`: optional JWT lifetime, defaults to `7d`
 
 Frontend:
 
 - `VITE_SOCKET_URL`: Socket.IO server URL
+- `VITE_API_URL`: backend HTTP API URL
+- `VITE_GOOGLE_CLIENT_ID`: Google OAuth web client ID used by Google Sign-In
+
+## Authentication
+
+The first authentication provider is Google Sign-In. The frontend receives a Google ID token from Google Identity Services and sends it to:
+
+```bash
+POST /auth/google
+```
+
+The backend verifies the ID token, creates or updates the `users` row, stores only the Google avatar URL, then returns:
+
+```json
+{
+  "token": "application-jwt",
+  "user": {
+    "id": "uuid",
+    "googleId": "google-sub",
+    "email": "user@gmail.com",
+    "displayName": "John Smith",
+    "avatarUrl": "https://lh3.googleusercontent.com/...",
+    "createdAt": "2026-08-02T00:00:00.000Z",
+    "lastLogin": "2026-08-02T00:00:00.000Z"
+  }
+}
+```
+
+After reload, the frontend verifies the stored application JWT through:
+
+```bash
+GET /auth/me
+Authorization: Bearer <application-jwt>
+```
+
+Run the SQL in `backend/migrations/001_create_users.sql` against the configured Postgres database before enabling login.
 
 ## Deployment
 

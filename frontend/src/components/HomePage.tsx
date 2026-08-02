@@ -1,5 +1,7 @@
-import { Check, ChevronDown, Coffee, Grid2X2, Info, MessageCircle, Plus, Search, Settings, ShieldCheck, Users } from "lucide-react";
+import { Check, ChevronDown, Coffee, Grid2X2, Info, LogOut, MessageCircle, Plus, Search, Settings, ShieldCheck, UserCircle, Users } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import { GoogleSignInButton } from "./GoogleSignInButton";
+import type { AuthUser } from "../lib/auth";
 import { type Language, languages, translate } from "../lib/i18n";
 import type { RoomSummary } from "../types/realtime";
 
@@ -9,8 +11,13 @@ type HomePageProps = {
   isConnected: boolean;
   error: string | null;
   language: Language;
+  user: AuthUser | null;
+  authError: string | null;
+  isSigningIn: boolean;
   onNicknameChange: (nickname: string) => void;
   onLanguageChange: (language: Language) => void;
+  onGoogleCredential: (idToken: string) => void;
+  onSignOut: () => void;
   onJoin: (roomId: string) => void;
 };
 
@@ -71,8 +78,13 @@ export function HomePage({
   isConnected,
   error,
   language,
+  user,
+  authError,
+  isSigningIn,
   onNicknameChange,
   onLanguageChange,
+  onGoogleCredential,
+  onSignOut,
   onJoin
 }: HomePageProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -106,6 +118,50 @@ export function HomePage({
           </p>
         </div>
         <div className="grid w-full max-w-sm gap-3">
+          <section className="rounded-lg border border-white/10 bg-panel p-4 shadow-xl shadow-black/15">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-white/80">
+              <UserCircle size={17} />
+              <span>User information</span>
+            </div>
+
+            {user ? (
+              <div className="flex min-w-0 items-center gap-3">
+                {user.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    className="h-12 w-12 shrink-0 rounded-full border border-white/10 bg-white/10 object-cover"
+                  />
+                ) : (
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-white/10 bg-white/10">
+                    <UserCircle size={24} className="text-white/60" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-white">{user.displayName}</p>
+                  <p className="truncate text-xs text-white/55">{user.email}</p>
+                </div>
+                <button
+                  type="button"
+                  title="Sign out"
+                  aria-label="Sign out"
+                  onClick={onSignOut}
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
+                >
+                  <LogOut size={17} />
+                </button>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                <GoogleSignInButton disabled={isSigningIn} onCredential={onGoogleCredential} />
+                {isSigningIn ? <p className="text-sm text-mint">Signing in...</p> : null}
+              </div>
+            )}
+
+            {authError ? <p className="mt-3 text-sm text-coral">{authError}</p> : null}
+          </section>
+
           <div>
             <label className="mb-2 block text-sm font-medium text-white/70" id="language-label">
               {t("language")}

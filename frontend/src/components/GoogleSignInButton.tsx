@@ -12,7 +12,7 @@ export function GoogleSignInButton({ disabled, onCredential }: GoogleSignInButto
   const initializedClientIdRef = useRef<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID?.trim();
 
   const initializeGoogleSignIn = useCallback(async () => {
     if (!clientId) {

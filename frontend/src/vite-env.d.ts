@@ -22,6 +22,12 @@ interface Window {
             width?: number;
           }
         ) => void;
+        prompt: (callback?: (notification: {
+          isNotDisplayed: () => boolean;
+          isSkippedMoment: () => boolean;
+          getNotDisplayedReason: () => string;
+          getSkippedReason: () => string;
+        }) => void) => void;
         disableAutoSelect: () => void;
       };
     };

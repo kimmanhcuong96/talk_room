@@ -36,6 +36,24 @@ function toUserProfile(row: UserRow): UserProfile {
   };
 }
 
+function mapDatabaseError(error: unknown): never {
+  if (typeof error === "object" && error !== null && "code" in error) {
+    if (error.code === "23505") {
+      throw new HttpError(409, "This email is already linked to another account.");
+    }
+
+    if (error.code === "42P01") {
+      throw new HttpError(500, "Database table users does not exist. Run backend/migrations/001_create_users.sql on Neon.");
+    }
+
+    if (error.code === "28P01" || error.code === "3D000" || error.code === "ENOTFOUND" || error.code === "ECONNREFUSED") {
+      throw new HttpError(500, "DATABASE_URL is invalid or Neon is unreachable.");
+    }
+  }
+
+  throw error;
+}
+
 export async function upsertGoogleUser(profile: VerifiedOAuthProfile) {
   try {
     const result = await getPool().query<UserRow>(
@@ -55,24 +73,24 @@ export async function upsertGoogleUser(profile: VerifiedOAuthProfile) {
 
     return toUserProfile(result.rows[0]);
   } catch (error) {
-    if (typeof error === "object" && error !== null && "code" in error && error.code === "23505") {
-      throw new HttpError(409, "This email is already linked to another account.");
-    }
-
-    throw error;
+    mapDatabaseError(error);
   }
 }
 
 export async function findUserById(userId: string) {
-  const result = await getPool().query<UserRow>(
-    `
-      SELECT id, google_id, email, display_name, avatar_url, created_at, last_login
-      FROM users
-      WHERE id = $1
-    `,
-    [userId]
-  );
+  try {
+    const result = await getPool().query<UserRow>(
+      `
+        SELECT id, google_id, email, display_name, avatar_url, created_at, last_login
+        FROM users
+        WHERE id = $1
+      `,
+      [userId]
+    );
 
-  const row = result.rows[0];
-  return row ? toUserProfile(row) : null;
+    const row = result.rows[0];
+    return row ? toUserProfile(row) : null;
+  } catch (error) {
+    mapDatabaseError(error);
+  }
 }

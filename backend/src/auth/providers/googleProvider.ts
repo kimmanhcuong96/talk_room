@@ -10,10 +10,16 @@ export async function verifyGoogleIdToken(idToken: string): Promise<VerifiedOAut
     throw new HttpError(500, "GOOGLE_CLIENT_ID is not configured.");
   }
 
-  const ticket = await googleClient.verifyIdToken({
-    idToken,
-    audience: env.googleClientId
-  });
+  let ticket;
+
+  try {
+    ticket = await googleClient.verifyIdToken({
+      idToken,
+      audience: env.googleClientId
+    });
+  } catch {
+    throw new HttpError(401, "Invalid Google ID token or GOOGLE_CLIENT_ID mismatch.");
+  }
   const payload = ticket.getPayload();
 
   if (!payload?.sub || !payload.email) {

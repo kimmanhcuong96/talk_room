@@ -85,7 +85,10 @@ Run the SQL in `backend/migrations/001_create_users.sql` against the configured 
 1. In the GitHub repository, open **Settings > Pages**.
 2. Set **Build and deployment > Source** to **GitHub Actions**.
 3. Open **Settings > Secrets and variables > Actions > Variables**.
-4. Add `VITE_SOCKET_URL` with the deployed backend URL, for example `https://your-app.onrender.com`.
+4. Add these GitHub Actions variables:
+   - `VITE_SOCKET_URL` with the deployed backend URL, for example `https://your-app.onrender.com`.
+   - `VITE_API_URL` with the deployed backend URL.
+   - `VITE_GOOGLE_CLIENT_ID` with the Google OAuth web client ID.
 5. Push to `master` or run **Deploy frontend to GitHub Pages** manually from the **Actions** tab.
 
 The server only manages rooms, chat, presence, and WebRTC signaling. Audio and video are never relayed through the server.

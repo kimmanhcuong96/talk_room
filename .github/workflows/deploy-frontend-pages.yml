@@ -34,6 +34,8 @@ jobs:
         run: npm run build -w frontend
         env:
           VITE_SOCKET_URL: ${{ vars.VITE_SOCKET_URL }}
+          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
 
       - name: Setup Pages

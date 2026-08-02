@@ -32,7 +32,7 @@ export type ClientToServerEvents = {
   "media-status": (payload: { micEnabled: boolean; cameraEnabled: boolean; screenSharing: boolean; screenTrackId: string | null }) => void;
   offer: (payload: { to: string; description: RTCSessionDescriptionInit }) => void;
   answer: (payload: { to: string; description: RTCSessionDescriptionInit }) => void;
-  "ice-candidate": (payload: { to: string; candidate: RTCIceCandidateInit }) => void;
+  "ice-candidate": (payload: { to: string; candidate: RTCIceCandidateInit | null }) => void;
 };
 
 export type ServerToClientEvents = {
@@ -48,5 +48,5 @@ export type ServerToClientEvents = {
   "receive-message": (message: ChatMessage) => void;
   offer: (payload: { from: string; description: RTCSessionDescriptionInit }) => void;
   answer: (payload: { from: string; description: RTCSessionDescriptionInit }) => void;
-  "ice-candidate": (payload: { from: string; candidate: RTCIceCandidateInit }) => void;
+  "ice-candidate": (payload: { from: string; candidate: RTCIceCandidateInit | null }) => void;
 };

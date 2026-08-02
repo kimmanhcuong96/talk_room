@@ -7,12 +7,20 @@ type RemotePeer = RoomUser & {
 };
 
 const rtcConfig: RTCConfiguration = {
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+  iceCandidatePoolSize: 10,
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun.cloudflare.com:3478" }
+  ]
 };
 
 export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
   const peersRef = useRef(new Map<string, RTCPeerConnection>());
   const makingOfferRef = useRef(new Map<string, boolean>());
+  const pendingIceCandidatesRef = useRef(new Map<string, RTCIceCandidateInit[]>());
+  const disconnectTimersRef = useRef(new Map<string, number>());
   const localStreamRef = useRef<MediaStream | null>(null);
   const usersRef = useRef<RoomUser[]>([]);
   const [users, setUsers] = useState<RoomUser[]>([]);
@@ -22,32 +30,31 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
     usersRef.current = users;
   }, [users]);
 
-  useEffect(() => {
-    localStreamRef.current = localStream;
-
-    peersRef.current.forEach((connection) => {
-      const nextTrackIds = new Set(localStream?.getTracks().map((track) => track.id) ?? []);
-
-      connection.getSenders().forEach((sender) => {
-        if (sender.track && !nextTrackIds.has(sender.track.id)) {
-          connection.removeTrack(sender);
-        }
-      });
-
-      const existingTrackIds = new Set(connection.getSenders().map((sender) => sender.track?.id));
-      localStream?.getTracks().forEach((track) => {
-        if (!existingTrackIds.has(track.id)) {
-          connection.addTrack(track, localStream);
-        }
-      });
-    });
-  }, [localStream]);
-
   const closePeer = useCallback((socketId: string) => {
+    const disconnectTimer = disconnectTimersRef.current.get(socketId);
+    if (disconnectTimer) {
+      window.clearTimeout(disconnectTimer);
+      disconnectTimersRef.current.delete(socketId);
+    }
+
     peersRef.current.get(socketId)?.close();
     peersRef.current.delete(socketId);
     makingOfferRef.current.delete(socketId);
+    pendingIceCandidatesRef.current.delete(socketId);
     setRemotePeers((current) => current.map((peer) => (peer.socketId === socketId ? { ...peer, stream: null } : peer)));
+  }, []);
+
+  const flushPendingIceCandidates = useCallback(async (peerId: string, connection: RTCPeerConnection) => {
+    const pendingCandidates = pendingIceCandidatesRef.current.get(peerId) ?? [];
+    if (!pendingCandidates.length || !connection.remoteDescription) {
+      return;
+    }
+
+    pendingIceCandidatesRef.current.delete(peerId);
+
+    for (const candidate of pendingCandidates) {
+      await connection.addIceCandidate(candidate);
+    }
   }, []);
 
   const createAndSendOffer = useCallback(
@@ -69,6 +76,41 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
     [socket]
   );
 
+  useEffect(() => {
+    localStreamRef.current = localStream;
+
+    peersRef.current.forEach((connection, peerId) => {
+      let tracksChanged = false;
+      const nextTrackIds = new Set(localStream?.getTracks().map((track) => track.id) ?? []);
+
+      connection.getSenders().forEach((sender) => {
+        if (sender.track && !nextTrackIds.has(sender.track.id)) {
+          connection.removeTrack(sender);
+          tracksChanged = true;
+        }
+      });
+
+      const existingTrackIds = new Set(connection.getSenders().map((sender) => sender.track?.id));
+      localStream?.getTracks().forEach((track) => {
+        if (!existingTrackIds.has(track.id)) {
+          connection.addTrack(track, localStream);
+          tracksChanged = true;
+        }
+      });
+
+      if (tracksChanged && connection.signalingState === "stable") {
+        if (connection.connectionState === "connected") {
+          void createAndSendOffer(peerId);
+        } else {
+          console.log(`[WebRTC][${peerId}] postponed renegotiation until connected:`, {
+            connectionState: connection.connectionState,
+            signalingState: connection.signalingState
+          });
+        }
+      }
+    });
+  }, [createAndSendOffer, localStream]);
+
   const ensurePeerConnection = useCallback(
     (peerId: string) => {
       if (typeof RTCPeerConnection === "undefined") {
@@ -82,19 +124,86 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
 
       const connection = new RTCPeerConnection(rtcConfig);
       const remoteStream = new MediaStream();
+      const logPeerState = (label: string, value: string) => {
+        console.log(`[WebRTC][${peerId}] ${label}:`, value);
+      };
+      const logCandidatePairStats = async (reason: string) => {
+        const stats = await connection.getStats();
+        const candidates = new Map<string, RTCStats>();
+
+        stats.forEach((report) => {
+          if (report.type === "local-candidate" || report.type === "remote-candidate") {
+            candidates.set(report.id, report);
+          }
+        });
+
+        stats.forEach((report) => {
+          if (report.type !== "candidate-pair") {
+            return;
+          }
+
+          const pair = report as RTCIceCandidatePairStats;
+          if (pair.state !== "succeeded" && !pair.nominated && pair.state !== "in-progress") {
+            return;
+          }
+
+          const localCandidate = candidates.get(pair.localCandidateId ?? "");
+          const remoteCandidate = candidates.get(pair.remoteCandidateId ?? "");
+
+          console.log(`[WebRTC][${peerId}] candidate pair (${reason}):`, {
+            state: pair.state,
+            nominated: pair.nominated,
+            bytesSent: pair.bytesSent,
+            bytesReceived: pair.bytesReceived,
+            localCandidate,
+            remoteCandidate
+          });
+        });
+      };
 
       localStreamRef.current?.getTracks().forEach((track) => {
         connection.addTrack(track, localStreamRef.current!);
       });
 
-      connection.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit("ice-candidate", { to: peerId, candidate: event.candidate.toJSON() });
-        }
+      connection.onsignalingstatechange = () => {
+        logPeerState("signalingState", connection.signalingState);
       };
 
-      connection.onnegotiationneeded = () => {
-        void createAndSendOffer(peerId);
+      connection.onicegatheringstatechange = () => {
+        logPeerState("iceGatheringState", connection.iceGatheringState);
+      };
+
+      connection.oniceconnectionstatechange = () => {
+        logPeerState("iceConnectionState", connection.iceConnectionState);
+      };
+
+      connection.onicecandidateerror = (event) => {
+        console.warn(`[WebRTC][${peerId}] ICE candidate error:`, {
+          address: event.address,
+          port: event.port,
+          url: event.url,
+          errorCode: event.errorCode,
+          errorText: event.errorText
+        });
+      };
+
+      connection.onicecandidate = (event) => {
+        if (event.candidate) {
+          console.log(`[WebRTC][${peerId}] local ICE candidate:`, {
+            type: event.candidate.type,
+            protocol: event.candidate.protocol,
+            address: event.candidate.address,
+            port: event.candidate.port,
+            candidateType: event.candidate.candidate
+          });
+        } else {
+          console.log(`[WebRTC][${peerId}] local ICE candidate: end-of-candidates`);
+        }
+
+        socket.emit("ice-candidate", {
+          to: peerId,
+          candidate: event.candidate ? event.candidate.toJSON() : null
+        });
       };
 
       connection.ontrack = (event) => {
@@ -134,8 +243,27 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
       };
 
       connection.onconnectionstatechange = () => {
-        if (["closed", "failed", "disconnected"].includes(connection.connectionState)) {
+        logPeerState("connectionState", connection.connectionState);
+
+        if (connection.connectionState === "connected") {
+          void logCandidatePairStats("connected");
+          const disconnectTimer = disconnectTimersRef.current.get(peerId);
+          if (disconnectTimer) {
+            window.clearTimeout(disconnectTimer);
+            disconnectTimersRef.current.delete(peerId);
+          }
+          return;
+        }
+
+        if (connection.connectionState === "failed" || connection.connectionState === "closed") {
+          void logCandidatePairStats(connection.connectionState);
           closePeer(peerId);
+          return;
+        }
+
+        if (connection.connectionState === "disconnected" && !disconnectTimersRef.current.has(peerId)) {
+          const disconnectTimer = window.setTimeout(() => closePeer(peerId), 10000);
+          disconnectTimersRef.current.set(peerId, disconnectTimer);
         }
       };
 
@@ -192,6 +320,10 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
     };
 
     const handleOffer = async ({ from, description }: { from: string; description: RTCSessionDescriptionInit }) => {
+      console.log(`[WebRTC][${from}] received offer:`, {
+        signalingState: peersRef.current.get(from)?.signalingState ?? "new",
+        hasSdp: Boolean(description.sdp)
+      });
       const connection = ensurePeerConnection(from);
       if (!connection) {
         return;
@@ -202,25 +334,57 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
       }
 
       await connection.setRemoteDescription(description);
+      await flushPendingIceCandidates(from, connection);
       const answer = await connection.createAnswer();
       await connection.setLocalDescription(answer);
+      console.log(`[WebRTC][${from}] sending answer:`, {
+        signalingState: connection.signalingState,
+        hasSdp: Boolean(answer.sdp)
+      });
       socket.emit("answer", { to: from, description: answer });
     };
 
     const handleAnswer = async ({ from, description }: { from: string; description: RTCSessionDescriptionInit }) => {
       const connection = peersRef.current.get(from);
       if (connection && connection.signalingState !== "stable") {
+        console.log(`[WebRTC][${from}] received answer:`, {
+          signalingState: connection.signalingState,
+          hasSdp: Boolean(description.sdp)
+        });
         await connection.setRemoteDescription(description);
+        await flushPendingIceCandidates(from, connection);
       }
     };
 
-    const handleIceCandidate = async ({ from, candidate }: { from: string; candidate: RTCIceCandidateInit }) => {
+    const handleIceCandidate = async ({ from, candidate }: { from: string; candidate: RTCIceCandidateInit | null }) => {
+      console.log(`[WebRTC][${from}] received ICE candidate:`, candidate ? candidate.candidate : "end-of-candidates");
       const connection = ensurePeerConnection(from);
       if (!connection) {
         return;
       }
 
-      await connection.addIceCandidate(candidate);
+      try {
+        if (!candidate) {
+          if (connection.remoteDescription) {
+            await connection.addIceCandidate();
+          } else {
+            console.log(`[WebRTC][${from}] queued end-of-candidates before remoteDescription`);
+          }
+          return;
+        }
+
+        if (!connection.remoteDescription) {
+          const pendingCandidates = pendingIceCandidatesRef.current.get(from) ?? [];
+          pendingCandidates.push(candidate);
+          pendingIceCandidatesRef.current.set(from, pendingCandidates);
+          console.log(`[WebRTC][${from}] queued ICE candidate before remoteDescription:`, pendingCandidates.length);
+          return;
+        }
+
+        await connection.addIceCandidate(candidate);
+      } catch (error) {
+        console.warn(`[WebRTC][${from}] addIceCandidate failed:`, error, candidate);
+      }
     };
 
     socket.on("room-users", handleRoomUsers);
@@ -240,12 +404,15 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
       socket.off("answer", handleAnswer);
       socket.off("ice-candidate", handleIceCandidate);
       peersRef.current.forEach((connection) => connection.close());
+      disconnectTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
       peersRef.current.clear();
       makingOfferRef.current.clear();
+      pendingIceCandidatesRef.current.clear();
+      disconnectTimersRef.current.clear();
       setRemotePeers([]);
       setUsers([]);
     };
-  }, [closePeer, createAndSendOffer, ensurePeerConnection, socket]);
+  }, [closePeer, createAndSendOffer, ensurePeerConnection, flushPendingIceCandidates, socket]);
 
   return { users, remotePeers };
 }

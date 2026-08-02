@@ -30,10 +30,12 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [isSigningIn, setIsSigningIn] = useState(() => Boolean(readStoredToken()));
+  const [isAuthLoading, setIsAuthLoading] = useState(() => Boolean(readStoredToken()));
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   const routeRoom = useMemo(() => (routeRoomId ? rooms.find((room) => room.id === routeRoomId) : undefined), [rooms, routeRoomId]);
   const selectedRoom = useMemo(() => (activeRoom ? rooms.find((room) => room.id === activeRoom.roomId) : undefined), [activeRoom, rooms]);
+  const authenticatedNickname = authSession?.user.displayName.trim() || "";
 
   useEffect(() => {
     const handlePopState = () => {
@@ -94,13 +96,6 @@ export function App() {
   }, [language, socket]);
 
   const handleJoin = (roomId: string) => {
-    const cleanNickname = nickname.trim();
-    if (!cleanNickname) {
-      setError(translate(language, "nicknameRequired"));
-      return;
-    }
-
-    localStorage.setItem(NICKNAME_STORAGE_KEY, cleanNickname);
     setError(null);
     setActiveRoom(null);
     setPendingJoin(null);
@@ -113,14 +108,17 @@ export function App() {
       return;
     }
 
-    const cleanNickname = nickname.trim();
+    const cleanNickname = authenticatedNickname || nickname.trim();
     if (!cleanNickname) {
       setError(translate(language, "nicknameRequired"));
       return;
     }
 
-    if (!isConnected) {
+    if (!authenticatedNickname) {
       localStorage.setItem(NICKNAME_STORAGE_KEY, cleanNickname);
+    }
+
+    if (!isConnected) {
       setPendingJoin({ roomId: routeRoomId, nickname: cleanNickname });
       setError(`${translate(language, "connectingServer")}...`);
       socket.connect();
@@ -144,12 +142,12 @@ export function App() {
     const token = readStoredToken();
 
     if (!token) {
-      setIsSigningIn(false);
+      setIsAuthLoading(false);
       return;
     }
 
     let cancelled = false;
-    setIsSigningIn(true);
+    setIsAuthLoading(true);
 
     getCurrentUser(token)
       .then((user) => {
@@ -162,12 +160,16 @@ export function App() {
         if (!cancelled) {
           clearStoredSession();
           setAuthSession(null);
-          setAuthError(loadError instanceof Error ? loadError.message : "Could not load user profile.");
+          setAuthError(
+            loadError instanceof Error && loadError.message !== "LOAD_USER_PROFILE_FAILED"
+              ? loadError.message
+              : translate(language, "loadUserProfileFailed")
+          );
         }
       })
       .finally(() => {
         if (!cancelled) {
-          setIsSigningIn(false);
+          setIsAuthLoading(false);
         }
       });
 
@@ -185,17 +187,17 @@ export function App() {
         const session = await loginWithGoogleIdToken(idToken);
         storeSession(session);
         setAuthSession(session);
-
-        if (!nickname.trim()) {
-          handleNicknameChange(session.user.displayName);
-        }
       } catch (signInError) {
-        setAuthError(signInError instanceof Error ? signInError.message : "Google sign-in failed.");
+        setAuthError(
+          signInError instanceof Error && signInError.message !== "GOOGLE_SIGN_IN_FAILED"
+            ? signInError.message
+            : translate(language, "googleSignInFailed")
+        );
       } finally {
         setIsSigningIn(false);
       }
     },
-    [nickname]
+    [language]
   );
 
   const handleSignOut = () => {
@@ -249,6 +251,7 @@ export function App() {
       <RoomAccessPage
         room={routeRoom}
         nickname={nickname}
+        authenticatedNickname={authenticatedNickname}
         isConnected={isConnected}
         error={error ?? connectionError}
         language={language}
@@ -262,14 +265,13 @@ export function App() {
   return (
     <HomePage
       rooms={rooms}
-      nickname={nickname}
       isConnected={isConnected}
       error={error ?? connectionError}
       language={language}
-      onNicknameChange={handleNicknameChange}
       onLanguageChange={handleLanguageChange}
       user={authSession?.user ?? null}
       authError={authError}
+      isAuthLoading={isAuthLoading}
       isSigningIn={isSigningIn}
       onGoogleCredential={handleGoogleCredential}
       onSignOut={handleSignOut}

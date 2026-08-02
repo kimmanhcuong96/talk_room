@@ -43,7 +43,7 @@ export async function loginWithGoogleIdToken(idToken: string): Promise<AuthSessi
   const body = (await response.json().catch(() => ({}))) as Partial<AuthSession> & { error?: string };
 
   if (!response.ok || !body.token || !body.user) {
-    throw new Error(body.error ?? "Google sign-in failed.");
+    throw new Error(body.error ?? "GOOGLE_SIGN_IN_FAILED");
   }
 
   return { token: body.token, user: body.user };
@@ -57,7 +57,7 @@ export async function getCurrentUser(token: string): Promise<AuthUser> {
   const body = (await response.json().catch(() => ({}))) as { user?: AuthUser; error?: string };
 
   if (!response.ok || !body.user) {
-    throw new Error(body.error ?? "Could not load user profile.");
+    throw new Error(body.error ?? "LOAD_USER_PROFILE_FAILED");
   }
 
   return body.user;

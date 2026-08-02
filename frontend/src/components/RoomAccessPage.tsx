@@ -5,6 +5,7 @@ import type { RoomSummary } from "../types/realtime";
 type RoomAccessPageProps = {
   room: RoomSummary;
   nickname: string;
+  authenticatedNickname: string;
   isConnected: boolean;
   error: string | null;
   language: Language;
@@ -16,6 +17,7 @@ type RoomAccessPageProps = {
 export function RoomAccessPage({
   room,
   nickname,
+  authenticatedNickname,
   isConnected,
   error,
   language,
@@ -24,7 +26,8 @@ export function RoomAccessPage({
   onBack
 }: RoomAccessPageProps) {
   const isFull = room.users >= room.capacity;
-  const disabled = !nickname.trim() || isFull;
+  const effectiveNickname = authenticatedNickname || nickname.trim();
+  const disabled = !effectiveNickname || isFull;
   const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
 
   return (
@@ -48,17 +51,26 @@ export function RoomAccessPage({
           </div>
         </div>
 
-        <label className="mt-6 block text-sm font-medium text-white/70" htmlFor="ready-nickname">
-          {t("nickname")}
-        </label>
-        <input
-          id="ready-nickname"
-          maxLength={32}
-          value={nickname}
-          onChange={(event) => onNicknameChange(event.target.value)}
-          placeholder={t("nicknamePlaceholder")}
-          className="mt-2 h-12 w-full rounded-md border border-white/10 bg-field px-4 text-white outline-none transition placeholder:text-white/35 focus:border-mint"
-        />
+        {authenticatedNickname ? (
+          <div className="mt-6 rounded-md border border-white/10 bg-field px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-white/45">{t("nickname")}</p>
+            <p className="mt-1 truncate text-base font-semibold text-white">{authenticatedNickname}</p>
+          </div>
+        ) : (
+          <>
+            <label className="mt-6 block text-sm font-medium text-white/70" htmlFor="ready-nickname">
+              {t("nickname")}
+            </label>
+            <input
+              id="ready-nickname"
+              maxLength={32}
+              value={nickname}
+              onChange={(event) => onNicknameChange(event.target.value)}
+              placeholder={t("nicknamePlaceholder")}
+              className="mt-2 h-12 w-full rounded-md border border-white/10 bg-field px-4 text-white outline-none transition placeholder:text-white/35 focus:border-mint"
+            />
+          </>
+        )}
 
         {error ? <div className="mt-4 rounded-md border border-coral/40 bg-coral/15 px-4 py-3 text-sm text-coral">{error}</div> : null}
 

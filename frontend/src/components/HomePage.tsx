@@ -1,5 +1,5 @@
-import { Check, ChevronDown, Coffee, Grid2X2, Info, LogOut, MessageCircle, Plus, Search, Settings, ShieldCheck, UserCircle, Users } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, Coffee, Grid2X2, Info, LoaderCircle, LogIn, LogOut, MessageCircle, Plus, Search, Settings, ShieldCheck, UserCircle, Users, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { GoogleSignInButton } from "./GoogleSignInButton";
 import type { AuthUser } from "../lib/auth";
 import { type Language, languages, translate } from "../lib/i18n";
@@ -7,14 +7,13 @@ import type { RoomSummary } from "../types/realtime";
 
 type HomePageProps = {
   rooms: RoomSummary[];
-  nickname: string;
   isConnected: boolean;
   error: string | null;
   language: Language;
   user: AuthUser | null;
   authError: string | null;
+  isAuthLoading: boolean;
   isSigningIn: boolean;
-  onNicknameChange: (nickname: string) => void;
   onLanguageChange: (language: Language) => void;
   onGoogleCredential: (idToken: string) => void;
   onSignOut: () => void;
@@ -74,14 +73,13 @@ function FlagIcon({ language }: { language: Language }) {
 
 export function HomePage({
   rooms,
-  nickname,
   isConnected,
   error,
   language,
   user,
   authError,
+  isAuthLoading,
   isSigningIn,
-  onNicknameChange,
   onLanguageChange,
   onGoogleCredential,
   onSignOut,
@@ -90,7 +88,10 @@ export function HomePage({
   const [searchQuery, setSearchQuery] = useState("");
   const [density, setDensity] = useState<RoomDensity>("3x");
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
+  const [oauthMenuOpen, setOauthMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const languageMenuRef = useRef<HTMLDivElement | null>(null);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
   const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
   const selectedLanguage = languages.find((option) => option.value === language) ?? languages[0];
 
@@ -102,6 +103,24 @@ export function HomePage({
 
     return rooms.filter((room) => room.name.toLowerCase().includes(query));
   }, [rooms, searchQuery]);
+
+  useEffect(() => {
+    if (!userMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!userMenuRef.current?.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [userMenuOpen]);
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
@@ -117,55 +136,105 @@ export function HomePage({
             {isConnected ? t("serverConnected") : t("connectingServer")}
           </p>
         </div>
-        <div className="grid w-full max-w-sm gap-3">
-          <section className="rounded-lg border border-white/10 bg-panel p-4 shadow-xl shadow-black/15">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-white/80">
-              <UserCircle size={17} />
-              <span>User information</span>
-            </div>
-
-            {user ? (
-              <div className="flex min-w-0 items-center gap-3">
-                {user.avatarUrl ? (
-                  <img
-                    src={user.avatarUrl}
-                    alt=""
-                    referrerPolicy="no-referrer"
-                    className="h-12 w-12 shrink-0 rounded-full border border-white/10 bg-white/10 object-cover"
-                  />
-                ) : (
-                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-white/10 bg-white/10">
-                    <UserCircle size={24} className="text-white/60" />
-                  </div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-white">{user.displayName}</p>
-                  <p className="truncate text-xs text-white/55">{user.email}</p>
+        <div className="grid w-full max-w-sm grid-cols-2 items-start gap-3">
+          <section className="min-w-0">
+            {isAuthLoading ? (
+              <div className="grid h-12 w-full place-items-center rounded-md border border-white/10 bg-panel shadow-xl shadow-black/15">
+                <LoaderCircle size={18} className="animate-spin text-mint" aria-hidden="true" />
+              </div>
+            ) : user ? (
+              <div ref={userMenuRef} className="relative">
+                <div className="flex h-12 min-w-0 items-center gap-2 rounded-md border border-white/10 bg-panel px-2 shadow-xl shadow-black/15">
+                  <button
+                    type="button"
+                    aria-expanded={userMenuOpen}
+                    onClick={() => setUserMenuOpen((open) => !open)}
+                    className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-1 text-left transition hover:bg-white/5"
+                  >
+                    {user.avatarUrl ? (
+                      <img
+                        src={user.avatarUrl}
+                        alt=""
+                        referrerPolicy="no-referrer"
+                        className="h-9 w-9 shrink-0 rounded-full border border-white/10 bg-white/10 object-cover"
+                      />
+                    ) : (
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/10 bg-white/10">
+                        <UserCircle size={20} className="text-white/60" />
+                      </div>
+                    )}
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">{user.displayName}</span>
+                  </button>
+                  <button
+                    type="button"
+                    title={t("signOut")}
+                    aria-label={t("signOut")}
+                    onClick={onSignOut}
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
+                  >
+                    <LogOut size={16} />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  title="Sign out"
-                  aria-label="Sign out"
-                  onClick={onSignOut}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-white/5 text-white/70 transition hover:bg-white/10 hover:text-white"
-                >
-                  <LogOut size={17} />
-                </button>
+
+                {userMenuOpen ? (
+                  <div className="absolute left-0 z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-white/10 bg-[#182635] p-4 text-white shadow-2xl shadow-black/40">
+                    <div className="flex min-w-0 items-center gap-3">
+                      {user.avatarUrl ? (
+                        <img
+                          src={user.avatarUrl}
+                          alt=""
+                          referrerPolicy="no-referrer"
+                          className="h-14 w-14 shrink-0 rounded-full border border-white/10 bg-white/10 object-cover"
+                        />
+                      ) : (
+                        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-full border border-white/10 bg-white/10">
+                          <UserCircle size={30} className="text-white/60" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-base font-semibold text-white">{user.displayName}</p>
+                        <p className="mt-1 truncate text-sm text-white/62">{user.email}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid gap-2 border-t border-white/10 pt-3 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-white/55">{t("signIn")}</span>
+                        <span className="truncate font-medium text-mint">{t("google")}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          onSignOut();
+                        }}
+                        className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-md bg-white/8 px-3 text-sm font-medium text-white/85 transition hover:bg-white/12 hover:text-white"
+                      >
+                        <LogOut size={16} />
+                        <span>{t("signOut")}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : (
-              <div className="grid gap-3">
-                <GoogleSignInButton disabled={isSigningIn} onCredential={onGoogleCredential} />
-                {isSigningIn ? <p className="text-sm text-mint">Signing in...</p> : null}
-              </div>
+              <button
+                type="button"
+                disabled={isSigningIn}
+                onClick={() => setOauthMenuOpen(true)}
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md bg-mint px-3 text-sm font-semibold text-ink transition hover:bg-mint/90 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <LogIn size={17} />
+                <span className="truncate">{isSigningIn ? t("signingIn") : t("signIn")}</span>
+              </button>
             )}
 
             {authError ? <p className="mt-3 text-sm text-coral">{authError}</p> : null}
           </section>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-white/70" id="language-label">
+          <div className="min-w-0">
+            {/* <label className="mb-2 block text-sm font-medium text-white/70" id="language-label">
               {t("language")}
-            </label>
+            </label> */}
             <div
               ref={languageMenuRef}
               className="relative"
@@ -219,19 +288,42 @@ export function HomePage({
               ) : null}
             </div>
           </div>
-          <label className="mb-2 block text-sm font-medium text-white/70" htmlFor="nickname">
-            {t("nickname")}
-          </label>
-          <input
-            id="nickname"
-            maxLength={32}
-            value={nickname}
-            onChange={(event) => onNicknameChange(event.target.value)}
-            placeholder={t("nicknamePlaceholder")}
-            className="h-12 w-full rounded-md border border-white/10 bg-field px-4 text-white outline-none transition placeholder:text-white/35 focus:border-mint"
-          />
         </div>
       </header>
+
+      {oauthMenuOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4 backdrop-blur-sm">
+          <section className="flex min-h-64 w-full max-w-sm flex-col rounded-lg border border-black/10 bg-white p-5 text-[#202124] shadow-2xl shadow-black/40">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h2 className="truncate text-lg font-semibold text-[#202124]">{t("chooseSignInMethod")}</h2>
+              </div>
+              <button
+                type="button"
+                title={t("closeSignIn")}
+                aria-label={t("closeSignIn")}
+                onClick={() => setOauthMenuOpen(false)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-black/5 text-[#5f6368] transition hover:bg-black/10 hover:text-[#202124]"
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            <div className="grid flex-1 content-center">
+              <GoogleSignInButton
+                variant="google-blue"
+                disabled={isSigningIn}
+                renderedOnly
+                language={language}
+                onCredential={(idToken) => {
+                  setOauthMenuOpen(false);
+                  onGoogleCredential(idToken);
+                }}
+              />
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       <section className="flex flex-col gap-4">
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
@@ -242,20 +334,20 @@ export function HomePage({
             <Plus size={18} />
             {t("createGroup")}
           </button>
-          <button
+          {/* <button
             type="button"
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#ffd84d] px-4 text-sm font-semibold text-[#171100] transition hover:bg-[#f0c930]"
           >
             <Coffee size={18} />
             {t("buyMeCoffee")}
-          </button>
-          <button
+          </button> */}
+          {/* <button
             type="button"
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[#258ff4] bg-transparent px-4 text-sm font-medium text-[#55aaff] transition hover:bg-[#258ff4]/10"
           >
             <Grid2X2 size={17} />
             {t("free4TalkApp")}
-          </button>
+          </button> */}
           <button
             type="button"
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-white/5 px-4 text-sm font-medium text-white/85 transition hover:bg-white/10"
@@ -326,7 +418,6 @@ export function HomePage({
       <section className={`grid gap-3 ${densityGridClass[density]}`}>
         {filteredRooms.map((room) => {
           const isFull = room.users >= room.capacity;
-          const disabled = !nickname.trim() || isFull;
 
           return (
             <article key={room.id} className="rounded-lg border border-white/10 bg-panel p-4 shadow-xl shadow-black/15">
@@ -342,7 +433,7 @@ export function HomePage({
                 </div>
                 <button
                   type="button"
-                  disabled={disabled}
+                  disabled={isFull}
                   onClick={() => onJoin(room.id)}
                   className="h-10 rounded-md bg-mint px-4 text-sm font-semibold text-ink transition hover:bg-mint/90 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/35"
                 >

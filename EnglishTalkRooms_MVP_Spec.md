@@ -122,7 +122,7 @@ Room names:
 Display:
 
 - App title and server connection state.
-- Nickname input.
+- User information and Google Sign-In state.
 - Action bar:
   - Create a new group
   - Buy me a coffee
@@ -141,7 +141,7 @@ Behavior:
 
 - Rooms are shown from a frontend fallback list immediately.
 - Socket room counts update the fallback room list when server data arrives.
-- Join is disabled when nickname is empty or room is full.
+- Join is disabled when the room is full.
 - Search filters rooms by topic/name.
 - Density selector changes room grid density.
 - Language can be changed only on Home.
@@ -257,12 +257,12 @@ Room URLs must be deterministic:
 
 Flow:
 
-1. User enters nickname on Home.
-2. User clicks Join on a room card.
-3. App navigates to `/room/:roomId`.
-4. User is not connected to the room yet.
-5. App shows a `Ready access` page.
-6. User may review or edit nickname.
+1. User clicks Join on a room card.
+2. App navigates to `/room/:roomId`.
+3. User is not connected to the room yet.
+4. App shows a `Ready access` page.
+5. If signed in with Google, the app uses the Google display name as the room nickname.
+6. If not signed in, the user enters a nickname on the `Ready access` page.
 7. User clicks `Ready access`.
 8. App emits `join-room`.
 9. Only after this step does the user really enter the room and initialize media/WebRTC.
@@ -290,10 +290,11 @@ Navigation:
 ## Nickname
 
 - A nickname is still required before joining a room.
-- Authenticated users may use their Google display name as the default nickname.
-- Nickname is stored in `localStorage`.
+- Authenticated users always use their Google display name as the room nickname.
+- Guests enter a nickname on the `Ready access` page.
+- Guest nickname is stored in `localStorage`.
 - Updating the nickname input updates `localStorage`.
-- On page reload, nickname is restored from `localStorage`.
+- On page reload, guest nickname is restored from `localStorage`.
 
 ## User Avatar
 

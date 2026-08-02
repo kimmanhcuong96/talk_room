@@ -11,6 +11,26 @@ import { getRoomIdFromPath, homePath, roomPath } from "./lib/routes";
 const NICKNAME_STORAGE_KEY = "english-talk-rooms:nickname";
 const LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
 
+function detectDefaultLanguage(): Language {
+  const localeValues = [navigator.language, ...Array.from(navigator.languages ?? [])].filter(Boolean);
+  const locales = localeValues.map((locale) => locale.toLowerCase());
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  if (locales.some((locale) => locale.startsWith("vi")) || timeZone === "Asia/Ho_Chi_Minh" || timeZone === "Asia/Saigon") {
+    return "vi";
+  }
+
+  if (locales.some((locale) => locale.startsWith("zh")) || ["Asia/Shanghai", "Asia/Chongqing", "Asia/Harbin", "Asia/Urumqi"].includes(timeZone)) {
+    return "zh";
+  }
+
+  if (locales.some((locale) => locale.startsWith("ja")) || timeZone === "Asia/Tokyo") {
+    return "ja";
+  }
+
+  return "en";
+}
+
 type ActiveRoom = {
   roomId: string;
   nickname: string;
@@ -22,7 +42,13 @@ export function App() {
   const [nickname, setNickname] = useState(() => localStorage.getItem(NICKNAME_STORAGE_KEY) ?? "");
   const [language, setLanguage] = useState<Language>(() => {
     const storedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    return isLanguage(storedLanguage) ? storedLanguage : "en";
+    if (isLanguage(storedLanguage)) {
+      return storedLanguage;
+    }
+
+    const detectedLanguage = detectDefaultLanguage();
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, detectedLanguage);
+    return detectedLanguage;
   });
   const [routeRoomId, setRouteRoomId] = useState(() => getRoomIdFromPath());
   const [activeRoom, setActiveRoom] = useState<ActiveRoom | null>(null);

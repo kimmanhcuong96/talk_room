@@ -19,6 +19,16 @@ function emitRoomList(io: AppServer) {
   io.emit("room-list", getRoomSummaries());
 }
 
+const loggedWebRtcTransports = new Map<string, string>();
+
+function clearWebRtcTransportLogs(socketId: string) {
+  for (const key of loggedWebRtcTransports.keys()) {
+    if (key.split(":").includes(socketId)) {
+      loggedWebRtcTransports.delete(key);
+    }
+  }
+}
+
 function leaveCurrentRoom(io: AppServer, socket: AppSocket) {
   const previousRoomId = socket.data.roomId;
   const removed = removeUser(socket.id);
@@ -33,6 +43,7 @@ function leaveCurrentRoom(io: AppServer, socket: AppSocket) {
   socket.data.roomId = undefined;
   socket.data.nickname = undefined;
   socket.data.avatar = undefined;
+  clearWebRtcTransportLogs(socket.id);
   emitRoomList(io);
 }
 
@@ -145,6 +156,43 @@ export function registerSocketHandlers(io: AppServer) {
 
     socket.on("ice-candidate", ({ to, candidate }) => {
       socket.to(to).emit("ice-candidate", { from: socket.id, candidate });
+    });
+
+    socket.on("webrtc-transport", (payload) => {
+      const roomId = socket.data.roomId;
+      if (!payload || typeof payload.peerId !== "string" || !roomId
+        || !getRoomUsers(roomId).some((user) => user.socketId === payload.peerId)) {
+        return;
+      }
+
+      const validTransports = new Set(["direct", "stun", "turn", "unknown"]);
+      const validCandidateTypes = new Set(["host", "srflx", "prflx", "relay", "unknown"]);
+      if (!validTransports.has(payload.transport)
+        || !validCandidateTypes.has(payload.localCandidateType)
+        || !validCandidateTypes.has(payload.remoteCandidateType)) {
+        return;
+      }
+
+      const connectionId = [socket.id, payload.peerId].sort().join(":");
+      if (loggedWebRtcTransports.get(connectionId) === payload.transport) {
+        return;
+      }
+
+      loggedWebRtcTransports.set(connectionId, payload.transport);
+      const protocol = typeof payload.protocol === "string" ? payload.protocol.slice(0, 16) : null;
+      const relayProtocol = typeof payload.relayProtocol === "string" ? payload.relayProtocol.slice(0, 16) : null;
+      console.log("[WEBRTC_TRANSPORT]", JSON.stringify({
+        timestamp: new Date().toISOString(),
+        roomId,
+        connectionId,
+        reporterSocketId: socket.id,
+        peerSocketId: payload.peerId,
+        transport: payload.transport.toUpperCase(),
+        localCandidateType: payload.localCandidateType,
+        remoteCandidateType: payload.remoteCandidateType,
+        protocol,
+        relayProtocol
+      }));
     });
 
     socket.on("disconnect", () => {

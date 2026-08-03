@@ -20,4 +20,8 @@ export const env = {
   cloudflareTurnKeyId: process.env.CLOUDFLARE_TURN_KEY_ID?.trim() ?? "",
   cloudflareTurnApiToken: process.env.CLOUDFLARE_TURN_API_TOKEN?.trim() ?? "",
   cloudflareTurnTtlSeconds: Number(process.env.CLOUDFLARE_TURN_TTL_SECONDS ?? 86400),
+  cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID?.trim() ?? "",
+  cloudflareAnalyticsApiToken: process.env.CLOUDFLARE_ANALYTICS_API_TOKEN?.trim() ?? "",
+  cloudflareTurnUsageLimitGb: Number(process.env.CLOUDFLARE_TURN_USAGE_LIMIT_GB ?? 950),
+  cloudflareTurnUsageCheckSeconds: Number(process.env.CLOUDFLARE_TURN_USAGE_CHECK_SECONDS ?? 300),
 };

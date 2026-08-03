@@ -1,4 +1,5 @@
 import { env } from "../config/env.js";
+import { getTurnUsageStatus } from "./turnUsage.js";
 
 type IceServer = {
   urls: string | string[];
@@ -45,6 +46,12 @@ function isIceConfig(value: unknown): value is IceConfig {
 
 export async function getIceConfig(): Promise<IceConfig> {
   if (!env.cloudflareTurnKeyId || !env.cloudflareTurnApiToken) {
+    return fallbackIceConfig;
+  }
+
+  const usageStatus = await getTurnUsageStatus();
+  if (!usageStatus.turnAllowed) {
+    console.warn("Cloudflare TURN disabled because monthly usage limit was reached", usageStatus);
     return fallbackIceConfig;
   }
 

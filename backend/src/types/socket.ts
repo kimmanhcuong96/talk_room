@@ -35,6 +35,14 @@ export type ClientToServerEvents = {
   offer: (payload: { to: string; description: RTCSessionDescriptionInit }) => void;
   answer: (payload: { to: string; description: RTCSessionDescriptionInit }) => void;
   "ice-candidate": (payload: { to: string; candidate: RTCIceCandidateInit | null }) => void;
+  "webrtc-transport": (payload: {
+    peerId: string;
+    transport: "direct" | "stun" | "turn" | "unknown";
+    localCandidateType: RTCIceCandidateType | "unknown";
+    remoteCandidateType: RTCIceCandidateType | "unknown";
+    protocol: string | null;
+    relayProtocol: string | null;
+  }) => void;
 };
 
 export type ServerToClientEvents = {

@@ -7,11 +7,31 @@ type RemotePeer = RoomUser & {
   stream: MediaStream | null;
 };
 
+type IceCandidateStats = RTCStats & {
+  candidateType?: RTCIceCandidateType;
+  protocol?: string;
+  relayProtocol?: string;
+};
+
+type CandidatePairStats = RTCStats & {
+  state?: string;
+  nominated?: boolean;
+  selected?: boolean;
+  localCandidateId?: string;
+  remoteCandidateId?: string;
+};
+
+type TransportStats = RTCStats & {
+  selectedCandidatePairId?: string;
+};
+
 export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
   const peersRef = useRef(new Map<string, RTCPeerConnection>());
   const makingOfferRef = useRef(new Map<string, boolean>());
   const pendingIceCandidatesRef = useRef(new Map<string, RTCIceCandidateInit[]>());
   const disconnectTimersRef = useRef(new Map<string, number>());
+  const transportReportTimersRef = useRef(new Map<string, number>());
+  const reportedTransportsRef = useRef(new Map<string, string>());
   const rtcConfigRef = useRef<RTCConfiguration>(fallbackRtcConfig);
   const rtcConfigPromiseRef = useRef<Promise<RTCConfiguration> | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -48,10 +68,17 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
       disconnectTimersRef.current.delete(socketId);
     }
 
+    const transportReportTimer = transportReportTimersRef.current.get(socketId);
+    if (transportReportTimer) {
+      window.clearTimeout(transportReportTimer);
+      transportReportTimersRef.current.delete(socketId);
+    }
+
     peersRef.current.get(socketId)?.close();
     peersRef.current.delete(socketId);
     makingOfferRef.current.delete(socketId);
     pendingIceCandidatesRef.current.delete(socketId);
+    reportedTransportsRef.current.delete(socketId);
     setRemotePeers((current) => current.map((peer) => (peer.socketId === socketId ? { ...peer, stream: null } : peer)));
   }, []);
 
@@ -138,37 +165,68 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
       const logPeerState = (label: string, value: string) => {
         console.log(`[WebRTC][${peerId}] ${label}:`, value);
       };
-      const logCandidatePairStats = async (reason: string) => {
+      const reportSelectedTransport = async (attempt = 0) => {
         const stats = await connection.getStats();
-        const candidates = new Map<string, RTCStats>();
+        const candidates = new Map<string, IceCandidateStats>();
+        const candidatePairs = new Map<string, CandidatePairStats>();
+        let selectedCandidatePairId: string | undefined;
 
         stats.forEach((report) => {
           if (report.type === "local-candidate" || report.type === "remote-candidate") {
-            candidates.set(report.id, report);
+            candidates.set(report.id, report as IceCandidateStats);
+          } else if (report.type === "candidate-pair") {
+            candidatePairs.set(report.id, report as CandidatePairStats);
+          } else if (report.type === "transport") {
+            selectedCandidatePairId ||= (report as TransportStats).selectedCandidatePairId;
           }
         });
 
-        stats.forEach((report) => {
-          if (report.type !== "candidate-pair") {
-            return;
+        const pair = (selectedCandidatePairId ? candidatePairs.get(selectedCandidatePairId) : undefined)
+          ?? [...candidatePairs.values()].find((candidatePair) =>
+            candidatePair.selected || (candidatePair.nominated && candidatePair.state === "succeeded")
+          );
+
+        if (!pair) {
+          if (attempt < 3 && connection.connectionState === "connected") {
+            const timerId = window.setTimeout(() => void reportSelectedTransport(attempt + 1), 1000);
+            transportReportTimersRef.current.set(peerId, timerId);
           }
+          return;
+        }
 
-          const pair = report as RTCIceCandidatePairStats;
-          if (pair.state !== "succeeded" && !pair.nominated && pair.state !== "in-progress") {
-            return;
-          }
+        transportReportTimersRef.current.delete(peerId);
+        const localCandidate = candidates.get(pair.localCandidateId ?? "");
+        const remoteCandidate = candidates.get(pair.remoteCandidateId ?? "");
+        const localCandidateType = localCandidate?.candidateType ?? "unknown";
+        const remoteCandidateType = remoteCandidate?.candidateType ?? "unknown";
+        const usesTurn = localCandidateType === "relay" || remoteCandidateType === "relay";
+        const usesStun = localCandidateType === "srflx" || localCandidateType === "prflx"
+          || remoteCandidateType === "srflx" || remoteCandidateType === "prflx";
+        const usesDirect = localCandidateType === "host" && remoteCandidateType === "host";
+        const transport = usesTurn ? "turn" : usesStun ? "stun" : usesDirect ? "direct" : "unknown";
+        const protocol = localCandidate?.protocol ?? remoteCandidate?.protocol ?? null;
+        const relayProtocol = localCandidate?.relayProtocol ?? remoteCandidate?.relayProtocol ?? null;
+        const signature = [transport, localCandidateType, remoteCandidateType, protocol, relayProtocol].join(":");
 
-          const localCandidate = candidates.get(pair.localCandidateId ?? "");
-          const remoteCandidate = candidates.get(pair.remoteCandidateId ?? "");
+        if (reportedTransportsRef.current.get(peerId) === signature) {
+          return;
+        }
 
-          console.log(`[WebRTC][${peerId}] candidate pair (${reason}):`, {
-            state: pair.state,
-            nominated: pair.nominated,
-            bytesSent: pair.bytesSent,
-            bytesReceived: pair.bytesReceived,
-            localCandidate,
-            remoteCandidate
-          });
+        reportedTransportsRef.current.set(peerId, signature);
+        console.log(`[WebRTC][${peerId}] selected transport:`, {
+          transport,
+          localCandidateType,
+          remoteCandidateType,
+          protocol,
+          relayProtocol
+        });
+        socket.emit("webrtc-transport", {
+          peerId,
+          transport,
+          localCandidateType,
+          remoteCandidateType,
+          protocol,
+          relayProtocol
         });
       };
 
@@ -186,6 +244,9 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
 
       connection.oniceconnectionstatechange = () => {
         logPeerState("iceConnectionState", connection.iceConnectionState);
+        if (connection.iceConnectionState === "connected" || connection.iceConnectionState === "completed") {
+          void reportSelectedTransport();
+        }
       };
 
       connection.onicecandidateerror = (event) => {
@@ -257,7 +318,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
         logPeerState("connectionState", connection.connectionState);
 
         if (connection.connectionState === "connected") {
-          void logCandidatePairStats("connected");
+          void reportSelectedTransport();
           const disconnectTimer = disconnectTimersRef.current.get(peerId);
           if (disconnectTimer) {
             window.clearTimeout(disconnectTimer);
@@ -267,7 +328,6 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
         }
 
         if (connection.connectionState === "failed" || connection.connectionState === "closed") {
-          void logCandidatePairStats(connection.connectionState);
           closePeer(peerId);
           return;
         }
@@ -420,10 +480,13 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
       socket.off("ice-candidate", handleIceCandidate);
       peersRef.current.forEach((connection) => connection.close());
       disconnectTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+      transportReportTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
       peersRef.current.clear();
       makingOfferRef.current.clear();
       pendingIceCandidatesRef.current.clear();
       disconnectTimersRef.current.clear();
+      transportReportTimersRef.current.clear();
+      reportedTransportsRef.current.clear();
       setRemotePeers([]);
       setUsers([]);
     };

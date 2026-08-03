@@ -35,6 +35,10 @@ Backend:
 - `CLOUDFLARE_TURN_KEY_ID`: optional Cloudflare Realtime TURN key ID
 - `CLOUDFLARE_TURN_API_TOKEN`: optional Cloudflare API token for generating short-lived TURN credentials
 - `CLOUDFLARE_TURN_TTL_SECONDS`: optional TURN credential lifetime, defaults to `86400`
+- `CLOUDFLARE_ACCOUNT_ID`: optional Cloudflare account ID used for TURN usage checks
+- `CLOUDFLARE_ANALYTICS_API_TOKEN`: optional Cloudflare API token with `Account Analytics: Read`
+- `CLOUDFLARE_TURN_USAGE_LIMIT_GB`: optional monthly TURN egress limit before TURN is disabled, defaults to `950`
+- `CLOUDFLARE_TURN_USAGE_CHECK_SECONDS`: optional usage check cache duration, defaults to `300`
 
 Frontend:
 
@@ -95,4 +99,6 @@ Run the SQL in `backend/migrations/001_create_users.sql` against the configured 
 5. Push to `master` or run **Deploy frontend to GitHub Pages** manually from the **Actions** tab.
 
 The server only manages rooms, chat, presence, and WebRTC signaling. Audio and video are never relayed through the server.
-For restrictive networks, configure Cloudflare Realtime TURN on the backend. The frontend loads short-lived ICE servers from `GET /webrtc/ice-config`; if Cloudflare TURN env vars are absent or credential generation fails, it falls back to public STUN servers.
+For restrictive networks, configure Cloudflare Realtime TURN on the backend. The frontend loads short-lived ICE servers from `GET /webrtc/ice-config`; if Cloudflare TURN env vars are absent, credential generation fails, or monthly TURN egress reaches `CLOUDFLARE_TURN_USAGE_LIMIT_GB`, it falls back to public STUN servers. TURN usage status is available at `GET /webrtc/turn-usage`.
+
+Selected WebRTC routes are written to the backend logs with the `[WEBRTC_TRANSPORT]` prefix. `TURN` means media is relayed, `STUN` means a server-reflexive P2P route, `DIRECT` means a host-to-host route, and `UNKNOWN` means the browser did not expose enough candidate stats. Reports are deduplicated per peer connection and logged again only when the selected route changes.

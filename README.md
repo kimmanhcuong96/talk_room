@@ -102,3 +102,7 @@ The server only manages rooms, chat, presence, and WebRTC signaling. Audio and v
 For restrictive networks, configure Cloudflare Realtime TURN on the backend. The frontend loads short-lived ICE servers from `GET /webrtc/ice-config`; if Cloudflare TURN env vars are absent, credential generation fails, or monthly TURN egress reaches `CLOUDFLARE_TURN_USAGE_LIMIT_GB`, it falls back to public STUN servers. TURN usage status is available at `GET /webrtc/turn-usage`.
 
 Selected WebRTC routes are written to the backend logs with the `[WEBRTC_TRANSPORT]` prefix. `TURN` means media is relayed, `STUN` means a server-reflexive P2P route, `DIRECT` means a host-to-host route, and `UNKNOWN` means the browser did not expose enough candidate stats. Reports are deduplicated per peer connection and logged again only when the selected route changes.
+
+```text
+[WEBRTC_TRANSPORT] TURN/RELAY | room=room-1 | users=Alice[abc12345]<->Bob[def67890] | candidates=prflx<->relay | protocol=udp | at=2026-08-03T15:26:00.681Z
+```

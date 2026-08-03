@@ -21,6 +21,11 @@ function emitRoomList(io: AppServer) {
 
 const loggedWebRtcTransports = new Map<string, string>();
 
+function formatWebRtcLogUser(nickname: string | undefined, socketId: string) {
+  const safeNickname = (nickname ?? "Guest").replace(/[|\r\n\t]/g, " ").slice(0, 32);
+  return `${safeNickname}[${socketId.slice(0, 8)}]`;
+}
+
 function clearWebRtcTransportLogs(socketId: string) {
   for (const key of loggedWebRtcTransports.keys()) {
     if (key.split(":").includes(socketId)) {
@@ -160,8 +165,10 @@ export function registerSocketHandlers(io: AppServer) {
 
     socket.on("webrtc-transport", (payload) => {
       const roomId = socket.data.roomId;
-      if (!payload || typeof payload.peerId !== "string" || !roomId
-        || !getRoomUsers(roomId).some((user) => user.socketId === payload.peerId)) {
+      const peerUser = roomId
+        ? getRoomUsers(roomId).find((user) => user.socketId === payload?.peerId)
+        : undefined;
+      if (!payload || typeof payload.peerId !== "string" || !roomId || !peerUser) {
         return;
       }
 
@@ -181,18 +188,21 @@ export function registerSocketHandlers(io: AppServer) {
       loggedWebRtcTransports.set(connectionId, payload.transport);
       const protocol = typeof payload.protocol === "string" ? payload.protocol.slice(0, 16) : null;
       const relayProtocol = typeof payload.relayProtocol === "string" ? payload.relayProtocol.slice(0, 16) : null;
-      console.log("[WEBRTC_TRANSPORT]", JSON.stringify({
-        timestamp: new Date().toISOString(),
-        roomId,
-        connectionId,
-        reporterSocketId: socket.id,
-        peerSocketId: payload.peerId,
-        transport: payload.transport.toUpperCase(),
-        localCandidateType: payload.localCandidateType,
-        remoteCandidateType: payload.remoteCandidateType,
-        protocol,
-        relayProtocol
-      }));
+      const transportLabel = {
+        direct: "DIRECT/P2P",
+        stun: "STUN/P2P",
+        turn: "TURN/RELAY",
+        unknown: "UNKNOWN"
+      }[payload.transport];
+      const reporter = formatWebRtcLogUser(socket.data.nickname, socket.id);
+      const peer = formatWebRtcLogUser(peerUser.nickname, payload.peerId);
+      const candidateRoute = `${payload.localCandidateType}<->${payload.remoteCandidateType}`;
+      const networkProtocol = relayProtocol ? `${protocol ?? "unknown"}/${relayProtocol}` : protocol ?? "unknown";
+
+      console.log(
+        `[WEBRTC_TRANSPORT] ${transportLabel} | room=${roomId} | users=${reporter}<->${peer}`
+        + ` | candidates=${candidateRoute} | protocol=${networkProtocol} | at=${new Date().toISOString()}`
+      );
     });
 
     socket.on("disconnect", () => {

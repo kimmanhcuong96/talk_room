@@ -32,6 +32,9 @@ Backend:
 - `GOOGLE_CLIENT_ID`: Google OAuth web client ID used to verify ID tokens
 - `JWT_SECRET`: long random secret used to sign application JWTs
 - `JWT_EXPIRES_IN`: optional JWT lifetime, defaults to `7d`
+- `CLOUDFLARE_TURN_KEY_ID`: optional Cloudflare Realtime TURN key ID
+- `CLOUDFLARE_TURN_API_TOKEN`: optional Cloudflare API token for generating short-lived TURN credentials
+- `CLOUDFLARE_TURN_TTL_SECONDS`: optional TURN credential lifetime, defaults to `86400`
 
 Frontend:
 
@@ -92,3 +95,4 @@ Run the SQL in `backend/migrations/001_create_users.sql` against the configured 
 5. Push to `master` or run **Deploy frontend to GitHub Pages** manually from the **Actions** tab.
 
 The server only manages rooms, chat, presence, and WebRTC signaling. Audio and video are never relayed through the server.
+For restrictive networks, configure Cloudflare Realtime TURN on the backend. The frontend loads short-lived ICE servers from `GET /webrtc/ice-config`; if Cloudflare TURN env vars are absent or credential generation fails, it falls back to public STUN servers.

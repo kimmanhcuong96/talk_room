@@ -8,6 +8,7 @@ import { HttpError } from "./errors/httpError.js";
 import { getRoomSummaries } from "./rooms/roomStore.js";
 import { registerSocketHandlers } from "./socket/registerSocketHandlers.js";
 import type { AppServer } from "./types/socket.js";
+import { webrtcRouter } from "./webrtc/webrtcRoutes.js";
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.get("/rooms", (_request, response) => {
 });
 
 app.use("/auth", authRouter);
+app.use("/webrtc", webrtcRouter);
 
 app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
   if (error instanceof HttpError) {

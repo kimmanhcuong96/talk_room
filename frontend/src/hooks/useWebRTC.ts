@@ -1,19 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AppSocket } from "../lib/socket";
+import { fallbackRtcConfig, fetchRtcConfig } from "../lib/webrtc";
 import type { RoomUser } from "../types/realtime";
 
 type RemotePeer = RoomUser & {
   stream: MediaStream | null;
-};
-
-const rtcConfig: RTCConfiguration = {
-  iceCandidatePoolSize: 10,
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun.cloudflare.com:3478" }
-  ]
 };
 
 export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
@@ -21,6 +12,8 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
   const makingOfferRef = useRef(new Map<string, boolean>());
   const pendingIceCandidatesRef = useRef(new Map<string, RTCIceCandidateInit[]>());
   const disconnectTimersRef = useRef(new Map<string, number>());
+  const rtcConfigRef = useRef<RTCConfiguration>(fallbackRtcConfig);
+  const rtcConfigPromiseRef = useRef<Promise<RTCConfiguration> | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const usersRef = useRef<RoomUser[]>([]);
   const [users, setUsers] = useState<RoomUser[]>([]);
@@ -29,6 +22,24 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
   useEffect(() => {
     usersRef.current = users;
   }, [users]);
+
+  const getRtcConfig = useCallback(async () => {
+    if (!rtcConfigPromiseRef.current) {
+      rtcConfigPromiseRef.current = fetchRtcConfig()
+        .then((config) => {
+          rtcConfigRef.current = config;
+          console.log("[WebRTC] loaded ICE servers:", config.iceServers);
+          return config;
+        })
+        .catch((error) => {
+          console.warn("[WebRTC] using fallback ICE servers:", error);
+          rtcConfigPromiseRef.current = null;
+          return rtcConfigRef.current;
+        });
+    }
+
+    return rtcConfigPromiseRef.current;
+  }, []);
 
   const closePeer = useCallback((socketId: string) => {
     const disconnectTimer = disconnectTimersRef.current.get(socketId);
@@ -112,7 +123,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
   }, [createAndSendOffer, localStream]);
 
   const ensurePeerConnection = useCallback(
-    (peerId: string) => {
+    async (peerId: string) => {
       if (typeof RTCPeerConnection === "undefined") {
         return null;
       }
@@ -122,7 +133,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
         return existingConnection;
       }
 
-      const connection = new RTCPeerConnection(rtcConfig);
+      const connection = new RTCPeerConnection(await getRtcConfig());
       const remoteStream = new MediaStream();
       const logPeerState = (label: string, value: string) => {
         console.log(`[WebRTC][${peerId}] ${label}:`, value);
@@ -270,8 +281,12 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
       peersRef.current.set(peerId, connection);
       return connection;
     },
-    [closePeer, createAndSendOffer, socket]
+    [closePeer, getRtcConfig, socket]
   );
+
+  useEffect(() => {
+    void getRtcConfig();
+  }, [getRtcConfig]);
 
   useEffect(() => {
     setRemotePeers((current) =>
@@ -297,7 +312,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
         return [...current, user];
       });
 
-      const connection = ensurePeerConnection(user.socketId);
+      const connection = await ensurePeerConnection(user.socketId);
       if (!connection) {
         return;
       }
@@ -324,7 +339,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
         signalingState: peersRef.current.get(from)?.signalingState ?? "new",
         hasSdp: Boolean(description.sdp)
       });
-      const connection = ensurePeerConnection(from);
+      const connection = await ensurePeerConnection(from);
       if (!connection) {
         return;
       }
@@ -358,7 +373,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
 
     const handleIceCandidate = async ({ from, candidate }: { from: string; candidate: RTCIceCandidateInit | null }) => {
       console.log(`[WebRTC][${from}] received ICE candidate:`, candidate ? candidate.candidate : "end-of-candidates");
-      const connection = ensurePeerConnection(from);
+      const connection = await ensurePeerConnection(from);
       if (!connection) {
         return;
       }

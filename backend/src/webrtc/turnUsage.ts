@@ -1,6 +1,6 @@
 import { env } from "../config/env.js";
 
-const BYTES_PER_GB = 1024 ** 3;
+const BYTES_PER_GB = 1_000_000_000;
 
 type TurnUsageStatus = {
   configured: boolean;

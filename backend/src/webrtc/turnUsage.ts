@@ -47,8 +47,8 @@ function getMonthRange(now = new Date()) {
   const end = now;
 
   return {
-    dateFrom: start.toISOString(),
-    dateTo: end.toISOString()
+    dateFrom: start.toISOString().slice(0, 10),
+    dateTo: end.toISOString().slice(0, 10)
   };
 }
 
@@ -87,7 +87,7 @@ export async function getTurnUsageStatus(): Promise<TurnUsageStatus> {
 
   const { dateFrom, dateTo } = getMonthRange();
   const query = `
-    query TurnUsage($accountId: string!, $dateFrom: string!, $dateTo: string!, $keyId: string!) {
+    query TurnUsage($accountId: string!, $dateFrom: Date!, $dateTo: Date!, $keyId: string!) {
       viewer {
         accounts(filter: { accountTag: $accountId }) {
           callsTurnUsageAdaptiveGroups(

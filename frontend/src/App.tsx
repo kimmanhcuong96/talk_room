@@ -121,6 +121,22 @@ export function App() {
   }, [language, socket]);
 
   useEffect(() => {
+    const handleRoomRemoved = ({ roomId }: { roomId: string }) => {
+      if (roomId !== routeRoomId) return;
+      setActiveRoom(null);
+      setPendingJoin(null);
+      setRouteRoomId(null);
+      window.history.replaceState({}, "", homePath());
+      setError(translate(language, "roomExpired"));
+    };
+
+    socket.on("room-removed", handleRoomRemoved);
+    return () => {
+      socket.off("room-removed", handleRoomRemoved);
+    };
+  }, [language, routeRoomId, socket]);
+
+  useEffect(() => {
     if (isConnected && pendingJoin) {
       joinRoom(pendingJoin.roomId, pendingJoin.nickname);
     }

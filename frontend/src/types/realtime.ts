@@ -55,6 +55,7 @@ export type ServerToClientEvents = {
   "join-error": (message: string) => void;
   "create-room-error": (message: string) => void;
   "room-created": (room: RoomSummary) => void;
+  "room-removed": (payload: { roomId: string }) => void;
   "camera-denied": () => void;
   "user-joined": (user: RoomUser) => void;
   "user-left": (payload: { socketId: string }) => void;

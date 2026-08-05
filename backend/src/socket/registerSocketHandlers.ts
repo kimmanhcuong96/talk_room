@@ -3,9 +3,11 @@ import {
   addRoomMessage,
   addUserToRoom,
   createRoom,
+  deleteUserCreatedRoomIfEmpty,
   getRoomMessages,
   getRoomSummaries,
   getRoomUsers,
+  isUserCreatedRoomEmpty,
   removeUser,
   updateUserMedia
 } from "../rooms/roomStore.js";
@@ -21,6 +23,29 @@ function createRandomAvatar() {
 
 function emitRoomList(io: AppServer) {
   io.emit("room-list", getRoomSummaries());
+}
+
+const USER_CREATED_ROOM_EMPTY_TTL_MS = 60_000;
+const emptyRoomDeletionTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function cancelEmptyRoomDeletion(roomId: string) {
+  const timer = emptyRoomDeletionTimers.get(roomId);
+  if (timer) clearTimeout(timer);
+  emptyRoomDeletionTimers.delete(roomId);
+}
+
+function scheduleEmptyRoomDeletion(io: AppServer, roomId: string) {
+  cancelEmptyRoomDeletion(roomId);
+  if (!isUserCreatedRoomEmpty(roomId)) return;
+
+  const timer = setTimeout(() => {
+    emptyRoomDeletionTimers.delete(roomId);
+    if (!deleteUserCreatedRoomIfEmpty(roomId)) return;
+    io.emit("room-removed", { roomId });
+    emitRoomList(io);
+  }, USER_CREATED_ROOM_EMPTY_TTL_MS);
+  timer.unref();
+  emptyRoomDeletionTimers.set(roomId, timer);
 }
 
 async function getAuthenticatedUser(authToken: string | undefined): Promise<UserProfile | null> {
@@ -68,6 +93,7 @@ function leaveCurrentRoom(io: AppServer, socket: AppSocket) {
   socket.data.role = undefined;
   clearWebRtcTransportLogs(socket.id);
   emitRoomList(io);
+  scheduleEmptyRoomDeletion(io, previousRoomId);
 }
 
 export function registerSocketHandlers(io: AppServer) {
@@ -91,6 +117,7 @@ export function registerSocketHandlers(io: AppServer) {
       const room = createRoom(cleanName);
       socket.emit("room-created", room);
       emitRoomList(io);
+      scheduleEmptyRoomDeletion(io, room.id);
     });
 
     socket.on("join-room", async ({ roomId, nickname, authToken }) => {
@@ -124,6 +151,7 @@ export function registerSocketHandlers(io: AppServer) {
       socket.data.nickname = cleanNickname;
       socket.data.avatar = result.users.find((user) => user.socketId === socket.id)?.avatar;
       socket.data.role = role;
+      cancelEmptyRoomDeletion(roomId);
       socket.join(roomId);
 
       const currentUser = result.users.find((user) => user.socketId === socket.id);

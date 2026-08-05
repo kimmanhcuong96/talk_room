@@ -9,6 +9,7 @@ Lightweight English speaking practice rooms built with React, Vite, TypeScript, 
 - WebRTC peer-to-peer audio/video
 - Socket.IO signaling and realtime chat
 - Mic/camera toggles, active speaker highlight, responsive chat panel
+- User-created rooms are removed after remaining empty for 60 seconds; predefined rooms persist
 
 ## Local Development
 

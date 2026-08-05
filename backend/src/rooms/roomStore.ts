@@ -29,6 +29,7 @@ const roomNames = [
 type Room = {
   id: string;
   name: string;
+  source: "system" | "user";
   users: RoomUser[];
   messages: ChatMessage[];
 };
@@ -36,7 +37,7 @@ type Room = {
 const rooms = new Map<string, Room>(
   roomNames.map((name, index) => {
     const id = `room-${index + 1}`;
-    return [id, { id, name, users: [], messages: [] }];
+    return [id, { id, name, source: "system", users: [], messages: [] }];
   })
 );
 
@@ -53,12 +54,26 @@ export function createRoom(name: string): RoomSummary {
   const room: Room = {
     id: `room-${randomUUID()}`,
     name,
+    source: "user",
     users: [],
     messages: []
   };
 
   rooms.set(room.id, room);
   return { id: room.id, name: room.name, users: 0, capacity: ROOM_CAPACITY };
+}
+
+export function deleteUserCreatedRoomIfEmpty(roomId: string) {
+  const room = rooms.get(roomId);
+  if (!room || room.source !== "user" || room.users.length > 0) {
+    return false;
+  }
+  return rooms.delete(roomId);
+}
+
+export function isUserCreatedRoomEmpty(roomId: string) {
+  const room = rooms.get(roomId);
+  return Boolean(room && room.source === "user" && room.users.length === 0);
 }
 
 export function getRoomUsers(roomId: string): RoomUser[] {

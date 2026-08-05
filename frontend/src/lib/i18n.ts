@@ -53,6 +53,7 @@ export type TranslationKey =
   | "roomFull"
   | "roomFullError"
   | "roomJoinTimeout"
+  | "roomExpired"
   | "search"
   | "searchPlaceholder"
   | "serverConnected"
@@ -126,6 +127,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     roomFull: "Room is full",
     roomFullError: "That room is full. Please choose another room.",
     roomJoinTimeout: "Could not connect to this room.",
+    roomExpired: "This room was removed after being empty for one minute.",
     search: "Search",
     searchPlaceholder: "Search by Topic & User",
     serverConnected: "Server connected",
@@ -198,6 +200,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     roomFull: "Phòng đã đầy",
     roomFullError: "Phòng này đã đầy. Vui lòng chọn phòng khác.",
     roomJoinTimeout: "Không thể kết nối vào phòng này.",
+    roomExpired: "Phòng này đã bị xóa sau khi không có người tham gia trong một phút.",
     search: "Tìm kiếm",
     searchPlaceholder: "Tìm theo chủ đề & người dùng",
     serverConnected: "Đã kết nối server",
@@ -270,6 +273,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     roomFull: "房间已满",
     roomFullError: "该房间已满。请选择其他房间。",
     roomJoinTimeout: "无法连接到该房间。",
+    roomExpired: "该房间空置一分钟后已被删除。",
     search: "搜索",
     searchPlaceholder: "按主题和用户搜索",
     serverConnected: "服务器已连接",
@@ -342,6 +346,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     roomFull: "ルームは満室です",
     roomFullError: "このルームは満室です。別のルームを選んでください。",
     roomJoinTimeout: "このルームに接続できませんでした。",
+    roomExpired: "このルームは1分間空室だったため削除されました。",
     search: "検索",
     searchPlaceholder: "トピックとユーザーで検索",
     serverConnected: "サーバーに接続済み",

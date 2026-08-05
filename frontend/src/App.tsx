@@ -8,10 +8,10 @@ import { useSocket } from "./hooks/useSocket";
 import { clearStoredSession, getCurrentUser, loginWithGoogleIdToken, readStoredToken, storeSession, type AuthSession } from "./lib/auth";
 import { type Language, isLanguage, translate } from "./lib/i18n";
 import { getInfoPageFromPath, getRoomIdFromPath, homePath, infoPagePath, roomPath, type InfoPage as InfoPageName } from "./lib/routes";
+import { isGeneratedNickname, resolveGuestNickname } from "./lib/nickname";
 
 const NICKNAME_STORAGE_KEY = "english-talk-rooms:nickname";
 const LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
-const GENERATED_NICKNAME_PATTERN = /^Talking User \d+$/;
 
 function detectDefaultLanguage(): Language {
   const localeValues = [navigator.language, ...Array.from(navigator.languages ?? [])].filter(Boolean);
@@ -172,7 +172,7 @@ export function App() {
     setError(null);
     setActiveRoom(null);
     setPendingJoin(null);
-    if (!authenticatedNickname && (!nickname.trim() || GENERATED_NICKNAME_PATTERN.test(nickname.trim()))) {
+    if (!authenticatedNickname && (!nickname.trim() || isGeneratedNickname(nickname))) {
       setNickname("");
       localStorage.removeItem(NICKNAME_STORAGE_KEY);
     }
@@ -186,7 +186,8 @@ export function App() {
       return;
     }
 
-    const cleanNickname = authenticatedNickname || nickname.trim() || `Talking User ${routeRoom ? routeRoom.users + 1 : 1}`;
+    const suggestedNickname = `Talking User ${routeRoom ? routeRoom.users + 1 : 1}`;
+    const cleanNickname = authenticatedNickname || resolveGuestNickname(nickname, suggestedNickname);
 
     if (!authenticatedNickname) {
       localStorage.setItem(NICKNAME_STORAGE_KEY, cleanNickname);

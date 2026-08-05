@@ -210,14 +210,10 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
           cameraEnabled={cameraEnabled}
           canToggleMic={hasMicrophone}
           canToggleCamera={canUseCamera && hasCamera}
-          cameraPermissionLabel={!canUseCamera ? t("cameraSupporterOnly") : undefined}
-          canShareScreen={canToggleScreenShare}
-          screenShareSupported={screenShareSupported}
-          screenSharing={isScreenSharing}
+          cameraRestricted={!canUseCamera}
           language={language}
           onToggleMic={toggleMic}
           onToggleCamera={toggleCamera}
-          onToggleScreenShare={handleToggleScreenShare}
           onLeave={onLeave}
         />
       </section>

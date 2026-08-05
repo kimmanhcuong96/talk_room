@@ -1,6 +1,7 @@
 import { ArrowLeft, DoorOpen, Users } from "lucide-react";
 import { type Language, translate } from "../lib/i18n";
 import type { RoomSummary } from "../types/realtime";
+import { resolveGuestNickname } from "../lib/nickname";
 
 type RoomAccessPageProps = {
   room: RoomSummary;
@@ -28,7 +29,8 @@ export function RoomAccessPage({
   onBack
 }: RoomAccessPageProps) {
   const isFull = room.users >= room.capacity;
-  const effectiveNickname = authenticatedNickname || nickname.trim() || suggestedNickname;
+  const guestNickname = resolveGuestNickname(nickname, suggestedNickname);
+  const effectiveNickname = authenticatedNickname || guestNickname;
   const disabled = !effectiveNickname || isFull;
   const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
 
@@ -66,7 +68,7 @@ export function RoomAccessPage({
             <input
               id="ready-nickname"
               maxLength={32}
-              value={nickname || suggestedNickname}
+              value={guestNickname}
               onChange={(event) => onNicknameChange(event.target.value)}
               placeholder={t("nicknamePlaceholder")}
               className="mt-2 h-12 w-full rounded-md border border-white/10 bg-field px-4 text-white outline-none transition placeholder:text-white/35 focus:border-mint"

@@ -6,10 +6,13 @@ export type TranslationKey =
   | "backToRooms"
   | "buyMeCoffee"
   | "cameraSupporterOnly"
+  | "cameraUpgradeDescription"
+  | "cameraUpgradeTitle"
   | "cancel"
   | "chat"
   | "chooseSignInMethod"
   | "closeSignIn"
+  | "closeUpgradeGuide"
   | "closeChat"
   | "connectAndAccess"
   | "connectingServer"
@@ -31,6 +34,7 @@ export type TranslationKey =
   | "googleSignInNotConfigured"
   | "googleSignInStartFailed"
   | "googleSignInUnavailable"
+  | "gotIt"
   | "join"
   | "language"
   | "leaveRoom"
@@ -80,10 +84,13 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     backToRooms: "Back to rooms",
     buyMeCoffee: "Buy me a coffee",
     cameraSupporterOnly: "Camera is available to supporters only",
+    cameraUpgradeDescription: "Upgrade your account to Supporter to turn on your camera. You can continue using the microphone and chat with your current account.",
+    cameraUpgradeTitle: "Upgrade to use camera",
     cancel: "Cancel",
     chat: "Chat",
     chooseSignInMethod: "Choose sign-in method",
     closeSignIn: "Close sign in",
+    closeUpgradeGuide: "Close upgrade guide",
     closeChat: "Close chat",
     connectAndAccess: "Connect and access",
     connectingServer: "Connecting to server",
@@ -105,6 +112,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     googleSignInNotConfigured: "Google sign-in is not configured.",
     googleSignInStartFailed: "Could not start Google sign-in.",
     googleSignInUnavailable: "Google Sign-In is unavailable.",
+    gotIt: "Got it",
     join: "Join",
     language: "Language",
     leaveRoom: "Leave room",
@@ -153,10 +161,13 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     backToRooms: "Quay lại phòng",
     buyMeCoffee: "Mời tôi cà phê",
     cameraSupporterOnly: "Chỉ Supporter mới có thể bật camera",
+    cameraUpgradeDescription: "Hãy nâng cấp tài khoản lên Supporter để bật camera. Bạn vẫn có thể tiếp tục sử dụng micro và trò chuyện với tài khoản hiện tại.",
+    cameraUpgradeTitle: "Nâng cấp để sử dụng camera",
     cancel: "Hủy",
     chat: "Trò chuyện",
     chooseSignInMethod: "Chọn phương thức đăng nhập",
     closeSignIn: "Đóng đăng nhập",
+    closeUpgradeGuide: "Đóng hướng dẫn nâng cấp",
     closeChat: "Đóng chat",
     connectAndAccess: "Kết nối và vào phòng",
     connectingServer: "Đang kết nối server",
@@ -178,6 +189,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     googleSignInNotConfigured: "Đăng nhập Google chưa được cấu hình.",
     googleSignInStartFailed: "Không thể bắt đầu đăng nhập Google.",
     googleSignInUnavailable: "Đăng nhập Google hiện không khả dụng.",
+    gotIt: "Đã hiểu",
     join: "Vào",
     language: "Ngôn ngữ",
     leaveRoom: "Rời phòng",
@@ -226,10 +238,13 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     backToRooms: "返回房间列表",
     buyMeCoffee: "请我喝咖啡",
     cameraSupporterOnly: "仅 Supporter 用户可以开启摄像头",
+    cameraUpgradeDescription: "请将账户升级为 Supporter 以开启摄像头。当前账户仍可继续使用麦克风和聊天功能。",
+    cameraUpgradeTitle: "升级后使用摄像头",
     cancel: "取消",
     chat: "聊天",
     chooseSignInMethod: "选择登录方式",
     closeSignIn: "关闭登录",
+    closeUpgradeGuide: "关闭升级说明",
     closeChat: "关闭聊天",
     connectAndAccess: "连接并进入",
     connectingServer: "正在连接服务器",
@@ -251,6 +266,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     googleSignInNotConfigured: "尚未配置 Google 登录。",
     googleSignInStartFailed: "无法启动 Google 登录。",
     googleSignInUnavailable: "Google 登录当前不可用。",
+    gotIt: "知道了",
     join: "加入",
     language: "语言",
     leaveRoom: "离开房间",
@@ -299,10 +315,13 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     backToRooms: "ルーム一覧へ戻る",
     buyMeCoffee: "コーヒーをおごる",
     cameraSupporterOnly: "カメラをオンにできるのは Supporter のみです",
+    cameraUpgradeDescription: "カメラをオンにするには、アカウントを Supporter にアップグレードしてください。現在のアカウントでもマイクとチャットは引き続き利用できます。",
+    cameraUpgradeTitle: "カメラ利用にはアップグレードが必要です",
     cancel: "キャンセル",
     chat: "チャット",
     chooseSignInMethod: "ログイン方法を選択",
     closeSignIn: "ログインを閉じる",
+    closeUpgradeGuide: "アップグレード案内を閉じる",
     closeChat: "チャットを閉じる",
     connectAndAccess: "接続して入室",
     connectingServer: "サーバーに接続中",
@@ -324,6 +343,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     googleSignInNotConfigured: "Google ログインが設定されていません。",
     googleSignInStartFailed: "Google ログインを開始できませんでした。",
     googleSignInUnavailable: "Google ログインは現在利用できません。",
+    gotIt: "了解",
     join: "参加",
     language: "言語",
     leaveRoom: "ルームを退出",

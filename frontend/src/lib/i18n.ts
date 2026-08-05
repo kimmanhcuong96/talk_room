@@ -2,6 +2,7 @@ export type Language = "en" | "vi" | "zh" | "ja";
 
 export type TranslationKey =
   | "aboutUs"
+  | "adminArea"
   | "backToRooms"
   | "buyMeCoffee"
   | "cameraSupporterOnly"
@@ -74,6 +75,7 @@ export type TranslationKey =
 const translations: Record<Language, Record<TranslationKey, string>> = {
   en: {
     aboutUs: "About Us",
+    adminArea: "Administration",
     backToRooms: "Back to rooms",
     buyMeCoffee: "Buy me a coffee",
     cameraSupporterOnly: "Camera is available to supporters only",
@@ -145,6 +147,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
   },
   vi: {
     aboutUs: "Về chúng tôi",
+    adminArea: "Quản trị hệ thống",
     backToRooms: "Quay lại phòng",
     buyMeCoffee: "Mời tôi cà phê",
     cameraSupporterOnly: "Chỉ Supporter mới có thể bật camera",
@@ -216,6 +219,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
   },
   zh: {
     aboutUs: "关于我们",
+    adminArea: "系统管理",
     backToRooms: "返回房间列表",
     buyMeCoffee: "请我喝咖啡",
     cameraSupporterOnly: "仅 Supporter 用户可以开启摄像头",
@@ -287,6 +291,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
   },
   ja: {
     aboutUs: "私たちについて",
+    adminArea: "システム管理",
     backToRooms: "ルーム一覧へ戻る",
     buyMeCoffee: "コーヒーをおごる",
     cameraSupporterOnly: "カメラをオンにできるのは Supporter のみです",

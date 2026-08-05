@@ -4,7 +4,8 @@ import { GoogleSignInButton } from "./GoogleSignInButton";
 import type { AuthUser } from "../lib/auth";
 import { type Language, languages, translate } from "../lib/i18n";
 import type { RoomSummary } from "../types/realtime";
-import type { InfoPage } from "../lib/routes";
+import { adminPath, type InfoPage } from "../lib/routes";
+import { readAdminToken } from "../lib/adminAuth";
 import { hasPermission } from "../lib/permissions";
 
 type HomePageProps = {
@@ -234,6 +235,15 @@ export function HomePage({
                         <LogOut size={16} />
                         <span>{t("signOut")}</span>
                       </button>
+                      {readAdminToken() ? (
+                        <a
+                          href={adminPath()}
+                          className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-mint/15 px-3 text-sm font-medium text-mint transition hover:bg-mint/25"
+                        >
+                          <ShieldCheck size={16} />
+                          <span>{t("adminArea")}</span>
+                        </a>
+                      ) : null}
                     </div>
                   </div>
                 ) : null}

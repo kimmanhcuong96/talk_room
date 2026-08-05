@@ -79,6 +79,18 @@ export async function findAdminById(id: string) {
   return result.rows[0] ? toAdminProfile(result.rows[0]) : null;
 }
 
+export async function activateAdminIfEligible(profile: VerifiedOAuthProfile) {
+  const result = await getPool().query<Pick<AdminRow, "google_id" | "status"> & QueryResultRow>(
+    "SELECT google_id, status FROM admin_users WHERE LOWER(email) = LOWER($1)",
+    [profile.email]
+  );
+  const admin = result.rows[0];
+  if (!admin || admin.status === "suspended" || (admin.google_id && admin.google_id !== profile.providerUserId)) {
+    return null;
+  }
+  return activateAdminWithGoogle(profile);
+}
+
 export async function activateAdminWithGoogle(profile: VerifiedOAuthProfile) {
   const client = await getPool().connect();
   try {

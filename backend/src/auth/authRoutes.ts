@@ -3,6 +3,8 @@ import { HttpError } from "../errors/httpError.js";
 import { issueAppJwt, verifyAppJwt } from "./jwt.js";
 import { verifyGoogleIdToken } from "./providers/googleProvider.js";
 import { findUserById, upsertGoogleUser } from "../users/userRepository.js";
+import { activateAdminIfEligible } from "../admin/adminRepository.js";
+import { issueAdminJwt } from "../admin/adminJwt.js";
 
 export const authRouter = Router();
 
@@ -17,8 +19,10 @@ authRouter.post("/google", async (request, response, next) => {
     const googleProfile = await verifyGoogleIdToken(idToken);
     const user = await upsertGoogleUser(googleProfile);
     const token = issueAppJwt(user);
+    const admin = await activateAdminIfEligible(googleProfile);
+    const adminSession = admin ? { token: issueAdminJwt(admin), admin } : null;
 
-    response.json({ token, user });
+    response.json({ token, user, adminSession });
   } catch (error) {
     next(error);
   }

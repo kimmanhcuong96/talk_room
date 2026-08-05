@@ -6,11 +6,9 @@ import {
   getAdminMe,
   getAdminUsers,
   getManagedUsers,
-  loginAdmin,
   readAdminToken,
   setAdminAccount,
   setManagedUserRole,
-  storeAdminToken,
   suspendAdminAccount,
   type AdminProfile,
   type AdminRole,
@@ -22,7 +20,6 @@ import { adminTranslate, type AdminTranslationKey } from "../../lib/adminI18n";
 import type { UserRole } from "../../lib/auth";
 import { isLanguage, type Language } from "../../lib/i18n";
 import { adminPath, getAdminPageFromPath, homePath } from "../../lib/routes";
-import { GoogleSignInButton } from "../GoogleSignInButton";
 
 const LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
 
@@ -191,30 +188,33 @@ export function AdminApp() {
   const page = getAdminPageFromPath() ?? "dashboard";
   const t = useCallback<Translator>((key, values) => adminTranslate(language, key, values), [language]);
   const [session, setSession] = useState<AdminSession | null>(null);
-  const [loading, setLoading] = useState(Boolean(readAdminToken()));
-  const [signingIn, setSigningIn] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = readAdminToken();
-    if (!token) { setLoading(false); return; }
-    getAdminMe(token).then((admin) => setSession({ token, admin })).catch((loadError) => { clearAdminToken(); setError(localizeAdminError(loadError, t)); }).finally(() => setLoading(false));
-  }, [t]);
-
-  const handleCredential = useCallback(async (idToken: string) => {
-    setSigningIn(true); setError(null);
-    try { const next = await loginAdmin(idToken); storeAdminToken(next.token); setSession(next); }
-    catch (loginError) { setError(localizeAdminError(loginError, t)); }
-    finally { setSigningIn(false); }
-  }, [t]);
+    if (!token) { window.location.replace(homePath()); return; }
+    getAdminMe(token)
+      .then((admin) => {
+        if (page === "admins" && admin.role !== "owner") {
+          window.location.replace(adminPath());
+          return;
+        }
+        setSession({ token, admin });
+        setLoading(false);
+      })
+      .catch(() => {
+        clearAdminToken();
+        window.location.replace(homePath());
+      });
+  }, [page]);
 
   if (loading) return <main className="grid min-h-screen place-items-center bg-ink text-white"><LoaderCircle size={28} className="animate-spin text-mint" /></main>;
-  if (!session) return <main className="grid min-h-screen place-items-center bg-ink px-4 text-white"><section className="w-full max-w-md rounded-xl border border-white/10 bg-panel p-7 shadow-2xl shadow-black/30"><span className="grid h-12 w-12 place-items-center rounded-lg bg-mint/15 text-mint"><ShieldCheck size={25} /></span><h1 className="mt-5 text-2xl font-semibold">{t("adminArea")}</h1><p className="mt-2 leading-6 text-white/60">{t("adminLoginDescription")}</p><div className="mt-6"><GoogleSignInButton disabled={signingIn} language={language} onCredential={handleCredential} /></div><div className="mt-4"><ErrorNotice error={error} /></div><a href={homePath()} className="mt-6 inline-flex items-center gap-2 text-sm text-white/55 hover:text-white"><ArrowLeft size={15} />{t("backToSite")}</a></section></main>;
+  if (!session) return <main className="grid min-h-screen place-items-center bg-ink text-white"><LoaderCircle size={28} className="animate-spin text-mint" /></main>;
 
   const signOut = () => { clearAdminToken(); setSession(null); };
   const pageTitle = page === "users" ? t("userManagement") : page === "admins" ? t("adminManagement") : t("adminArea");
   let content: ReactNode = <Dashboard session={session} t={t} />;
   if (page === "users") content = <UsersPage session={session} language={language} t={t} />;
-  if (page === "admins") content = session.admin.role === "owner" ? <AdminsPage session={session} language={language} t={t} /> : <div className="grid gap-5"><a href={adminPath()} className="inline-flex w-fit items-center gap-2 text-sm text-white/60"><ChevronLeft size={16} />{t("backToDashboard")}</a><ErrorNotice error={t("accessDenied")} /></div>;
+  if (page === "admins") content = <AdminsPage session={session} language={language} t={t} />;
   return <AdminLayout session={session} title={pageTitle} t={t} onSignOut={signOut}>{content}</AdminLayout>;
 }

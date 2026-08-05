@@ -33,6 +33,14 @@ export function getRoomIdFromPath(pathname = window.location.pathname) {
   return match?.[1] ?? null;
 }
 
+export function isKnownClientPath(pathname = window.location.pathname) {
+  const path = stripBasePath(pathname);
+  return /^\/?$/.test(path)
+    || /^\/room\/[^/]+\/?$/.test(path)
+    || /^\/(privacy|contact|about)\/?$/.test(path)
+    || /^\/admin(?:\/(users|admins))?\/?$/.test(path);
+}
+
 export function homePath() {
   return `${getBasePath() || ""}/`;
 }

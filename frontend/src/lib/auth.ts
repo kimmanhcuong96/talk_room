@@ -1,3 +1,5 @@
+import { clearAdminToken, storeAdminToken, type AdminSession } from "./adminAuth";
+
 export const AUTH_TOKEN_STORAGE_KEY = "english-talk-rooms:auth-token";
 export const AUTH_USER_STORAGE_KEY = "english-talk-rooms:auth-user";
 
@@ -17,6 +19,7 @@ export type AuthUser = {
 export type AuthSession = {
   token: string;
   user: AuthUser;
+  adminSession?: AdminSession | null;
 };
 
 const apiUrl = (import.meta.env.VITE_API_URL ?? import.meta.env.VITE_SOCKET_URL ?? "http://localhost:4000").replace(/\/$/, "");
@@ -28,11 +31,13 @@ export function readStoredToken() {
 export function storeSession(session: AuthSession) {
   localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, session.token);
   localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(session.user));
+  if (session.adminSession) storeAdminToken(session.adminSession.token);
 }
 
 export function clearStoredSession() {
   localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
   localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+  clearAdminToken();
   window.google?.accounts.id.disableAutoSelect();
 }
 
@@ -49,7 +54,7 @@ export async function loginWithGoogleIdToken(idToken: string): Promise<AuthSessi
     throw new Error(body.error ?? "GOOGLE_SIGN_IN_FAILED");
   }
 
-  return { token: body.token, user: body.user };
+  return { token: body.token, user: body.user, adminSession: body.adminSession ?? null };
 }
 
 export async function getCurrentUser(token: string): Promise<AuthUser> {

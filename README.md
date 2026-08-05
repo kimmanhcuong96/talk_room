@@ -48,6 +48,7 @@ Frontend:
 - `VITE_SOCKET_URL`: Socket.IO server URL
 - `VITE_API_URL`: backend HTTP API URL
 - `VITE_GOOGLE_CLIENT_ID`: Google OAuth web client ID used by Google Sign-In
+- `VITE_SITE_URL`: public frontend URL used to generate production `sitemap.xml` and canonical SEO URLs
 
 ## Authentication
 

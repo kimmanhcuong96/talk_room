@@ -9,6 +9,7 @@ import { clearStoredSession, getCurrentUser, loginWithGoogleIdToken, readStoredT
 import { type Language, isLanguage, translate } from "./lib/i18n";
 import { getInfoPageFromPath, getRoomIdFromPath, homePath, infoPagePath, roomPath, type InfoPage as InfoPageName } from "./lib/routes";
 import { isGeneratedNickname, resolveGuestNickname } from "./lib/nickname";
+import { Seo } from "./components/Seo";
 
 const NICKNAME_STORAGE_KEY = "english-talk-rooms:nickname";
 const LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
@@ -66,7 +67,6 @@ export function App() {
   const routeRoom = useMemo(() => (routeRoomId ? rooms.find((room) => room.id === routeRoomId) : undefined), [rooms, routeRoomId]);
   const selectedRoom = useMemo(() => (activeRoom ? rooms.find((room) => room.id === activeRoom.roomId) : undefined), [activeRoom, rooms]);
   const authenticatedNickname = authSession?.user.displayName.trim() || "";
-
   useEffect(() => {
     const handlePopState = () => {
       const nextRoomId = getRoomIdFromPath();
@@ -329,7 +329,7 @@ export function App() {
 
   if (activeRoom && selectedRoom) {
     return (
-      <RoomPage
+      <><Seo language={language} page="room" roomName={selectedRoom.name} /><RoomPage
         socket={socket}
         room={selectedRoom}
         nickname={activeRoom.nickname}
@@ -338,13 +338,13 @@ export function App() {
         language={language}
         role={authSession?.user.role ?? "unverified"}
         onLeave={handleLeave}
-      />
+      /></>
     );
   }
 
   if (routeRoomId && routeRoom) {
     return (
-      <RoomAccessPage
+      <><Seo language={language} page="room" roomName={routeRoom.name} /><RoomAccessPage
         room={routeRoom}
         nickname={nickname}
         authenticatedNickname={authenticatedNickname}
@@ -355,16 +355,16 @@ export function App() {
         onNicknameChange={handleNicknameChange}
         onReady={handleReadyAccess}
         onBack={handleLeave}
-      />
+      /></>
     );
   }
 
   if (routeInfoPage) {
-    return <InfoPage page={routeInfoPage} language={language} onBack={handleCloseInfoPage} />;
+    return <><Seo language={language} page={routeInfoPage} /><InfoPage page={routeInfoPage} language={language} onBack={handleCloseInfoPage} /></>;
   }
 
   return (
-    <HomePage
+    <><Seo language={language} page="home" /><HomePage
       rooms={rooms}
       isConnected={isConnected}
       error={error ?? connectionError}
@@ -380,6 +380,6 @@ export function App() {
       onCreateRoom={handleCreateRoom}
       createRoomError={createRoomError}
       onOpenInfoPage={handleOpenInfoPage}
-    />
+    /></>
   );
 }

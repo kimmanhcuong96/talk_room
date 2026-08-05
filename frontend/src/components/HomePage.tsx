@@ -7,6 +7,8 @@ import type { RoomSummary } from "../types/realtime";
 import { adminPath, type InfoPage } from "../lib/routes";
 import { readAdminToken } from "../lib/adminAuth";
 import { hasPermission } from "../lib/permissions";
+import { infoPagePath } from "../lib/routes";
+import { SeoContent } from "./SeoContent";
 
 type HomePageProps = {
   rooms: RoomSummary[];
@@ -438,30 +440,30 @@ export function HomePage({
             <Grid2X2 size={17} />
             {t("free4TalkApp")}
           </button> */}
-          <button
-            type="button"
-            onClick={() => onOpenInfoPage("privacy")}
+          <a
+            href={infoPagePath("privacy")}
+            onClick={(event) => { event.preventDefault(); onOpenInfoPage("privacy"); }}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-white/5 px-4 text-sm font-medium text-white/85 transition hover:bg-white/10"
           >
             <ShieldCheck size={17} />
             {t("privacyPolicy")}
-          </button>
-          <button
-            type="button"
-            onClick={() => onOpenInfoPage("contact")}
+          </a>
+          <a
+            href={infoPagePath("contact")}
+            onClick={(event) => { event.preventDefault(); onOpenInfoPage("contact"); }}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-white/5 px-4 text-sm font-medium text-white/85 transition hover:bg-white/10"
           >
             <MessageCircle size={17} />
             {t("contactUs")}
-          </button>
-          <button
-            type="button"
-            onClick={() => onOpenInfoPage("about")}
+          </a>
+          <a
+            href={infoPagePath("about")}
+            onClick={(event) => { event.preventDefault(); onOpenInfoPage("about"); }}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-white/5 px-4 text-sm font-medium text-white/85 transition hover:bg-white/10"
           >
             <Info size={17} />
             {t("aboutUs")}
-          </button>
+          </a>
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -537,6 +539,8 @@ export function HomePage({
           );
         })}
       </section>
+
+      <SeoContent language={language} onOpenInfoPage={onOpenInfoPage} />
     </main>
   );
 }

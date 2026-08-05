@@ -15,6 +15,7 @@ export function issueAppJwt(user: UserProfile) {
 
   return jwt.sign(
     {
+      tokenType: "user",
       email: user.email,
       name: user.displayName,
       picture: user.avatarUrl,
@@ -32,7 +33,7 @@ export function verifyAppJwt(token: string) {
 
   const payload = jwt.verify(token, env.jwtSecret);
 
-  if (typeof payload === "string" || !payload.sub) {
+  if (typeof payload === "string" || !payload.sub || (payload.tokenType && payload.tokenType !== "user")) {
     throw new HttpError(401, "Invalid authentication token.");
   }
 

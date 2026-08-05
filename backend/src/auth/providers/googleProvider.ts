@@ -22,7 +22,7 @@ export async function verifyGoogleIdToken(idToken: string): Promise<VerifiedOAut
   }
   const payload = ticket.getPayload();
 
-  if (!payload?.sub || !payload.email) {
+  if (!payload?.sub || !payload.email || payload.email_verified === false) {
     throw new HttpError(401, "Google token is missing required profile information.");
   }
 

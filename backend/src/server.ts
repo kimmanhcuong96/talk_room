@@ -3,6 +3,7 @@ import express from "express";
 import { createServer } from "node:http";
 import { Server } from "socket.io";
 import { authRouter } from "./auth/authRoutes.js";
+import { adminRouter } from "./admin/adminRoutes.js";
 import { env } from "./config/env.js";
 import { HttpError } from "./errors/httpError.js";
 import { getRoomSummaries } from "./rooms/roomStore.js";
@@ -24,6 +25,7 @@ app.get("/rooms", (_request, response) => {
 });
 
 app.use("/auth", authRouter);
+app.use("/admin", adminRouter);
 app.use("/webrtc", webrtcRouter);
 
 app.use((error: unknown, _request: express.Request, response: express.Response, _next: express.NextFunction) => {

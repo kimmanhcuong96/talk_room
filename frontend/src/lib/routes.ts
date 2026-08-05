@@ -14,6 +14,14 @@ function stripBasePath(pathname: string) {
 }
 
 export type InfoPage = "privacy" | "contact" | "about";
+export type AdminPage = "dashboard" | "users" | "admins";
+
+export function getAdminPageFromPath(pathname = window.location.pathname): AdminPage | null {
+  const path = stripBasePath(pathname);
+  if (/^\/admin\/?$/.test(path)) return "dashboard";
+  const match = path.match(/^\/admin\/(users|admins)\/?$/);
+  return (match?.[1] as AdminPage | undefined) ?? null;
+}
 
 export function getInfoPageFromPath(pathname = window.location.pathname): InfoPage | null {
   const match = stripBasePath(pathname).match(/^\/(privacy|contact|about)\/?$/);
@@ -35,4 +43,9 @@ export function roomPath(roomId: string) {
 
 export function infoPagePath(page: InfoPage) {
   return `${getBasePath() || ""}/${page}`;
+}
+
+export function adminPath(page: AdminPage = "dashboard") {
+  const suffix = page === "dashboard" ? "" : `/${page}`;
+  return `${getBasePath() || ""}/admin${suffix}`;
 }

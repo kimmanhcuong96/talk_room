@@ -32,6 +32,8 @@ Backend:
 - `GOOGLE_CLIENT_ID`: Google OAuth web client ID used to verify ID tokens
 - `JWT_SECRET`: long random secret used to sign application JWTs
 - `JWT_EXPIRES_IN`: optional JWT lifetime, defaults to `7d`
+- `ADMIN_JWT_SECRET`: separate long random secret for admin sessions; falls back to `JWT_SECRET`
+- `ADMIN_JWT_EXPIRES_IN`: optional admin JWT lifetime, defaults to `8h`
 - `CLOUDFLARE_TURN_KEY_ID`: optional Cloudflare Realtime TURN key ID
 - `CLOUDFLARE_TURN_API_TOKEN`: optional Cloudflare API token for generating short-lived TURN credentials
 - `CLOUDFLARE_TURN_TTL_SECONDS`: optional TURN credential lifetime, defaults to `86400`
@@ -65,6 +67,7 @@ The backend verifies the ID token, creates or updates the `users` row, stores on
     "email": "user@gmail.com",
     "displayName": "John Smith",
     "avatarUrl": "https://lh3.googleusercontent.com/...",
+    "role": "unverified",
     "createdAt": "2026-08-02T00:00:00.000Z",
     "lastLogin": "2026-08-02T00:00:00.000Z"
   }
@@ -86,6 +89,18 @@ To promote an account after verification or supporter approval, update its role 
 UPDATE users SET role = 'verified' WHERE email = 'person@example.com';
 UPDATE users SET role = 'supporter' WHERE email = 'supporter@example.com';
 ```
+
+## Admin area
+
+The admin interface is available at `/admin`. It uses a separate `admin_users` table and a separate admin JWT session from normal app users.
+
+After running `backend/migrations/003_create_admin_users.sql`, bootstrap the first owner once:
+
+```bash
+npm run admin:bootstrap -w backend -- --email owner@example.com
+```
+
+The owner signs in at `/admin` with that exact Google email. Owners can invite and manage other admin accounts from `/admin/admins`; both owners and admins can update app-user roles from `/admin/users`. Removing an admin performs a soft suspension, and the final active owner cannot be demoted or suspended. Configure a separate `ADMIN_JWT_SECRET` in production; admin sessions default to 8 hours.
 
 ## Deployment
 

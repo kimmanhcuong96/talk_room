@@ -1,12 +1,15 @@
 export const AUTH_TOKEN_STORAGE_KEY = "english-talk-rooms:auth-token";
 export const AUTH_USER_STORAGE_KEY = "english-talk-rooms:auth-user";
 
+export type UserRole = "unverified" | "verified" | "supporter";
+
 export type AuthUser = {
   id: string;
   googleId: string;
   email: string;
   displayName: string;
   avatarUrl: string | null;
+  role: UserRole;
   createdAt: string;
   lastLogin: string;
 };

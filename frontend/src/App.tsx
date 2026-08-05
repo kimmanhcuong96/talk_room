@@ -61,6 +61,7 @@ export function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(() => Boolean(readStoredToken()));
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [createRoomError, setCreateRoomError] = useState<string | null>(null);
 
   const routeRoom = useMemo(() => (routeRoomId ? rooms.find((room) => room.id === routeRoomId) : undefined), [rooms, routeRoomId]);
   const selectedRoom = useMemo(() => (activeRoom ? rooms.find((room) => room.id === activeRoom.roomId) : undefined), [activeRoom, rooms]);
@@ -88,10 +89,36 @@ export function App() {
       setPendingJoin(null);
       setError(null);
       setActiveRoom({ roomId, nickname: cleanNickname });
-      socket.emit("join-room", { roomId, nickname: cleanNickname });
+      socket.emit("join-room", { roomId, nickname: cleanNickname, authToken: authSession?.token });
     },
-    [socket]
+    [authSession?.token, socket]
   );
+
+  useEffect(() => {
+    const handleRoomCreated = (room: (typeof rooms)[number]) => {
+      setCreateRoomError(null);
+      setError(null);
+      setActiveRoom(null);
+      setPendingJoin(null);
+      setRouteRoomId(room.id);
+      setRouteInfoPage(null);
+      window.history.pushState({}, "", roomPath(room.id));
+    };
+    const handleCreateRoomError = (message: string) => {
+      setCreateRoomError(
+        message === "ROOM_NAME_TOO_SHORT"
+          ? translate(language, "createRoomNameTooShort")
+          : translate(language, "createRoomVerifiedOnly")
+      );
+    };
+
+    socket.on("room-created", handleRoomCreated);
+    socket.on("create-room-error", handleCreateRoomError);
+    return () => {
+      socket.off("room-created", handleRoomCreated);
+      socket.off("create-room-error", handleCreateRoomError);
+    };
+  }, [language, socket]);
 
   useEffect(() => {
     if (isConnected && pendingJoin) {
@@ -237,6 +264,11 @@ export function App() {
     setAuthError(null);
   };
 
+  const handleCreateRoom = (name: string) => {
+    setCreateRoomError(null);
+    socket.emit("create-room", { name, authToken: authSession?.token });
+  };
+
   const handleLeave = () => {
     socket.emit("leave-room");
     setActiveRoom(null);
@@ -287,6 +319,7 @@ export function App() {
         isConnected={isConnected}
         connectionError={connectionError}
         language={language}
+        role={authSession?.user.role ?? "unverified"}
         onLeave={handleLeave}
       />
     );
@@ -327,6 +360,8 @@ export function App() {
       onGoogleCredential={handleGoogleCredential}
       onSignOut={handleSignOut}
       onJoin={handleJoin}
+      onCreateRoom={handleCreateRoom}
+      createRoomError={createRoomError}
       onOpenInfoPage={handleOpenInfoPage}
     />
   );

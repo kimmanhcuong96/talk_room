@@ -1,4 +1,5 @@
 import type { ChatMessage, RoomSummary, RoomUser } from "../types/socket.js";
+import { randomUUID } from "node:crypto";
 
 const ROOM_CAPACITY = 4;
 
@@ -46,6 +47,18 @@ export function getRoomSummaries(): RoomSummary[] {
     users: room.users.length,
     capacity: ROOM_CAPACITY
   }));
+}
+
+export function createRoom(name: string): RoomSummary {
+  const room: Room = {
+    id: `room-${randomUUID()}`,
+    name,
+    users: [],
+    messages: []
+  };
+
+  rooms.set(room.id, room);
+  return { id: room.id, name: room.name, users: 0, capacity: ROOM_CAPACITY };
 }
 
 export function getRoomUsers(roomId: string): RoomUser[] {

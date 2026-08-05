@@ -6,6 +6,8 @@ import { useScreenShare } from "../hooks/useScreenShare";
 import { useWebRTC } from "../hooks/useWebRTC";
 import { getFallbackAvatar } from "../lib/avatar";
 import { type Language, translate } from "../lib/i18n";
+import type { UserRole } from "../lib/auth";
+import { hasPermission } from "../lib/permissions";
 import type { AppSocket } from "../lib/socket";
 import type { RoomSummary } from "../types/realtime";
 import { ChatPanel } from "./ChatPanel";
@@ -19,15 +21,17 @@ type RoomPageProps = {
   isConnected: boolean;
   connectionError: string | null;
   language: Language;
+  role: UserRole;
   onLeave: () => void;
 };
 
-export function RoomPage({ socket, room, nickname, isConnected, connectionError, language, onLeave }: RoomPageProps) {
+export function RoomPage({ socket, room, nickname, isConnected, connectionError, language, role, onLeave }: RoomPageProps) {
   const [chatOpen, setChatOpen] = useState(false);
   const [roomConnectionError, setRoomConnectionError] = useState<string | null>(null);
   const [mediaNotice, setMediaNotice] = useState<string | null>(null);
   const [screenShareBlocked, setScreenShareBlocked] = useState(false);
-  const { stream, error, micEnabled, cameraEnabled, hasMicrophone, hasCamera, toggleMic, toggleCamera } = useLocalMedia();
+  const canUseCamera = hasPermission(role, "use_camera");
+  const { stream, error, micEnabled, cameraEnabled, hasMicrophone, hasCamera, toggleMic, toggleCamera } = useLocalMedia(canUseCamera);
   const {
     stream: screenStream,
     errorKey: screenShareErrorKey,
@@ -67,6 +71,17 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
     setMediaNotice(null);
     await toggleScreenShare();
   };
+
+  useEffect(() => {
+    const handleCameraDenied = () => {
+      setMediaNotice(t("cameraSupporterOnly"));
+    };
+
+    socket.on("camera-denied", handleCameraDenied);
+    return () => {
+      socket.off("camera-denied", handleCameraDenied);
+    };
+  }, [socket, t]);
 
   useEffect(() => {
     const previousHtmlOverflow = document.documentElement.style.overflow;
@@ -194,7 +209,8 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
           micEnabled={micEnabled}
           cameraEnabled={cameraEnabled}
           canToggleMic={hasMicrophone}
-          canToggleCamera={hasCamera}
+          canToggleCamera={canUseCamera && hasCamera}
+          cameraPermissionLabel={!canUseCamera ? t("cameraSupporterOnly") : undefined}
           canShareScreen={canToggleScreenShare}
           screenShareSupported={screenShareSupported}
           screenSharing={isScreenSharing}

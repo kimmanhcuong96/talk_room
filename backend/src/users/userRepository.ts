@@ -10,9 +10,12 @@ export type UserProfile = {
   email: string;
   displayName: string;
   avatarUrl: string | null;
+  role: UserRole;
   createdAt: string;
   lastLogin: string;
 };
+
+export type UserRole = "unverified" | "verified" | "supporter";
 
 type UserRow = QueryResultRow & {
   id: string;
@@ -20,6 +23,7 @@ type UserRow = QueryResultRow & {
   email: string;
   display_name: string;
   avatar_url: string | null;
+  role: UserRole;
   created_at: Date;
   last_login: Date;
 };
@@ -31,6 +35,7 @@ function toUserProfile(row: UserRow): UserProfile {
     email: row.email,
     displayName: row.display_name,
     avatarUrl: row.avatar_url,
+    role: row.role,
     createdAt: row.created_at.toISOString(),
     lastLogin: row.last_login.toISOString()
   };
@@ -44,6 +49,10 @@ function mapDatabaseError(error: unknown): never {
 
     if (error.code === "42P01") {
       throw new HttpError(500, "Database table users does not exist. Run backend/migrations/001_create_users.sql on Neon.");
+    }
+
+    if (error.code === "42703") {
+      throw new HttpError(500, "Database schema is outdated. Run all SQL files in backend/migrations in numeric order.");
     }
 
     if (error.code === "28P01" || error.code === "3D000" || error.code === "ENOTFOUND" || error.code === "ECONNREFUSED") {
@@ -66,7 +75,7 @@ export async function upsertGoogleUser(profile: VerifiedOAuthProfile) {
           display_name = EXCLUDED.display_name,
           avatar_url = EXCLUDED.avatar_url,
           last_login = NOW()
-        RETURNING id, google_id, email, display_name, avatar_url, created_at, last_login
+        RETURNING id, google_id, email, display_name, avatar_url, role, created_at, last_login
       `,
       [randomUUID(), profile.providerUserId, profile.email, profile.displayName, profile.avatarUrl]
     );
@@ -81,7 +90,7 @@ export async function findUserById(userId: string) {
   try {
     const result = await getPool().query<UserRow>(
       `
-        SELECT id, google_id, email, display_name, avatar_url, created_at, last_login
+        SELECT id, google_id, email, display_name, avatar_url, role, created_at, last_login
         FROM users
         WHERE id = $1
       `,

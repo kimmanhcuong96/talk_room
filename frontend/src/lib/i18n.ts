@@ -4,6 +4,8 @@ export type TranslationKey =
   | "aboutUs"
   | "backToRooms"
   | "buyMeCoffee"
+  | "cameraSupporterOnly"
+  | "cancel"
   | "chat"
   | "chooseSignInMethod"
   | "closeSignIn"
@@ -12,6 +14,12 @@ export type TranslationKey =
   | "connectingServer"
   | "contactUs"
   | "createGroup"
+  | "createRoom"
+  | "createRoomDescription"
+  | "createRoomName"
+  | "createRoomNamePlaceholder"
+  | "createRoomNameTooShort"
+  | "createRoomVerifiedOnly"
   | "free4TalkApp"
   | "full"
   | "google"
@@ -35,6 +43,10 @@ export type TranslationKey =
   | "nicknamePlaceholder"
   | "privacyPolicy"
   | "readyAccess"
+  | "role"
+  | "roleSupporter"
+  | "roleUnverified"
+  | "roleVerified"
   | "roomConnectionFailed"
   | "roomConnectionLost"
   | "roomFull"
@@ -64,6 +76,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     aboutUs: "About Us",
     backToRooms: "Back to rooms",
     buyMeCoffee: "Buy me a coffee",
+    cameraSupporterOnly: "Camera is available to supporters only",
+    cancel: "Cancel",
     chat: "Chat",
     chooseSignInMethod: "Choose sign-in method",
     closeSignIn: "Close sign in",
@@ -72,6 +86,12 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     connectingServer: "Connecting to server",
     contactUs: "Contact Us",
     createGroup: "Create a new group",
+    createRoom: "Create room",
+    createRoomDescription: "Choose a clear topic so people know what to talk about.",
+    createRoomName: "Room name",
+    createRoomNamePlaceholder: "Example: Everyday Japanese",
+    createRoomNameTooShort: "Room name must contain at least 3 characters.",
+    createRoomVerifiedOnly: "Only verified users and supporters can create rooms.",
     free4TalkApp: "Free4Talk APP",
     full: "Full",
     google: "Google",
@@ -95,6 +115,10 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     nicknamePlaceholder: "Enter your nickname",
     privacyPolicy: "Privacy Policy",
     readyAccess: "Ready access",
+    role: "Account type",
+    roleSupporter: "Supporter",
+    roleUnverified: "Unverified",
+    roleVerified: "Verified",
     roomConnectionFailed: "Room connection failed",
     roomConnectionLost: "Lost connection to the room server.",
     roomFull: "Room is full",
@@ -123,6 +147,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     aboutUs: "Về chúng tôi",
     backToRooms: "Quay lại phòng",
     buyMeCoffee: "Mời tôi cà phê",
+    cameraSupporterOnly: "Chỉ Supporter mới có thể bật camera",
+    cancel: "Hủy",
     chat: "Trò chuyện",
     chooseSignInMethod: "Chọn phương thức đăng nhập",
     closeSignIn: "Đóng đăng nhập",
@@ -131,6 +157,12 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     connectingServer: "Đang kết nối server",
     contactUs: "Liên hệ",
     createGroup: "Tạo nhóm mới",
+    createRoom: "Tạo phòng",
+    createRoomDescription: "Chọn một chủ đề rõ ràng để mọi người biết nội dung trò chuyện.",
+    createRoomName: "Tên phòng",
+    createRoomNamePlaceholder: "Ví dụ: Luyện nói tiếng Nhật hằng ngày",
+    createRoomNameTooShort: "Tên phòng phải có ít nhất 3 ký tự.",
+    createRoomVerifiedOnly: "Chỉ tài khoản Verified và Supporter mới có thể tạo phòng.",
     free4TalkApp: "Ứng dụng Free4Talk",
     full: "Đầy",
     google: "Google",
@@ -154,6 +186,10 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     nicknamePlaceholder: "Nhập tên của bạn",
     privacyPolicy: "Chính sách riêng tư",
     readyAccess: "Sẵn sàng vào phòng",
+    role: "Loại tài khoản",
+    roleSupporter: "Supporter",
+    roleUnverified: "Chưa xác minh",
+    roleVerified: "Đã xác minh",
     roomConnectionFailed: "Kết nối phòng thất bại",
     roomConnectionLost: "Mất kết nối tới server phòng.",
     roomFull: "Phòng đã đầy",
@@ -182,6 +218,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     aboutUs: "关于我们",
     backToRooms: "返回房间列表",
     buyMeCoffee: "请我喝咖啡",
+    cameraSupporterOnly: "仅 Supporter 用户可以开启摄像头",
+    cancel: "取消",
     chat: "聊天",
     chooseSignInMethod: "选择登录方式",
     closeSignIn: "关闭登录",
@@ -190,6 +228,12 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     connectingServer: "正在连接服务器",
     contactUs: "联系我们",
     createGroup: "创建新群组",
+    createRoom: "创建房间",
+    createRoomDescription: "请选择清晰的主题，让大家了解要讨论的内容。",
+    createRoomName: "房间名称",
+    createRoomNamePlaceholder: "例如：日常日语练习",
+    createRoomNameTooShort: "房间名称至少需要 3 个字符。",
+    createRoomVerifiedOnly: "只有 Verified 和 Supporter 用户可以创建房间。",
     free4TalkApp: "Free4Talk 应用",
     full: "已满",
     google: "Google",
@@ -213,6 +257,10 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     nicknamePlaceholder: "输入你的昵称",
     privacyPolicy: "隐私政策",
     readyAccess: "准备进入",
+    role: "账户类型",
+    roleSupporter: "Supporter",
+    roleUnverified: "未验证",
+    roleVerified: "已验证",
     roomConnectionFailed: "房间连接失败",
     roomConnectionLost: "与房间服务器断开连接。",
     roomFull: "房间已满",
@@ -241,6 +289,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     aboutUs: "私たちについて",
     backToRooms: "ルーム一覧へ戻る",
     buyMeCoffee: "コーヒーをおごる",
+    cameraSupporterOnly: "カメラをオンにできるのは Supporter のみです",
+    cancel: "キャンセル",
     chat: "チャット",
     chooseSignInMethod: "ログイン方法を選択",
     closeSignIn: "ログインを閉じる",
@@ -249,6 +299,12 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     connectingServer: "サーバーに接続中",
     contactUs: "お問い合わせ",
     createGroup: "新しいグループを作成",
+    createRoom: "ルームを作成",
+    createRoomDescription: "会話の内容が分かる、明確なトピックを設定してください。",
+    createRoomName: "ルーム名",
+    createRoomNamePlaceholder: "例：毎日の日本語練習",
+    createRoomNameTooShort: "ルーム名は3文字以上で入力してください。",
+    createRoomVerifiedOnly: "ルームを作成できるのは Verified と Supporter のみです。",
     free4TalkApp: "Free4Talk アプリ",
     full: "満室",
     google: "Google",
@@ -272,6 +328,10 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     nicknamePlaceholder: "ニックネームを入力",
     privacyPolicy: "プライバシーポリシー",
     readyAccess: "入室準備",
+    role: "アカウント種別",
+    roleSupporter: "Supporter",
+    roleUnverified: "未認証",
+    roleVerified: "認証済み",
     roomConnectionFailed: "ルーム接続に失敗しました",
     roomConnectionLost: "ルームサーバーとの接続が切れました。",
     roomFull: "ルームは満室です",
@@ -373,7 +433,7 @@ export const infoPageCopies: Record<Language, Record<"privacy" | "contact" | "ab
         sections: [
           {
             heading: "1. Information we process",
-            body: "When you use guest mode, we process your chosen display name, room state, messages, and microphone, camera, and screen-sharing status. Your browser stores your display name, language, and sign-in session to maintain the experience. If you sign in with Google, we receive and store your Google account identifier, email, display name, avatar, account creation time, and latest login time."
+            body: "When you use guest mode, we process your chosen display name, room state, messages, and microphone, camera, and screen-sharing status. Your browser stores your display name, language, and sign-in session to maintain the experience. If you sign in with Google, we receive and store your Google account identifier, email, display name, avatar, account role, account creation time, and latest login time."
           },
           {
             heading: "2. Audio, video, and messages",
@@ -447,7 +507,7 @@ export const infoPageCopies: Record<Language, Record<"privacy" | "contact" | "ab
         sections: [
           {
             heading: "1. Thông tin chúng tôi xử lý",
-            body: "Khi bạn dùng chế độ khách, chúng tôi xử lý tên hiển thị bạn chọn, trạng thái phòng, tin nhắn và trạng thái micro, camera, chia sẻ màn hình. Trình duyệt lưu tên hiển thị, ngôn ngữ và phiên đăng nhập để duy trì trải nghiệm. Nếu đăng nhập bằng Google, chúng tôi nhận và lưu mã tài khoản Google, email, tên hiển thị, ảnh đại diện, thời điểm tạo tài khoản và lần đăng nhập gần nhất."
+            body: "Khi bạn dùng chế độ khách, chúng tôi xử lý tên hiển thị bạn chọn, trạng thái phòng, tin nhắn và trạng thái micro, camera, chia sẻ màn hình. Trình duyệt lưu tên hiển thị, ngôn ngữ và phiên đăng nhập để duy trì trải nghiệm. Nếu đăng nhập bằng Google, chúng tôi nhận và lưu mã tài khoản Google, email, tên hiển thị, ảnh đại diện, loại tài khoản, thời điểm tạo tài khoản và lần đăng nhập gần nhất."
           },
           {
             heading: "2. Âm thanh, video và tin nhắn",
@@ -519,7 +579,7 @@ export const infoPageCopies: Record<Language, Record<"privacy" | "contact" | "ab
         summary: "你可以以访客身份加入房间。我们不会出售个人数据，也不会主动录制通话。",
         updated: "最后更新：2026年8月5日",
         sections: [
-          { heading: "1. 我们处理的信息", body: "当你使用访客模式时，我们会处理你选择的显示名称、房间状态、消息，以及麦克风、摄像头和屏幕共享状态。浏览器会保存你的显示名称、语言和登录会话，以维持使用体验。如果你使用 Google 登录，我们会接收并保存你的 Google 账户标识、邮箱、显示名称、头像、账户创建时间和最近登录时间。" },
+          { heading: "1. 我们处理的信息", body: "当你使用访客模式时，我们会处理你选择的显示名称、房间状态、消息，以及麦克风、摄像头和屏幕共享状态。浏览器会保存你的显示名称、语言和登录会话，以维持使用体验。如果你使用 Google 登录，我们会接收并保存你的 Google 账户标识、邮箱、显示名称、头像、账户类型、账户创建时间和最近登录时间。" },
           { heading: "2. 音频、视频和消息", body: "音频、视频和屏幕共享内容会通过 WebRTC 在房间参与者之间实时传输。连接可能是直接连接，也可能在需要时通过 TURN 服务器中继；Talking Room 不会主动录制或保存通话。文字消息和房间信息会在服务运行期间临时保存在内存中，可能提供给加入该房间的人，并不是长期聊天记录。" },
           { heading: "3. 我们如何使用数据", body: "我们使用数据来完成登录、在房间中显示身份、连接参与者、运行聊天和通话、维护安全、诊断错误并提升服务稳定性。我们不会出售你的个人数据。" },
           { heading: "4. 服务提供商", body: "当你登录时，Google 可能会处理必要数据；Talking Room 使用的托管、数据库或 TURN 基础设施提供商也可能处理必要数据。这些提供商会按照其自身条款和隐私政策处理数据。" },
@@ -569,7 +629,7 @@ export const infoPageCopies: Record<Language, Record<"privacy" | "contact" | "ab
         summary: "ゲストとしてルームに参加できます。個人データを販売せず、通話を意図的に録音することもありません。",
         updated: "最終更新日：2026年8月5日",
         sections: [
-          { heading: "1. 処理する情報", body: "ゲストモードを使う場合、選択した表示名、ルームの状態、メッセージ、マイク・カメラ・画面共有の状態を処理します。ブラウザには表示名、言語、ログインセッションが保存され、体験を維持します。Google でログインする場合、Google アカウント識別子、メールアドレス、表示名、アバター、アカウント作成時刻、直近のログイン時刻を受け取り保存します。" },
+          { heading: "1. 処理する情報", body: "ゲストモードを使う場合、選択した表示名、ルームの状態、メッセージ、マイク・カメラ・画面共有の状態を処理します。ブラウザには表示名、言語、ログインセッションが保存され、体験を維持します。Google でログインする場合、Google アカウント識別子、メールアドレス、表示名、アバター、アカウント種別、アカウント作成時刻、直近のログイン時刻を受け取り保存します。" },
           { heading: "2. 音声、映像、メッセージ", body: "音声、映像、画面共有の内容は WebRTC によりルーム参加者の間でリアルタイムに送信されます。接続は直接行われる場合も、必要に応じて TURN サーバー経由で中継される場合もあります。Talking Room は通話を意図的に録音または保存しません。テキストメッセージとルーム情報はサービス稼働中に一時的にメモリへ保持され、そのルームへ参加する人に提供されることがありますが、恒久的なチャット履歴として設計されていません。" },
           { heading: "3. データの利用目的", body: "データは、ログイン、ルーム内での本人表示、参加者の接続、チャットと通話の運営、セキュリティ維持、エラー診断、サービス安定性の改善に利用します。個人データを販売することはありません。" },
           { heading: "4. サービス提供者", body: "ログイン時には Google が必要なデータを処理する場合があります。また、Talking Room が利用するホスティング、データベース、TURN インフラ提供者も必要なデータを処理する場合があります。これらの提供者は各自の規約とプライバシーポリシーに従ってデータを処理します。" },

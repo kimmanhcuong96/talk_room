@@ -25,13 +25,13 @@ async function hasInputDevice(kind: MediaDeviceKind) {
   return devices.some((device) => device.kind === kind);
 }
 
-async function requestLocalStream() {
+async function requestLocalStream(allowCamera: boolean) {
   if (!hasMediaDeviceApi()) {
     throw new Error("Media devices are unavailable on this browser origin.");
   }
 
   try {
-    return await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+    return await navigator.mediaDevices.getUserMedia({ audio: true, video: allowCamera });
   } catch (combinedError) {
     const tracks: MediaStreamTrack[] = [];
 
@@ -42,11 +42,13 @@ async function requestLocalStream() {
       // Missing or denied microphone should not block camera/avatar-only room entry.
     }
 
-    try {
-      const videoOnly = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
-      tracks.push(...videoOnly.getVideoTracks());
-    } catch {
-      // Missing or denied camera is fine because the app can show the avatar.
+    if (allowCamera) {
+      try {
+        const videoOnly = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+        tracks.push(...videoOnly.getVideoTracks());
+      } catch {
+        // Missing or denied camera is fine because the app can show the avatar.
+      }
     }
 
     if (tracks.length > 0) {
@@ -57,7 +59,7 @@ async function requestLocalStream() {
   }
 }
 
-export function useLocalMedia() {
+export function useLocalMedia(allowCamera = true) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [micEnabled, setMicEnabled] = useState(false);
@@ -84,7 +86,7 @@ export function useLocalMedia() {
   useEffect(() => {
     let isMounted = true;
 
-    requestLocalStream()
+    requestLocalStream(allowCamera)
       .then((mediaStream) => {
         if (!isMounted) {
           mediaStream.getTracks().forEach((track) => track.stop());
@@ -102,7 +104,7 @@ export function useLocalMedia() {
         });
         void hasInputDevice("videoinput").then((hasVideoInput) => {
           if (isMounted) {
-            setHasCamera(hasVideoInput && getLiveVideoTracks(mediaStream).length > 0);
+            setHasCamera(allowCamera && hasVideoInput && getLiveVideoTracks(mediaStream).length > 0);
           }
         });
       })
@@ -125,7 +127,7 @@ export function useLocalMedia() {
         return null;
       });
     };
-  }, []);
+  }, [allowCamera]);
 
   useEffect(() => {
     if (!stream) {
@@ -194,7 +196,7 @@ export function useLocalMedia() {
         setHasMicrophone(true);
       }
 
-      if (!hasVideoInput || getLiveVideoTracks(stream).length === 0) {
+      if (!allowCamera || !hasVideoInput || getLiveVideoTracks(stream).length === 0) {
         stream?.getVideoTracks().forEach((track) => {
           track.enabled = false;
         });
@@ -210,7 +212,7 @@ export function useLocalMedia() {
     return () => {
       navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
     };
-  }, [disableCamera, disableMicrophone, stream]);
+  }, [allowCamera, disableCamera, disableMicrophone, stream]);
 
   useEffect(() => {
     getLiveAudioTracks(stream).forEach((track) => {

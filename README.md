@@ -78,7 +78,14 @@ GET /auth/me
 Authorization: Bearer <application-jwt>
 ```
 
-Run the SQL in `backend/migrations/001_create_users.sql` against the configured Postgres database before enabling login.
+Run the SQL files in `backend/migrations` in numeric order against the configured Postgres database before enabling login. Migration `002_add_user_role.sql` adds the extensible user roles and defaults existing accounts to `unverified`.
+
+To promote an account after verification or supporter approval, update its role explicitly:
+
+```sql
+UPDATE users SET role = 'verified' WHERE email = 'person@example.com';
+UPDATE users SET role = 'supporter' WHERE email = 'supporter@example.com';
+```
 
 ## Deployment
 

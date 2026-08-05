@@ -1,3 +1,5 @@
+import type { UserRole } from "../lib/auth";
+
 export type RoomSummary = {
   id: string;
   name: string;
@@ -9,6 +11,7 @@ export type RoomUser = {
   socketId: string;
   nickname: string;
   avatar: string;
+  role: UserRole;
   micEnabled: boolean;
   cameraEnabled: boolean;
   screenSharing: boolean;
@@ -26,7 +29,8 @@ export type ChatMessage = {
 };
 
 export type ClientToServerEvents = {
-  "join-room": (payload: { roomId: string; nickname: string }) => void;
+  "join-room": (payload: { roomId: string; nickname: string; authToken?: string }) => void;
+  "create-room": (payload: { name: string; authToken?: string }) => void;
   "leave-room": () => void;
   "send-message": (payload: { text: string }) => void;
   "media-status": (payload: { micEnabled: boolean; cameraEnabled: boolean; screenSharing: boolean; screenTrackId: string | null }) => void;
@@ -49,6 +53,9 @@ export type ServerToClientEvents = {
   "chat-history": (messages: ChatMessage[]) => void;
   "room-full": () => void;
   "join-error": (message: string) => void;
+  "create-room-error": (message: string) => void;
+  "room-created": (room: RoomSummary) => void;
+  "camera-denied": () => void;
   "user-joined": (user: RoomUser) => void;
   "user-left": (payload: { socketId: string }) => void;
   "user-media-status": (payload: { socketId: string; micEnabled: boolean; cameraEnabled: boolean; screenSharing: boolean; screenTrackId: string | null }) => void;

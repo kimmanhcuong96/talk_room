@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(320) NOT NULL UNIQUE,
   display_name VARCHAR(255) NOT NULL,
   avatar_url TEXT,
+  role VARCHAR(20) NOT NULL DEFAULT 'unverified' CHECK (role IN ('unverified', 'verified', 'supporter')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_login TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

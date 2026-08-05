@@ -7,6 +7,7 @@ type ToolbarProps = {
   cameraEnabled: boolean;
   canToggleMic: boolean;
   canToggleCamera: boolean;
+  cameraPermissionLabel?: string;
   canShareScreen: boolean;
   screenShareSupported: boolean;
   screenSharing: boolean;
@@ -22,6 +23,7 @@ export function Toolbar({
   cameraEnabled,
   canToggleMic,
   canToggleCamera,
+  cameraPermissionLabel,
   canShareScreen,
   screenShareSupported,
   screenSharing,
@@ -44,7 +46,7 @@ export function Toolbar({
         {micEnabled ? <Mic size={20} /> : <MicOff size={20} />}
       </IconButton>
       <IconButton
-        label={canToggleCamera ? (cameraEnabled ? t("videoOff") : t("videoOn")) : t("videoUnavailable")}
+        label={canToggleCamera ? (cameraEnabled ? t("videoOff") : t("videoOn")) : cameraPermissionLabel ?? t("videoUnavailable")}
         active={cameraEnabled}
         disabled={!canToggleCamera}
         onClick={onToggleCamera}

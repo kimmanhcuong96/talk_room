@@ -2,12 +2,16 @@ import type { AppServer, AppSocket } from "../types/socket.js";
 import {
   addRoomMessage,
   addUserToRoom,
+  createRoom,
   getRoomMessages,
   getRoomSummaries,
   getRoomUsers,
   removeUser,
   updateUserMedia
 } from "../rooms/roomStore.js";
+import { verifyAppJwt } from "../auth/jwt.js";
+import { findUserById, type UserProfile } from "../users/userRepository.js";
+import { hasPermission } from "../users/userPermissions.js";
 
 const avatars = ["🐣", "🐼", "🐰", "🦊", "🐨", "🐥", "🐧", "🐸", "🦄", "🐙", "🐢", "🐹"];
 
@@ -17,6 +21,19 @@ function createRandomAvatar() {
 
 function emitRoomList(io: AppServer) {
   io.emit("room-list", getRoomSummaries());
+}
+
+async function getAuthenticatedUser(authToken: string | undefined): Promise<UserProfile | null> {
+  if (!authToken) {
+    return null;
+  }
+
+  try {
+    const { userId } = verifyAppJwt(authToken);
+    return await findUserById(userId);
+  } catch {
+    return null;
+  }
 }
 
 const loggedWebRtcTransports = new Map<string, string>();
@@ -48,6 +65,7 @@ function leaveCurrentRoom(io: AppServer, socket: AppSocket) {
   socket.data.roomId = undefined;
   socket.data.nickname = undefined;
   socket.data.avatar = undefined;
+  socket.data.role = undefined;
   clearWebRtcTransportLogs(socket.id);
   emitRoomList(io);
 }
@@ -56,8 +74,29 @@ export function registerSocketHandlers(io: AppServer) {
   io.on("connection", (socket) => {
     socket.emit("room-list", getRoomSummaries());
 
-    socket.on("join-room", ({ roomId, nickname }) => {
+    socket.on("create-room", async ({ name, authToken }) => {
+      const user = await getAuthenticatedUser(authToken);
+      const cleanName = typeof name === "string" ? name.trim().replace(/\s+/g, " ").slice(0, 60) : "";
+
+      if (!user || !hasPermission(user.role, "create_room")) {
+        socket.emit("create-room-error", "CREATE_ROOM_PERMISSION_DENIED");
+        return;
+      }
+
+      if (cleanName.length < 3) {
+        socket.emit("create-room-error", "ROOM_NAME_TOO_SHORT");
+        return;
+      }
+
+      const room = createRoom(cleanName);
+      socket.emit("room-created", room);
+      emitRoomList(io);
+    });
+
+    socket.on("join-room", async ({ roomId, nickname, authToken }) => {
       const cleanNickname = nickname.trim().slice(0, 32);
+      const authenticatedUser = await getAuthenticatedUser(authToken);
+      const role = authenticatedUser?.role ?? "unverified";
 
       if (!cleanNickname) {
         socket.emit("join-error", "Nickname is required.");
@@ -68,6 +107,7 @@ export function registerSocketHandlers(io: AppServer) {
         socketId: socket.id,
         nickname: cleanNickname,
         avatar: createRandomAvatar(),
+        role,
         micEnabled: false,
         cameraEnabled: false,
         screenSharing: false,
@@ -83,6 +123,7 @@ export function registerSocketHandlers(io: AppServer) {
       socket.data.roomId = roomId;
       socket.data.nickname = cleanNickname;
       socket.data.avatar = result.users.find((user) => user.socketId === socket.id)?.avatar;
+      socket.data.role = role;
       socket.join(roomId);
 
       const currentUser = result.users.find((user) => user.socketId === socket.id);
@@ -128,6 +169,11 @@ export function registerSocketHandlers(io: AppServer) {
 
     socket.on("media-status", (payload) => {
       const roomId = socket.data.roomId;
+      const canUseCamera = hasPermission(socket.data.role ?? "unverified", "use_camera");
+
+      if (payload.cameraEnabled && !canUseCamera) {
+        socket.emit("camera-denied");
+      }
       const anotherScreenSharer = roomId
         ? getRoomUsers(roomId).some((user) => user.socketId !== socket.id && user.screenSharing)
         : false;
@@ -137,7 +183,10 @@ export function registerSocketHandlers(io: AppServer) {
         return;
       }
 
-      const user = updateUserMedia(socket.id, payload);
+      const user = updateUserMedia(socket.id, {
+        ...payload,
+        cameraEnabled: canUseCamera && payload.cameraEnabled
+      });
 
       if (roomId && user) {
         socket.to(roomId).emit("user-media-status", {

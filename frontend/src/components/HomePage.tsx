@@ -5,6 +5,7 @@ import type { AuthUser } from "../lib/auth";
 import { type Language, languages, translate } from "../lib/i18n";
 import type { RoomSummary } from "../types/realtime";
 import type { InfoPage } from "../lib/routes";
+import { hasPermission } from "../lib/permissions";
 
 type HomePageProps = {
   rooms: RoomSummary[];
@@ -19,6 +20,8 @@ type HomePageProps = {
   onGoogleCredential: (idToken: string) => void;
   onSignOut: () => void;
   onJoin: (roomId: string) => void;
+  onCreateRoom: (name: string) => void;
+  createRoomError: string | null;
   onOpenInfoPage: (page: InfoPage) => void;
 };
 
@@ -86,6 +89,8 @@ export function HomePage({
   onGoogleCredential,
   onSignOut,
   onJoin,
+  onCreateRoom,
+  createRoomError,
   onOpenInfoPage
 }: HomePageProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -93,10 +98,14 @@ export function HomePage({
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [oauthMenuOpen, setOauthMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [createRoomOpen, setCreateRoomOpen] = useState(false);
+  const [newRoomName, setNewRoomName] = useState("");
   const languageMenuRef = useRef<HTMLDivElement | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
   const selectedLanguage = languages.find((option) => option.value === language) ?? languages[0];
+  const canCreateRoom = hasPermission(user?.role ?? "unverified", "create_room");
+  const roleLabel = user ? t(user.role === "supporter" ? "roleSupporter" : user.role === "verified" ? "roleVerified" : "roleUnverified") : "";
 
   const filteredRooms = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -129,7 +138,7 @@ export function HomePage({
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-mint">English Talk Rooms</p>
+          <p className="text-sm font-medium uppercase tracking-wide text-mint">Talking room - For me talk</p>
           <h1 className="mt-2 text-4xl font-semibold text-white sm:text-5xl">{t("title")}</h1>
           <p className={`mt-3 flex items-center gap-2 text-sm ${isConnected ? "text-mint" : "text-coral"}`}>
             <span
@@ -203,6 +212,16 @@ export function HomePage({
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-white/55">{t("signIn")}</span>
                         <span className="truncate font-medium text-mint">{t("google")}</span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-white/55">{t("role")}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                          user.role === "supporter"
+                            ? "bg-[#ffd84d]/15 text-[#ffd84d]"
+                            : user.role === "verified"
+                              ? "bg-mint/15 text-mint"
+                              : "bg-white/8 text-white/60"
+                        }`}>{roleLabel}</span>
                       </div>
                       <button
                         type="button"
@@ -328,10 +347,68 @@ export function HomePage({
         </div>
       ) : null}
 
+      {createRoomOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4 backdrop-blur-sm">
+          <section className="w-full max-w-md rounded-lg border border-white/10 bg-[#182635] p-5 text-white shadow-2xl shadow-black/40">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">{t("createRoom")}</h2>
+                <p className="mt-2 text-sm leading-6 text-white/60">
+                  {canCreateRoom ? t("createRoomDescription") : t("createRoomVerifiedOnly")}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label={t("cancel")}
+                onClick={() => setCreateRoomOpen(false)}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-white/5 text-white/65 transition hover:bg-white/10 hover:text-white"
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            {canCreateRoom ? (
+              <form
+                className="mt-5"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  const cleanName = newRoomName.trim();
+                  if (cleanName.length >= 3) {
+                    onCreateRoom(cleanName);
+                  }
+                }}
+              >
+                <label htmlFor="new-room-name" className="text-sm font-medium text-white/75">{t("createRoomName")}</label>
+                <input
+                  id="new-room-name"
+                  value={newRoomName}
+                  maxLength={60}
+                  autoFocus
+                  onChange={(event) => setNewRoomName(event.target.value)}
+                  placeholder={t("createRoomNamePlaceholder")}
+                  className="mt-2 h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-mint"
+                />
+                {createRoomError ? <p className="mt-3 text-sm text-coral">{createRoomError}</p> : null}
+                <div className="mt-5 flex justify-end gap-3">
+                  <button type="button" onClick={() => setCreateRoomOpen(false)} className="h-10 rounded-md bg-white/5 px-4 text-sm text-white/75 hover:bg-white/10">
+                    {t("cancel")}
+                  </button>
+                  <button type="submit" disabled={newRoomName.trim().length < 3} className="h-10 rounded-md bg-[#258ff4] px-4 text-sm font-semibold text-white hover:bg-[#1d7edb] disabled:cursor-not-allowed disabled:opacity-40">
+                    {t("createRoom")}
+                  </button>
+                </div>
+              </form>
+            ) : null}
+          </section>
+        </div>
+      ) : null}
+
       <section className="flex flex-col gap-4">
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
           <button
             type="button"
+            onClick={() => setCreateRoomOpen(true)}
+            title={!canCreateRoom ? t("createRoomVerifiedOnly") : undefined}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#258ff4] px-4 text-sm font-semibold text-white transition hover:bg-[#1d7edb]"
           >
             <Plus size={18} />

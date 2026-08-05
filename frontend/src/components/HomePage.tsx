@@ -4,6 +4,7 @@ import { GoogleSignInButton } from "./GoogleSignInButton";
 import type { AuthUser } from "../lib/auth";
 import { type Language, languages, translate } from "../lib/i18n";
 import type { RoomSummary } from "../types/realtime";
+import type { InfoPage } from "../lib/routes";
 
 type HomePageProps = {
   rooms: RoomSummary[];
@@ -18,6 +19,7 @@ type HomePageProps = {
   onGoogleCredential: (idToken: string) => void;
   onSignOut: () => void;
   onJoin: (roomId: string) => void;
+  onOpenInfoPage: (page: InfoPage) => void;
 };
 
 type RoomDensity = "3x" | "2x" | "1x";
@@ -83,7 +85,8 @@ export function HomePage({
   onLanguageChange,
   onGoogleCredential,
   onSignOut,
-  onJoin
+  onJoin,
+  onOpenInfoPage
 }: HomePageProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [density, setDensity] = useState<RoomDensity>("3x");
@@ -350,6 +353,7 @@ export function HomePage({
           </button> */}
           <button
             type="button"
+            onClick={() => onOpenInfoPage("privacy")}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-white/5 px-4 text-sm font-medium text-white/85 transition hover:bg-white/10"
           >
             <ShieldCheck size={17} />
@@ -357,6 +361,7 @@ export function HomePage({
           </button>
           <button
             type="button"
+            onClick={() => onOpenInfoPage("contact")}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-white/5 px-4 text-sm font-medium text-white/85 transition hover:bg-white/10"
           >
             <MessageCircle size={17} />
@@ -364,6 +369,7 @@ export function HomePage({
           </button>
           <button
             type="button"
+            onClick={() => onOpenInfoPage("about")}
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-white/5 px-4 text-sm font-medium text-white/85 transition hover:bg-white/10"
           >
             <Info size={17} />

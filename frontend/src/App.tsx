@@ -2,14 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { HomePage } from "./components/HomePage";
 import { RoomAccessPage } from "./components/RoomAccessPage";
 import { RoomPage } from "./components/RoomPage";
+import { InfoPage } from "./components/InfoPage";
 import { useRooms } from "./hooks/useRooms";
 import { useSocket } from "./hooks/useSocket";
 import { clearStoredSession, getCurrentUser, loginWithGoogleIdToken, readStoredToken, storeSession, type AuthSession } from "./lib/auth";
 import { type Language, isLanguage, translate } from "./lib/i18n";
-import { getRoomIdFromPath, homePath, roomPath } from "./lib/routes";
+import { getInfoPageFromPath, getRoomIdFromPath, homePath, infoPagePath, roomPath, type InfoPage as InfoPageName } from "./lib/routes";
 
 const NICKNAME_STORAGE_KEY = "english-talk-rooms:nickname";
 const LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
+const GENERATED_NICKNAME_PATTERN = /^Talking User \d+$/;
 
 function detectDefaultLanguage(): Language {
   const localeValues = [navigator.language, ...Array.from(navigator.languages ?? [])].filter(Boolean);
@@ -51,6 +53,7 @@ export function App() {
     return detectedLanguage;
   });
   const [routeRoomId, setRouteRoomId] = useState(() => getRoomIdFromPath());
+  const [routeInfoPage, setRouteInfoPage] = useState<InfoPageName | null>(() => getInfoPageFromPath());
   const [activeRoom, setActiveRoom] = useState<ActiveRoom | null>(null);
   const [pendingJoin, setPendingJoin] = useState<ActiveRoom | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +69,7 @@ export function App() {
   useEffect(() => {
     const handlePopState = () => {
       const nextRoomId = getRoomIdFromPath();
+      setRouteInfoPage(getInfoPageFromPath());
       setRouteRoomId(nextRoomId);
       setActiveRoom(null);
       setPendingJoin(null);
@@ -125,7 +129,12 @@ export function App() {
     setError(null);
     setActiveRoom(null);
     setPendingJoin(null);
+    if (!authenticatedNickname && (!nickname.trim() || GENERATED_NICKNAME_PATTERN.test(nickname.trim()))) {
+      setNickname("");
+      localStorage.removeItem(NICKNAME_STORAGE_KEY);
+    }
     setRouteRoomId(roomId);
+    setRouteInfoPage(null);
     window.history.pushState({}, "", roomPath(roomId));
   };
 
@@ -134,11 +143,7 @@ export function App() {
       return;
     }
 
-    const cleanNickname = authenticatedNickname || nickname.trim();
-    if (!cleanNickname) {
-      setError(translate(language, "nicknameRequired"));
-      return;
-    }
+    const cleanNickname = authenticatedNickname || nickname.trim() || `Talking User ${routeRoom ? routeRoom.users + 1 : 1}`;
 
     if (!authenticatedNickname) {
       localStorage.setItem(NICKNAME_STORAGE_KEY, cleanNickname);
@@ -237,7 +242,22 @@ export function App() {
     setActiveRoom(null);
     setPendingJoin(null);
     setRouteRoomId(null);
+    setRouteInfoPage(null);
     window.history.pushState({}, "", homePath());
+  };
+
+  const handleOpenInfoPage = (page: InfoPageName) => {
+    setError(null);
+    setRouteRoomId(null);
+    setRouteInfoPage(page);
+    window.history.pushState({}, "", infoPagePath(page));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleCloseInfoPage = () => {
+    setRouteInfoPage(null);
+    window.history.pushState({}, "", homePath());
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -278,6 +298,7 @@ export function App() {
         room={routeRoom}
         nickname={nickname}
         authenticatedNickname={authenticatedNickname}
+        suggestedNickname={`Talking User ${routeRoom.users + 1}`}
         isConnected={isConnected}
         error={error ?? connectionError}
         language={language}
@@ -286,6 +307,10 @@ export function App() {
         onBack={handleLeave}
       />
     );
+  }
+
+  if (routeInfoPage) {
+    return <InfoPage page={routeInfoPage} language={language} onBack={handleCloseInfoPage} />;
   }
 
   return (
@@ -302,6 +327,7 @@ export function App() {
       onGoogleCredential={handleGoogleCredential}
       onSignOut={handleSignOut}
       onJoin={handleJoin}
+      onOpenInfoPage={handleOpenInfoPage}
     />
   );
 }

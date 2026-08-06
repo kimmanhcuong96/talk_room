@@ -22,10 +22,36 @@ export type AuthSession = {
   adminSession?: AdminSession | null;
 };
 
+export class AuthRequestError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "AuthRequestError";
+  }
+}
+
 const apiUrl = (import.meta.env.VITE_API_URL ?? import.meta.env.VITE_SOCKET_URL ?? "http://localhost:4000").replace(/\/$/, "");
 
 export function readStoredToken() {
   return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+}
+
+export function readStoredSession(): AuthSession | null {
+  const token = readStoredToken();
+  const storedUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+  if (!token || !storedUser) return null;
+
+  try {
+    const user = JSON.parse(storedUser) as Partial<AuthUser>;
+    const validRole = user.role === "unverified" || user.role === "verified" || user.role === "supporter";
+    if (!user.id || !user.email || !user.displayName || !validRole) return null;
+    return { token, user: user as AuthUser };
+  } catch {
+    return null;
+  }
+}
+
+export function isInvalidAuthSessionError(error: unknown) {
+  return error instanceof AuthRequestError && (error.status === 401 || error.status === 403);
 }
 
 export function storeSession(session: AuthSession) {
@@ -65,7 +91,7 @@ export async function getCurrentUser(token: string): Promise<AuthUser> {
   const body = (await response.json().catch(() => ({}))) as { user?: AuthUser; error?: string };
 
   if (!response.ok || !body.user) {
-    throw new Error(body.error ?? "LOAD_USER_PROFILE_FAILED");
+    throw new AuthRequestError(body.error ?? "LOAD_USER_PROFILE_FAILED", response.status);
   }
 
   return body.user;

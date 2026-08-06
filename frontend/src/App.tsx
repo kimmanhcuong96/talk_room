@@ -5,7 +5,7 @@ import { RoomPage } from "./components/RoomPage";
 import { InfoPage } from "./components/InfoPage";
 import { useRooms } from "./hooks/useRooms";
 import { useSocket } from "./hooks/useSocket";
-import { clearStoredSession, getCurrentUser, loginWithGoogleIdToken, readStoredToken, storeSession, type AuthSession } from "./lib/auth";
+import { clearStoredSession, getCurrentUser, isInvalidAuthSessionError, loginWithGoogleIdToken, readStoredSession, readStoredToken, storeSession, type AuthSession } from "./lib/auth";
 import { type Language, isLanguage, translate } from "./lib/i18n";
 import { getInfoPageFromPath, getRoomIdFromPath, homePath, infoPagePath, roomPath, type InfoPage as InfoPageName } from "./lib/routes";
 import { isGeneratedNickname, resolveGuestNickname } from "./lib/nickname";
@@ -61,7 +61,7 @@ export function App() {
   const [activeRoom, setActiveRoom] = useState<ActiveRoom | null>(null);
   const [pendingJoin, setPendingJoin] = useState<ActiveRoom | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
+  const [authSession, setAuthSession] = useState<AuthSession | null>(readStoredSession);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(() => Boolean(readStoredToken()));
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -243,6 +243,7 @@ export function App() {
 
   useEffect(() => {
     const token = readStoredToken();
+    const cachedSession = readStoredSession();
 
     if (!token) {
       setIsAuthLoading(false);
@@ -255,19 +256,28 @@ export function App() {
     getCurrentUser(token)
       .then((user) => {
         if (!cancelled) {
-          setAuthSession({ token, user });
+          const refreshedSession = { token, user };
+          storeSession(refreshedSession);
+          setAuthSession(refreshedSession);
           setAuthError(null);
         }
       })
       .catch((loadError) => {
         if (!cancelled) {
-          clearStoredSession();
-          setAuthSession(null);
-          setAuthError(
-            loadError instanceof Error && loadError.message !== "LOAD_USER_PROFILE_FAILED"
-              ? loadError.message
-              : translate(language, "loadUserProfileFailed")
-          );
+          if (isInvalidAuthSessionError(loadError)) {
+            clearStoredSession();
+            setAuthSession(null);
+            setAuthError(translate(language, "loadUserProfileFailed"));
+          } else {
+            setAuthSession((currentSession) => currentSession ?? cachedSession);
+            if (!cachedSession) {
+              setAuthError(
+                loadError instanceof Error && loadError.message !== "LOAD_USER_PROFILE_FAILED"
+                  ? loadError.message
+                  : translate(language, "loadUserProfileFailed")
+              );
+            }
+          }
         }
       })
       .finally(() => {

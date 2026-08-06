@@ -1,5 +1,6 @@
 import type { ChatMessage, RoomSummary, RoomUser } from "../types/socket.js";
 import { randomUUID } from "node:crypto";
+import type { RoomLanguage } from "./roomLanguages.js";
 
 const ROOM_CAPACITY = 4;
 
@@ -29,6 +30,8 @@ const roomNames = [
 type Room = {
   id: string;
   name: string;
+  primaryLanguage: RoomLanguage;
+  secondaryLanguage: RoomLanguage | null;
   source: "system" | "user";
   users: RoomUser[];
   messages: ChatMessage[];
@@ -37,7 +40,7 @@ type Room = {
 const rooms = new Map<string, Room>(
   roomNames.map((name, index) => {
     const id = `room-${index + 1}`;
-    return [id, { id, name, source: "system", users: [], messages: [] }];
+    return [id, { id, name, primaryLanguage: "en", secondaryLanguage: null, source: "system", users: [], messages: [] }];
   })
 );
 
@@ -45,22 +48,33 @@ export function getRoomSummaries(): RoomSummary[] {
   return [...rooms.values()].map((room) => ({
     id: room.id,
     name: room.name,
+    primaryLanguage: room.primaryLanguage,
+    secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
     capacity: ROOM_CAPACITY
   }));
 }
 
-export function createRoom(name: string): RoomSummary {
+export function createRoom(name: string, primaryLanguage: RoomLanguage, secondaryLanguage: RoomLanguage | null): RoomSummary {
   const room: Room = {
     id: `room-${randomUUID()}`,
     name,
+    primaryLanguage,
+    secondaryLanguage,
     source: "user",
     users: [],
     messages: []
   };
 
   rooms.set(room.id, room);
-  return { id: room.id, name: room.name, users: 0, capacity: ROOM_CAPACITY };
+  return {
+    id: room.id,
+    name: room.name,
+    primaryLanguage: room.primaryLanguage,
+    secondaryLanguage: room.secondaryLanguage,
+    users: 0,
+    capacity: ROOM_CAPACITY
+  };
 }
 
 export function deleteUserCreatedRoomIfEmpty(roomId: string) {

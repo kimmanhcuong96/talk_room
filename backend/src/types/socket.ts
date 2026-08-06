@@ -1,5 +1,6 @@
 import type { Server, Socket } from "socket.io";
 import type { UserRole } from "../users/userRepository.js";
+import type { RoomLanguage } from "../rooms/roomLanguages.js";
 
 export type RoomUser = {
   socketId: string;
@@ -15,6 +16,8 @@ export type RoomUser = {
 export type RoomSummary = {
   id: string;
   name: string;
+  primaryLanguage: RoomLanguage;
+  secondaryLanguage: RoomLanguage | null;
   users: number;
   capacity: number;
 };
@@ -31,7 +34,7 @@ export type ChatMessage = {
 
 export type ClientToServerEvents = {
   "join-room": (payload: { roomId: string; nickname: string; authToken?: string }) => void;
-  "create-room": (payload: { name: string; authToken?: string }) => void;
+  "create-room": (payload: { name: string; primaryLanguage: RoomLanguage; secondaryLanguage?: RoomLanguage | null; authToken?: string }) => void;
   "leave-room": () => void;
   "send-message": (payload: { text: string }) => void;
   "media-status": (payload: { micEnabled: boolean; cameraEnabled: boolean; screenSharing: boolean; screenTrackId: string | null }) => void;

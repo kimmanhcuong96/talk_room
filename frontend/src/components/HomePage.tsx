@@ -4,11 +4,12 @@ import { GoogleSignInButton } from "./GoogleSignInButton";
 import type { AuthUser } from "../lib/auth";
 import { type Language, languages, translate } from "../lib/i18n";
 import type { RoomSummary } from "../types/realtime";
-import { adminPath, type InfoPage } from "../lib/routes";
+import { adminPath, infoPagePath, type InfoPage } from "../lib/routes";
 import { readAdminToken } from "../lib/adminAuth";
 import { hasPermission } from "../lib/permissions";
-import { infoPagePath } from "../lib/routes";
 import { SeoContent } from "./SeoContent";
+import { getRoomLanguageName, roomLanguages, type RoomLanguage } from "../lib/roomLanguages";
+import { RoomLanguageTags } from "./RoomLanguageTags";
 
 type HomePageProps = {
   rooms: RoomSummary[];
@@ -23,7 +24,7 @@ type HomePageProps = {
   onGoogleCredential: (idToken: string) => void;
   onSignOut: () => void;
   onJoin: (roomId: string) => void;
-  onCreateRoom: (name: string) => void;
+  onCreateRoom: (name: string, primaryLanguage: RoomLanguage, secondaryLanguage: RoomLanguage | null) => void;
   createRoomError: string | null;
   onOpenInfoPage: (page: InfoPage) => void;
 };
@@ -103,6 +104,8 @@ export function HomePage({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [createRoomOpen, setCreateRoomOpen] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
+  const [primaryLanguage, setPrimaryLanguage] = useState<RoomLanguage>(() => language);
+  const [secondaryLanguage, setSecondaryLanguage] = useState<RoomLanguage | "">("");
   const languageMenuRef = useRef<HTMLDivElement | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
@@ -116,7 +119,16 @@ export function HomePage({
       return rooms;
     }
 
-    return rooms.filter((room) => room.name.toLowerCase().includes(query));
+    return rooms.filter((room) => {
+      const searchableValues = [
+        room.name,
+        room.primaryLanguage,
+        getRoomLanguageName(room.primaryLanguage),
+        room.secondaryLanguage ?? "",
+        room.secondaryLanguage ? getRoomLanguageName(room.secondaryLanguage) : ""
+      ];
+      return searchableValues.some((value) => value.toLowerCase().includes(query));
+    });
   }, [rooms, searchQuery]);
 
   useEffect(() => {
@@ -386,7 +398,7 @@ export function HomePage({
                   event.preventDefault();
                   const cleanName = newRoomName.trim();
                   if (cleanName.length >= 3) {
-                    onCreateRoom(cleanName);
+                    onCreateRoom(cleanName, primaryLanguage, secondaryLanguage || null);
                   }
                 }}
               >
@@ -400,6 +412,44 @@ export function HomePage({
                   placeholder={t("createRoomNamePlaceholder")}
                   className="mt-2 h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-mint"
                 />
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <label className="text-sm font-medium text-white/75" htmlFor="room-primary-language">
+                    {t("primaryLanguage")}
+                    <select
+                      id="room-primary-language"
+                      required
+                      value={primaryLanguage}
+                      onChange={(event) => {
+                        const nextLanguage = event.target.value as RoomLanguage;
+                        setPrimaryLanguage(nextLanguage);
+                        if (secondaryLanguage === nextLanguage) setSecondaryLanguage("");
+                      }}
+                      className="mt-2 h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
+                    >
+                      {roomLanguages.map((roomLanguage) => (
+                        <option key={roomLanguage.code} value={roomLanguage.code} className="bg-[#182635] text-white">
+                          {roomLanguage.nativeName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-sm font-medium text-white/75" htmlFor="room-secondary-language">
+                    {t("secondaryLanguage")} <span className="font-normal text-white/40">({t("optional")})</span>
+                    <select
+                      id="room-secondary-language"
+                      value={secondaryLanguage}
+                      onChange={(event) => setSecondaryLanguage(event.target.value as RoomLanguage | "")}
+                      className="mt-2 h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
+                    >
+                      <option value="" className="bg-[#182635] text-white">{t("selectLanguage")}</option>
+                      {roomLanguages.filter((roomLanguage) => roomLanguage.code !== primaryLanguage).map((roomLanguage) => (
+                        <option key={roomLanguage.code} value={roomLanguage.code} className="bg-[#182635] text-white">
+                          {roomLanguage.nativeName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
                 {createRoomError ? <p className="mt-3 text-sm text-coral">{createRoomError}</p> : null}
                 <div className="mt-5 flex justify-end gap-3">
                   <button type="button" onClick={() => setCreateRoomOpen(false)} className="h-10 rounded-md bg-white/5 px-4 text-sm text-white/75 hover:bg-white/10">
@@ -519,6 +569,13 @@ export function HomePage({
               <div className="flex min-h-28 flex-col justify-between gap-5">
                 <div>
                   <h2 className="text-lg font-semibold text-white">{room.name}</h2>
+                  <div className="mt-3">
+                    <RoomLanguageTags
+                      primaryLanguage={room.primaryLanguage}
+                      secondaryLanguage={room.secondaryLanguage}
+                      language={language}
+                    />
+                  </div>
                   <div className="mt-3 flex items-center gap-2 text-sm text-white/65">
                     <Users size={17} />
                     <span>

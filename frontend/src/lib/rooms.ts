@@ -26,6 +26,8 @@ const roomNames = [
 export const defaultRooms: RoomSummary[] = roomNames.map((name, index) => ({
   id: `room-${index + 1}`,
   name,
+  primaryLanguage: "en",
+  secondaryLanguage: null,
   users: 0,
   capacity: 4
 }));

@@ -2,6 +2,7 @@ import { ArrowLeft, DoorOpen, Users } from "lucide-react";
 import { type Language, translate } from "../lib/i18n";
 import type { RoomSummary } from "../types/realtime";
 import { resolveGuestNickname } from "../lib/nickname";
+import { RoomLanguageTags } from "./RoomLanguageTags";
 
 type RoomAccessPageProps = {
   room: RoomSummary;
@@ -49,6 +50,13 @@ export function RoomAccessPage({
         <div className="mt-6">
           <p className="text-sm font-medium uppercase tracking-wide text-mint">{t("readyAccess")}</p>
           <h1 className="mt-2 text-3xl font-semibold text-white">{room.name}</h1>
+          <div className="mt-3">
+            <RoomLanguageTags
+              primaryLanguage={room.primaryLanguage}
+              secondaryLanguage={room.secondaryLanguage}
+              language={language}
+            />
+          </div>
           <div className="mt-3 flex items-center gap-2 text-sm text-white/60">
             <Users size={17} />
             <span>{t("speakers", { count: room.users })}</span>

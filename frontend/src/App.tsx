@@ -10,6 +10,7 @@ import { type Language, isLanguage, translate } from "./lib/i18n";
 import { getInfoPageFromPath, getRoomIdFromPath, homePath, infoPagePath, roomPath, type InfoPage as InfoPageName } from "./lib/routes";
 import { isGeneratedNickname, resolveGuestNickname } from "./lib/nickname";
 import { Seo } from "./components/Seo";
+import type { RoomLanguage } from "./lib/roomLanguages";
 
 const NICKNAME_STORAGE_KEY = "english-talk-rooms:nickname";
 const LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
@@ -105,11 +106,16 @@ export function App() {
       window.history.pushState({}, "", roomPath(room.id));
     };
     const handleCreateRoomError = (message: string) => {
-      setCreateRoomError(
-        message === "ROOM_NAME_TOO_SHORT"
-          ? translate(language, "createRoomNameTooShort")
-          : translate(language, "createRoomVerifiedOnly")
-      );
+      const errorKey = message === "ROOM_NAME_TOO_SHORT"
+        ? "createRoomNameTooShort"
+        : message === "ROOM_PRIMARY_LANGUAGE_REQUIRED"
+          ? "roomPrimaryLanguageRequired"
+          : message === "ROOM_LANGUAGE_INVALID"
+            ? "roomLanguageInvalid"
+            : message === "ROOM_LANGUAGES_MUST_DIFFER"
+              ? "roomLanguagesMustDiffer"
+              : "createRoomVerifiedOnly";
+      setCreateRoomError(translate(language, errorKey));
     };
 
     socket.on("room-created", handleRoomCreated);
@@ -281,9 +287,9 @@ export function App() {
     setAuthError(null);
   };
 
-  const handleCreateRoom = (name: string) => {
+  const handleCreateRoom = (name: string, primaryLanguage: RoomLanguage, secondaryLanguage: RoomLanguage | null) => {
     setCreateRoomError(null);
-    socket.emit("create-room", { name, authToken: authSession?.token });
+    socket.emit("create-room", { name, primaryLanguage, secondaryLanguage, authToken: authSession?.token });
   };
 
   const handleLeave = () => {
@@ -333,6 +339,7 @@ export function App() {
         socket={socket}
         room={selectedRoom}
         nickname={activeRoom.nickname}
+        avatarUrl={authSession?.user.avatarUrl ?? null}
         isConnected={isConnected}
         connectionError={connectionError}
         language={language}

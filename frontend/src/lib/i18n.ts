@@ -47,6 +47,13 @@ export type TranslationKey =
   | "nicknameRequired"
   | "nicknamePlaceholder"
   | "privacyPolicy"
+  | "primaryLanguage"
+  | "secondaryLanguage"
+  | "optional"
+  | "selectLanguage"
+  | "roomPrimaryLanguageRequired"
+  | "roomLanguageInvalid"
+  | "roomLanguagesMustDiffer"
   | "readyAccess"
   | "role"
   | "roleSupporter"
@@ -79,6 +86,13 @@ export type TranslationKey =
 
 const translations: Record<Language, Record<TranslationKey, string>> = {
   en: {
+    primaryLanguage: "Primary language",
+    secondaryLanguage: "Secondary language",
+    optional: "Optional",
+    selectLanguage: "Select a language",
+    roomPrimaryLanguageRequired: "Please select a primary language.",
+    roomLanguageInvalid: "Please select a valid room language.",
+    roomLanguagesMustDiffer: "Primary and secondary languages must be different.",
     aboutUs: "About Us",
     adminArea: "Administration",
     backToRooms: "Back to rooms",
@@ -156,6 +170,13 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     videoUnavailable: "No camera found"
   },
   vi: {
+    primaryLanguage: "Ngôn ngữ chính",
+    secondaryLanguage: "Ngôn ngữ phụ",
+    optional: "Không bắt buộc",
+    selectLanguage: "Chọn ngôn ngữ",
+    roomPrimaryLanguageRequired: "Vui lòng chọn ngôn ngữ chính.",
+    roomLanguageInvalid: "Vui lòng chọn một ngôn ngữ hợp lệ.",
+    roomLanguagesMustDiffer: "Ngôn ngữ chính và ngôn ngữ phụ phải khác nhau.",
     aboutUs: "Về chúng tôi",
     adminArea: "Quản trị hệ thống",
     backToRooms: "Quay lại phòng",
@@ -233,6 +254,13 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     videoUnavailable: "Không tìm thấy camera"
   },
   zh: {
+    primaryLanguage: "主要语言",
+    secondaryLanguage: "辅助语言",
+    optional: "可选",
+    selectLanguage: "选择语言",
+    roomPrimaryLanguageRequired: "请选择主要语言。",
+    roomLanguageInvalid: "请选择有效的房间语言。",
+    roomLanguagesMustDiffer: "主要语言和辅助语言必须不同。",
     aboutUs: "关于我们",
     adminArea: "系统管理",
     backToRooms: "返回房间列表",
@@ -310,6 +338,13 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     videoUnavailable: "未找到摄像头"
   },
   ja: {
+    primaryLanguage: "メイン言語",
+    secondaryLanguage: "サブ言語",
+    optional: "任意",
+    selectLanguage: "言語を選択",
+    roomPrimaryLanguageRequired: "メイン言語を選択してください。",
+    roomLanguageInvalid: "有効なルーム言語を選択してください。",
+    roomLanguagesMustDiffer: "メイン言語とサブ言語は別の言語を選択してください。",
     aboutUs: "私たちについて",
     adminArea: "システム管理",
     backToRooms: "ルーム一覧へ戻る",

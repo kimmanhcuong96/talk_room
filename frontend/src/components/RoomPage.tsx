@@ -18,6 +18,7 @@ type RoomPageProps = {
   socket: AppSocket;
   room: RoomSummary;
   nickname: string;
+  avatarUrl: string | null;
   isConnected: boolean;
   connectionError: string | null;
   language: Language;
@@ -25,7 +26,7 @@ type RoomPageProps = {
   onLeave: () => void;
 };
 
-export function RoomPage({ socket, room, nickname, isConnected, connectionError, language, role, onLeave }: RoomPageProps) {
+export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, connectionError, language, role, onLeave }: RoomPageProps) {
   const [chatOpen, setChatOpen] = useState(false);
   const [roomConnectionError, setRoomConnectionError] = useState<string | null>(null);
   const [mediaNotice, setMediaNotice] = useState<string | null>(null);
@@ -168,13 +169,13 @@ export function RoomPage({ socket, room, nickname, isConnected, connectionError,
   const localUser = useMemo(
     () => ({
       nickname,
-      avatar: serverLocalUser?.avatar ?? getFallbackAvatar(nickname),
+      avatar: serverLocalUser?.avatar ?? avatarUrl ?? getFallbackAvatar(nickname),
       micEnabled,
       cameraEnabled,
       screenSharing: isScreenSharing,
       screenTrackId
     }),
-    [cameraEnabled, isScreenSharing, micEnabled, nickname, screenTrackId, serverLocalUser?.avatar]
+    [avatarUrl, cameraEnabled, isScreenSharing, micEnabled, nickname, screenTrackId, serverLocalUser?.avatar]
   );
 
   return (

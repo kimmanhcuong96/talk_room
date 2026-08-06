@@ -14,6 +14,7 @@ import {
 import { verifyAppJwt } from "../auth/jwt.js";
 import { findUserById, type UserProfile } from "../users/userRepository.js";
 import { hasPermission } from "../users/userPermissions.js";
+import { isRoomLanguage } from "../rooms/roomLanguages.js";
 
 const avatars = ["🐣", "🐼", "🐰", "🦊", "🐨", "🐥", "🐧", "🐸", "🦄", "🐙", "🐢", "🐹"];
 
@@ -100,7 +101,7 @@ export function registerSocketHandlers(io: AppServer) {
   io.on("connection", (socket) => {
     socket.emit("room-list", getRoomSummaries());
 
-    socket.on("create-room", async ({ name, authToken }) => {
+    socket.on("create-room", async ({ name, primaryLanguage, secondaryLanguage, authToken }) => {
       const user = await getAuthenticatedUser(authToken);
       const cleanName = typeof name === "string" ? name.trim().replace(/\s+/g, " ").slice(0, 60) : "";
 
@@ -114,7 +115,23 @@ export function registerSocketHandlers(io: AppServer) {
         return;
       }
 
-      const room = createRoom(cleanName);
+      if (!isRoomLanguage(primaryLanguage)) {
+        socket.emit("create-room-error", "ROOM_PRIMARY_LANGUAGE_REQUIRED");
+        return;
+      }
+
+      const cleanSecondaryLanguage = secondaryLanguage == null ? null : secondaryLanguage;
+      if (cleanSecondaryLanguage !== null && !isRoomLanguage(cleanSecondaryLanguage)) {
+        socket.emit("create-room-error", "ROOM_LANGUAGE_INVALID");
+        return;
+      }
+
+      if (cleanSecondaryLanguage === primaryLanguage) {
+        socket.emit("create-room-error", "ROOM_LANGUAGES_MUST_DIFFER");
+        return;
+      }
+
+      const room = createRoom(cleanName, primaryLanguage, cleanSecondaryLanguage);
       socket.emit("room-created", room);
       emitRoomList(io);
       scheduleEmptyRoomDeletion(io, room.id);
@@ -133,7 +150,7 @@ export function registerSocketHandlers(io: AppServer) {
       const result = addUserToRoom(roomId, {
         socketId: socket.id,
         nickname: cleanNickname,
-        avatar: createRandomAvatar(),
+        avatar: authenticatedUser?.avatarUrl?.trim() || createRandomAvatar(),
         role,
         micEnabled: false,
         cameraEnabled: false,

@@ -32,6 +32,7 @@ type Room = {
   name: string;
   primaryLanguage: RoomLanguage;
   secondaryLanguage: RoomLanguage | null;
+  creatorUserId: string | null;
   source: "system" | "user";
   users: RoomUser[];
   messages: ChatMessage[];
@@ -40,7 +41,7 @@ type Room = {
 const rooms = new Map<string, Room>(
   roomNames.map((name, index) => {
     const id = `room-${index + 1}`;
-    return [id, { id, name, primaryLanguage: "en", secondaryLanguage: null, source: "system", users: [], messages: [] }];
+    return [id, { id, name, primaryLanguage: "en", secondaryLanguage: null, creatorUserId: null, source: "system", users: [], messages: [] }];
   })
 );
 
@@ -55,12 +56,13 @@ export function getRoomSummaries(): RoomSummary[] {
   }));
 }
 
-export function createRoom(name: string, primaryLanguage: RoomLanguage, secondaryLanguage: RoomLanguage | null): RoomSummary {
+export function createRoom(name: string, primaryLanguage: RoomLanguage, secondaryLanguage: RoomLanguage | null, creatorUserId: string): RoomSummary {
   const room: Room = {
     id: `room-${randomUUID()}`,
     name,
     primaryLanguage,
     secondaryLanguage,
+    creatorUserId,
     source: "user",
     users: [],
     messages: []
@@ -73,6 +75,37 @@ export function createRoom(name: string, primaryLanguage: RoomLanguage, secondar
     primaryLanguage: room.primaryLanguage,
     secondaryLanguage: room.secondaryLanguage,
     users: 0,
+    capacity: ROOM_CAPACITY
+  };
+}
+
+export function canManageRoomLanguages(roomId: string, socketId: string, userId: string | undefined) {
+  const room = rooms.get(roomId);
+  if (!room) return false;
+
+  if (room.source === "user") {
+    return Boolean(userId && userId === room.creatorUserId);
+  }
+
+  return room.users[0]?.socketId === socketId;
+}
+
+export function updateRoomLanguages(
+  roomId: string,
+  primaryLanguage: RoomLanguage,
+  secondaryLanguage: RoomLanguage | null
+): RoomSummary | undefined {
+  const room = rooms.get(roomId);
+  if (!room) return undefined;
+
+  room.primaryLanguage = primaryLanguage;
+  room.secondaryLanguage = secondaryLanguage;
+  return {
+    id: room.id,
+    name: room.name,
+    primaryLanguage: room.primaryLanguage,
+    secondaryLanguage: room.secondaryLanguage,
+    users: room.users.length,
     capacity: ROOM_CAPACITY
   };
 }

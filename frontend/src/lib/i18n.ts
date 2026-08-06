@@ -54,6 +54,11 @@ export type TranslationKey =
   | "roomPrimaryLanguageRequired"
   | "roomLanguageInvalid"
   | "roomLanguagesMustDiffer"
+  | "editRoomLanguages"
+  | "languageSettings"
+  | "saveChanges"
+  | "roomLanguagePermissionDenied"
+  | "roomLanguagesUpdated"
   | "readyAccess"
   | "role"
   | "roleSupporter"
@@ -86,6 +91,11 @@ export type TranslationKey =
 
 const translations: Record<Language, Record<TranslationKey, string>> = {
   en: {
+    editRoomLanguages: "Edit room languages",
+    languageSettings: "Room language settings",
+    saveChanges: "Save changes",
+    roomLanguagePermissionDenied: "You do not have permission to change this room's languages.",
+    roomLanguagesUpdated: "Room languages updated.",
     primaryLanguage: "Primary language",
     secondaryLanguage: "Secondary language",
     optional: "Optional",
@@ -170,6 +180,11 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     videoUnavailable: "No camera found"
   },
   vi: {
+    editRoomLanguages: "Chỉnh ngôn ngữ phòng",
+    languageSettings: "Cài đặt ngôn ngữ phòng",
+    saveChanges: "Lưu thay đổi",
+    roomLanguagePermissionDenied: "Bạn không có quyền thay đổi ngôn ngữ của phòng này.",
+    roomLanguagesUpdated: "Đã cập nhật ngôn ngữ của phòng.",
     primaryLanguage: "Ngôn ngữ chính",
     secondaryLanguage: "Ngôn ngữ phụ",
     optional: "Không bắt buộc",
@@ -254,6 +269,11 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     videoUnavailable: "Không tìm thấy camera"
   },
   zh: {
+    editRoomLanguages: "编辑房间语言",
+    languageSettings: "房间语言设置",
+    saveChanges: "保存更改",
+    roomLanguagePermissionDenied: "你没有权限更改此房间的语言。",
+    roomLanguagesUpdated: "房间语言已更新。",
     primaryLanguage: "主要语言",
     secondaryLanguage: "辅助语言",
     optional: "可选",
@@ -338,6 +358,11 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     videoUnavailable: "未找到摄像头"
   },
   ja: {
+    editRoomLanguages: "ルーム言語を編集",
+    languageSettings: "ルーム言語設定",
+    saveChanges: "変更を保存",
+    roomLanguagePermissionDenied: "このルームの言語を変更する権限がありません。",
+    roomLanguagesUpdated: "ルーム言語を更新しました。",
     primaryLanguage: "メイン言語",
     secondaryLanguage: "サブ言語",
     optional: "任意",

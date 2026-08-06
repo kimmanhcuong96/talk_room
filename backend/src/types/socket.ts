@@ -35,6 +35,8 @@ export type ChatMessage = {
 export type ClientToServerEvents = {
   "join-room": (payload: { roomId: string; nickname: string; authToken?: string }) => void;
   "create-room": (payload: { name: string; primaryLanguage: RoomLanguage; secondaryLanguage?: RoomLanguage | null; authToken?: string }) => void;
+  "update-room-languages": (payload: { roomId: string; primaryLanguage: RoomLanguage; secondaryLanguage?: RoomLanguage | null }) => void;
+  "request-room-language-permission": (payload: { roomId: string }) => void;
   "leave-room": () => void;
   "send-message": (payload: { text: string }) => void;
   "media-status": (payload: { micEnabled: boolean; cameraEnabled: boolean; screenSharing: boolean; screenTrackId: string | null }) => void;
@@ -59,6 +61,9 @@ export type ServerToClientEvents = {
   "join-error": (message: string) => void;
   "create-room-error": (message: string) => void;
   "room-created": (room: RoomSummary) => void;
+  "room-languages-updated": (room: RoomSummary) => void;
+  "room-language-permission": (payload: { roomId: string; canManage: boolean }) => void;
+  "room-language-error": (message: string) => void;
   "room-removed": (payload: { roomId: string }) => void;
   "camera-denied": () => void;
   "user-joined": (user: RoomUser) => void;
@@ -77,6 +82,7 @@ export type SocketData = {
   nickname?: string;
   avatar?: string;
   role?: UserRole;
+  userId?: string;
 };
 
 export type AppServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;

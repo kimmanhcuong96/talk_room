@@ -1,4 +1,4 @@
-import { Home, MessageSquare } from "lucide-react";
+import { Home, Languages, MessageSquare } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useChat } from "../hooks/useChat";
 import { useLocalMedia } from "../hooks/useLocalMedia";
@@ -13,6 +13,8 @@ import type { RoomSummary } from "../types/realtime";
 import { ChatPanel } from "./ChatPanel";
 import { Toolbar } from "./Toolbar";
 import { VideoGrid } from "./VideoGrid";
+import { RoomLanguageEditor } from "./RoomLanguageEditor";
+import type { RoomLanguage } from "../lib/roomLanguages";
 
 type RoomPageProps = {
   socket: AppSocket;
@@ -31,6 +33,9 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
   const [roomConnectionError, setRoomConnectionError] = useState<string | null>(null);
   const [mediaNotice, setMediaNotice] = useState<string | null>(null);
   const [screenShareBlocked, setScreenShareBlocked] = useState(false);
+  const [canManageLanguages, setCanManageLanguages] = useState(false);
+  const [languageEditorOpen, setLanguageEditorOpen] = useState(false);
+  const [languageEditorError, setLanguageEditorError] = useState<string | null>(null);
   const canUseCamera = hasPermission(role, "use_camera");
   const { stream, error, micEnabled, cameraEnabled, hasMicrophone, hasCamera, toggleMic, toggleCamera } = useLocalMedia(canUseCamera);
   const {
@@ -72,6 +77,42 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
     setMediaNotice(null);
     await toggleScreenShare();
   };
+
+  useEffect(() => {
+    const handlePermission = ({ roomId, canManage }: { roomId: string; canManage: boolean }) => {
+      if (roomId !== room.id) return;
+      setCanManageLanguages(canManage);
+      if (!canManage) setLanguageEditorOpen(false);
+    };
+    const handleLanguagesUpdated = (updatedRoom: RoomSummary) => {
+      if (updatedRoom.id !== room.id) return;
+      setLanguageEditorError(null);
+      setLanguageEditorOpen(false);
+      setMediaNotice(translate(language, "roomLanguagesUpdated"));
+    };
+    const handleLanguageError = (message: string) => {
+      const errorKey = message === "ROOM_PRIMARY_LANGUAGE_REQUIRED"
+        ? "roomPrimaryLanguageRequired"
+        : message === "ROOM_LANGUAGE_INVALID"
+          ? "roomLanguageInvalid"
+          : message === "ROOM_LANGUAGES_MUST_DIFFER"
+            ? "roomLanguagesMustDiffer"
+            : "roomLanguagePermissionDenied";
+      setLanguageEditorError(translate(language, errorKey));
+    };
+
+    setCanManageLanguages(false);
+    socket.on("room-language-permission", handlePermission);
+    socket.on("room-languages-updated", handleLanguagesUpdated);
+    socket.on("room-language-error", handleLanguageError);
+    socket.emit("request-room-language-permission", { roomId: room.id });
+
+    return () => {
+      socket.off("room-language-permission", handlePermission);
+      socket.off("room-languages-updated", handleLanguagesUpdated);
+      socket.off("room-language-error", handleLanguageError);
+    };
+  }, [language, room.id, socket]);
 
   useEffect(() => {
     const handleCameraDenied = () => {
@@ -186,15 +227,29 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
             <h1 className="truncate text-base font-semibold sm:text-lg">{room.name}</h1>
             <p className="text-xs text-white/50 sm:text-sm">{t("speakers", { count: remotePeers.length + 1 })}</p>
           </div>
-          <button
-            aria-label="Open chat"
-            title="Open chat"
-            type="button"
-            onClick={() => setChatOpen(true)}
-            className="grid h-9 w-9 place-items-center rounded-md border border-white/10 bg-white/5 text-white/80 lg:hidden"
-          >
-            <MessageSquare size={19} />
-          </button>
+          <div className="flex items-center gap-2">
+            {canManageLanguages ? (
+              <button
+                type="button"
+                title={t("editRoomLanguages")}
+                aria-label={t("editRoomLanguages")}
+                onClick={() => { setLanguageEditorError(null); setLanguageEditorOpen(true); }}
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-mint/25 bg-mint/10 px-2.5 text-mint transition hover:bg-mint/15 sm:px-3"
+              >
+                <Languages size={18} />
+                <span className="hidden text-sm font-medium sm:inline">{t("editRoomLanguages")}</span>
+              </button>
+            ) : null}
+            <button
+              aria-label="Open chat"
+              title="Open chat"
+              type="button"
+              onClick={() => setChatOpen(true)}
+              className="grid h-9 w-9 place-items-center rounded-md border border-white/10 bg-white/5 text-white/80 lg:hidden"
+            >
+              <MessageSquare size={19} />
+            </button>
+          </div>
         </header>
 
         <div className="relative min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
@@ -220,6 +275,20 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
       </section>
 
       <ChatPanel messages={messages} open={chatOpen} language={language} onClose={() => setChatOpen(false)} onSend={sendMessage} />
+
+      {languageEditorOpen && canManageLanguages ? (
+        <RoomLanguageEditor
+          language={language}
+          primaryLanguage={room.primaryLanguage}
+          secondaryLanguage={room.secondaryLanguage}
+          error={languageEditorError}
+          onClose={() => { setLanguageEditorOpen(false); setLanguageEditorError(null); }}
+          onSave={(primaryLanguage: RoomLanguage, secondaryLanguage: RoomLanguage | null) => {
+            setLanguageEditorError(null);
+            socket.emit("update-room-languages", { roomId: room.id, primaryLanguage, secondaryLanguage });
+          }}
+        />
+      ) : null}
 
       {roomConnectionError ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 px-4 backdrop-blur-sm">

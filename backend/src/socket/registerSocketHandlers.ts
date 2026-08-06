@@ -2,6 +2,7 @@ import type { AppServer, AppSocket } from "../types/socket.js";
 import {
   addRoomMessage,
   addUserToRoom,
+  canManageRoomLanguages,
   createRoom,
   deleteUserCreatedRoomIfEmpty,
   getRoomMessages,
@@ -9,6 +10,7 @@ import {
   getRoomUsers,
   isUserCreatedRoomEmpty,
   removeUser,
+  updateRoomLanguages,
   updateUserMedia
 } from "../rooms/roomStore.js";
 import { verifyAppJwt } from "../auth/jwt.js";
@@ -47,6 +49,16 @@ function scheduleEmptyRoomDeletion(io: AppServer, roomId: string) {
   }, USER_CREATED_ROOM_EMPTY_TTL_MS);
   timer.unref();
   emptyRoomDeletionTimers.set(roomId, timer);
+}
+
+function emitRoomLanguagePermissions(io: AppServer, roomId: string) {
+  for (const user of getRoomUsers(roomId)) {
+    const connectedSocket = io.sockets.sockets.get(user.socketId);
+    io.to(user.socketId).emit("room-language-permission", {
+      roomId,
+      canManage: canManageRoomLanguages(roomId, user.socketId, connectedSocket?.data.userId)
+    });
+  }
 }
 
 async function getAuthenticatedUser(authToken: string | undefined): Promise<UserProfile | null> {
@@ -92,8 +104,10 @@ function leaveCurrentRoom(io: AppServer, socket: AppSocket) {
   socket.data.nickname = undefined;
   socket.data.avatar = undefined;
   socket.data.role = undefined;
+  socket.data.userId = undefined;
   clearWebRtcTransportLogs(socket.id);
   emitRoomList(io);
+  emitRoomLanguagePermissions(io, previousRoomId);
   scheduleEmptyRoomDeletion(io, previousRoomId);
 }
 
@@ -131,7 +145,7 @@ export function registerSocketHandlers(io: AppServer) {
         return;
       }
 
-      const room = createRoom(cleanName, primaryLanguage, cleanSecondaryLanguage);
+      const room = createRoom(cleanName, primaryLanguage, cleanSecondaryLanguage, user.id);
       socket.emit("room-created", room);
       emitRoomList(io);
       scheduleEmptyRoomDeletion(io, room.id);
@@ -168,6 +182,7 @@ export function registerSocketHandlers(io: AppServer) {
       socket.data.nickname = cleanNickname;
       socket.data.avatar = result.users.find((user) => user.socketId === socket.id)?.avatar;
       socket.data.role = role;
+      socket.data.userId = authenticatedUser?.id;
       cancelEmptyRoomDeletion(roomId);
       socket.join(roomId);
 
@@ -181,6 +196,47 @@ export function registerSocketHandlers(io: AppServer) {
       }
 
       emitRoomList(io);
+      emitRoomLanguagePermissions(io, roomId);
+    });
+
+    socket.on("update-room-languages", ({ roomId, primaryLanguage, secondaryLanguage }) => {
+      if (socket.data.roomId !== roomId || !canManageRoomLanguages(roomId, socket.id, socket.data.userId)) {
+        socket.emit("room-language-error", "ROOM_LANGUAGE_PERMISSION_DENIED");
+        return;
+      }
+
+      if (!isRoomLanguage(primaryLanguage)) {
+        socket.emit("room-language-error", "ROOM_PRIMARY_LANGUAGE_REQUIRED");
+        return;
+      }
+
+      const cleanSecondaryLanguage = secondaryLanguage == null ? null : secondaryLanguage;
+      if (cleanSecondaryLanguage !== null && !isRoomLanguage(cleanSecondaryLanguage)) {
+        socket.emit("room-language-error", "ROOM_LANGUAGE_INVALID");
+        return;
+      }
+
+      if (cleanSecondaryLanguage === primaryLanguage) {
+        socket.emit("room-language-error", "ROOM_LANGUAGES_MUST_DIFFER");
+        return;
+      }
+
+      const updatedRoom = updateRoomLanguages(roomId, primaryLanguage, cleanSecondaryLanguage);
+      if (!updatedRoom) {
+        socket.emit("room-language-error", "ROOM_NOT_FOUND");
+        return;
+      }
+
+      io.to(roomId).emit("room-languages-updated", updatedRoom);
+      emitRoomList(io);
+    });
+
+    socket.on("request-room-language-permission", ({ roomId }) => {
+      if (socket.data.roomId !== roomId) return;
+      socket.emit("room-language-permission", {
+        roomId,
+        canManage: canManageRoomLanguages(roomId, socket.id, socket.data.userId)
+      });
     });
 
     socket.on("leave-room", () => {

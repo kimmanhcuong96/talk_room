@@ -9,7 +9,10 @@ export type RoomSummary = {
   secondaryLanguage: RoomLanguage | null;
   users: number;
   capacity: number;
+  participants: RoomParticipantSummary[];
 };
+
+export type RoomParticipantSummary = Pick<RoomUser, "nickname" | "avatar" | "role">;
 
 export type RoomUser = {
   socketId: string;

@@ -55,7 +55,8 @@ export function getRoomSummaries(): RoomSummary[] {
     primaryLanguageLevel: room.primaryLanguageLevel,
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
-    capacity: ROOM_CAPACITY
+    capacity: ROOM_CAPACITY,
+    participants: room.users.map(({ nickname, avatar, role }) => ({ nickname, avatar, role }))
   }));
 }
 
@@ -70,7 +71,8 @@ export function getRoomSummary(roomId: string): RoomSummary | undefined {
     primaryLanguageLevel: room.primaryLanguageLevel,
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
-    capacity: ROOM_CAPACITY
+    capacity: ROOM_CAPACITY,
+    participants: room.users.map(({ nickname, avatar, role }) => ({ nickname, avatar, role }))
   };
 }
 
@@ -101,7 +103,8 @@ export function createRoom(
     primaryLanguageLevel: room.primaryLanguageLevel,
     secondaryLanguage: room.secondaryLanguage,
     users: 0,
-    capacity: ROOM_CAPACITY
+    capacity: ROOM_CAPACITY,
+    participants: []
   };
 }
 
@@ -135,7 +138,8 @@ export function updateRoomLanguages(
     primaryLanguageLevel: room.primaryLanguageLevel,
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
-    capacity: ROOM_CAPACITY
+    capacity: ROOM_CAPACITY,
+    participants: room.users.map(({ nickname, avatar, role }) => ({ nickname, avatar, role }))
   };
 }
 

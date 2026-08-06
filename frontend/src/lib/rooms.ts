@@ -30,5 +30,6 @@ export const defaultRooms: RoomSummary[] = roomNames.map((name, index) => ({
   primaryLanguageLevel: index === 0 ? "a1" : index === 1 ? "b1" : "any",
   secondaryLanguage: null,
   users: 0,
-  capacity: 4
+  capacity: 4,
+  participants: []
 }));

@@ -10,6 +10,7 @@ import { hasPermission } from "../lib/permissions";
 import { SeoContent } from "./SeoContent";
 import { getRoomLanguageLevelLabel, getRoomLanguageName, roomLanguageLevels, roomLanguages, type RoomLanguage, type RoomLanguageLevel } from "../lib/roomLanguages";
 import { RoomLanguageTags } from "./RoomLanguageTags";
+import { RoomParticipantAvatars } from "./RoomParticipantAvatars";
 
 type HomePageProps = {
   rooms: RoomSummary[];
@@ -32,8 +33,8 @@ type HomePageProps = {
 type RoomDensity = "3x" | "2x" | "1x";
 
 const densityGridClass: Record<RoomDensity, string> = {
-  "3x": "sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5",
-  "2x": "sm:grid-cols-2 lg:grid-cols-3",
+  "3x": "sm:grid-cols-2 lg:grid-cols-3",
+  "2x": "sm:grid-cols-2",
   "1x": "grid-cols-1"
 };
 
@@ -608,11 +609,14 @@ export function HomePage({
                       language={language}
                     />
                   </div>
-                  <div className="mt-3 flex items-center gap-2 text-sm text-white/65">
-                    <Users size={17} />
-                    <span>
-                      {room.users}/{room.capacity}
-                    </span>
+                  <div className="mt-3 flex min-h-7 items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-sm text-white/65">
+                      <Users size={17} />
+                      <span>
+                        {room.users}/{room.capacity}
+                      </span>
+                    </div>
+                    <RoomParticipantAvatars participants={room.participants} language={language} />
                   </div>
                 </div>
                 <button

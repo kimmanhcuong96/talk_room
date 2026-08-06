@@ -18,9 +18,7 @@ const roomNames = [
   "Vocabulary Practice",
   "Grammar Practice",
   "Interview English",
-  "Coffee Chat",
-  "Weekend Talk",
-  "Random Talk"
+  "Coffee Chat"
 ] as const;
 
 export const defaultRooms: RoomSummary[] = roomNames.map((name, index) => ({

@@ -53,6 +53,7 @@ export function RoomAccessPage({
           <div className="mt-3">
             <RoomLanguageTags
               primaryLanguage={room.primaryLanguage}
+              primaryLanguageLevel={room.primaryLanguageLevel}
               secondaryLanguage={room.secondaryLanguage}
               language={language}
             />

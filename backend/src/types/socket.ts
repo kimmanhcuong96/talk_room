@@ -1,6 +1,6 @@
 import type { Server, Socket } from "socket.io";
 import type { UserRole } from "../users/userRepository.js";
-import type { RoomLanguage } from "../rooms/roomLanguages.js";
+import type { RoomLanguage, RoomLanguageLevel } from "../rooms/roomLanguages.js";
 
 export type RoomUser = {
   socketId: string;
@@ -17,6 +17,7 @@ export type RoomSummary = {
   id: string;
   name: string;
   primaryLanguage: RoomLanguage;
+  primaryLanguageLevel: RoomLanguageLevel;
   secondaryLanguage: RoomLanguage | null;
   users: number;
   capacity: number;
@@ -33,9 +34,9 @@ export type ChatMessage = {
 };
 
 export type ClientToServerEvents = {
-  "join-room": (payload: { roomId: string; nickname: string; authToken?: string }) => void;
-  "create-room": (payload: { name: string; primaryLanguage: RoomLanguage; secondaryLanguage?: RoomLanguage | null; authToken?: string }) => void;
-  "update-room-languages": (payload: { roomId: string; primaryLanguage: RoomLanguage; secondaryLanguage?: RoomLanguage | null }) => void;
+  "join-room": (payload: { roomId: string; nickname: string; guestId?: string; authToken?: string }) => void;
+  "create-room": (payload: { name: string; primaryLanguage: RoomLanguage; primaryLanguageLevel: RoomLanguageLevel; secondaryLanguage?: RoomLanguage | null; authToken?: string }) => void;
+  "update-room-languages": (payload: { roomId: string; primaryLanguage: RoomLanguage; primaryLanguageLevel: RoomLanguageLevel; secondaryLanguage?: RoomLanguage | null }) => void;
   "request-room-language-permission": (payload: { roomId: string }) => void;
   "leave-room": () => void;
   "send-message": (payload: { text: string }) => void;
@@ -59,6 +60,7 @@ export type ServerToClientEvents = {
   "chat-history": (messages: ChatMessage[]) => void;
   "room-full": () => void;
   "join-error": (message: string) => void;
+  "room-session-replaced": () => void;
   "create-room-error": (message: string) => void;
   "room-created": (room: RoomSummary) => void;
   "room-languages-updated": (room: RoomSummary) => void;
@@ -83,6 +85,7 @@ export type SocketData = {
   avatar?: string;
   role?: UserRole;
   userId?: string;
+  identityKey?: string;
 };
 
 export type AppServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;

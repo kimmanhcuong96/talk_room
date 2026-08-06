@@ -1,6 +1,6 @@
 import type { ChatMessage, RoomSummary, RoomUser } from "../types/socket.js";
 import { randomUUID } from "node:crypto";
-import type { RoomLanguage } from "./roomLanguages.js";
+import type { RoomLanguage, RoomLanguageLevel } from "./roomLanguages.js";
 
 const ROOM_CAPACITY = 4;
 
@@ -31,6 +31,7 @@ type Room = {
   id: string;
   name: string;
   primaryLanguage: RoomLanguage;
+  primaryLanguageLevel: RoomLanguageLevel;
   secondaryLanguage: RoomLanguage | null;
   creatorUserId: string | null;
   source: "system" | "user";
@@ -41,7 +42,8 @@ type Room = {
 const rooms = new Map<string, Room>(
   roomNames.map((name, index) => {
     const id = `room-${index + 1}`;
-    return [id, { id, name, primaryLanguage: "en", secondaryLanguage: null, creatorUserId: null, source: "system", users: [], messages: [] }];
+    const primaryLanguageLevel: RoomLanguageLevel = index === 0 ? "a1" : index === 1 ? "b1" : "any";
+    return [id, { id, name, primaryLanguage: "en", primaryLanguageLevel, secondaryLanguage: null, creatorUserId: null, source: "system", users: [], messages: [] }];
   })
 );
 
@@ -50,17 +52,40 @@ export function getRoomSummaries(): RoomSummary[] {
     id: room.id,
     name: room.name,
     primaryLanguage: room.primaryLanguage,
+    primaryLanguageLevel: room.primaryLanguageLevel,
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
     capacity: ROOM_CAPACITY
   }));
 }
 
-export function createRoom(name: string, primaryLanguage: RoomLanguage, secondaryLanguage: RoomLanguage | null, creatorUserId: string): RoomSummary {
+export function getRoomSummary(roomId: string): RoomSummary | undefined {
+  const room = rooms.get(roomId);
+  if (!room) return undefined;
+
+  return {
+    id: room.id,
+    name: room.name,
+    primaryLanguage: room.primaryLanguage,
+    primaryLanguageLevel: room.primaryLanguageLevel,
+    secondaryLanguage: room.secondaryLanguage,
+    users: room.users.length,
+    capacity: ROOM_CAPACITY
+  };
+}
+
+export function createRoom(
+  name: string,
+  primaryLanguage: RoomLanguage,
+  primaryLanguageLevel: RoomLanguageLevel,
+  secondaryLanguage: RoomLanguage | null,
+  creatorUserId: string
+): RoomSummary {
   const room: Room = {
     id: `room-${randomUUID()}`,
     name,
     primaryLanguage,
+    primaryLanguageLevel,
     secondaryLanguage,
     creatorUserId,
     source: "user",
@@ -73,6 +98,7 @@ export function createRoom(name: string, primaryLanguage: RoomLanguage, secondar
     id: room.id,
     name: room.name,
     primaryLanguage: room.primaryLanguage,
+    primaryLanguageLevel: room.primaryLanguageLevel,
     secondaryLanguage: room.secondaryLanguage,
     users: 0,
     capacity: ROOM_CAPACITY
@@ -93,17 +119,20 @@ export function canManageRoomLanguages(roomId: string, socketId: string, userId:
 export function updateRoomLanguages(
   roomId: string,
   primaryLanguage: RoomLanguage,
+  primaryLanguageLevel: RoomLanguageLevel,
   secondaryLanguage: RoomLanguage | null
 ): RoomSummary | undefined {
   const room = rooms.get(roomId);
   if (!room) return undefined;
 
   room.primaryLanguage = primaryLanguage;
+  room.primaryLanguageLevel = primaryLanguageLevel;
   room.secondaryLanguage = secondaryLanguage;
   return {
     id: room.id,
     name: room.name,
     primaryLanguage: room.primaryLanguage,
+    primaryLanguageLevel: room.primaryLanguageLevel,
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
     capacity: ROOM_CAPACITY

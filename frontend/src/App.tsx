@@ -10,7 +10,8 @@ import { type Language, isLanguage, translate } from "./lib/i18n";
 import { getInfoPageFromPath, getRoomIdFromPath, homePath, infoPagePath, roomPath, type InfoPage as InfoPageName } from "./lib/routes";
 import { isGeneratedNickname, resolveGuestNickname } from "./lib/nickname";
 import { Seo } from "./components/Seo";
-import type { RoomLanguage } from "./lib/roomLanguages";
+import type { RoomLanguage, RoomLanguageLevel } from "./lib/roomLanguages";
+import { getOrCreateGuestId } from "./lib/guestIdentity";
 
 const NICKNAME_STORAGE_KEY = "english-talk-rooms:nickname";
 const LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
@@ -43,6 +44,7 @@ type ActiveRoom = {
 export function App() {
   const { socket, isConnected, connectionError } = useSocket();
   const rooms = useRooms(socket);
+  const [guestId] = useState(getOrCreateGuestId);
   const [nickname, setNickname] = useState(() => localStorage.getItem(NICKNAME_STORAGE_KEY) ?? "");
   const [language, setLanguage] = useState<Language>(() => {
     const storedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
@@ -90,9 +92,9 @@ export function App() {
       setPendingJoin(null);
       setError(null);
       setActiveRoom({ roomId, nickname: cleanNickname });
-      socket.emit("join-room", { roomId, nickname: cleanNickname, authToken: authSession?.token });
+      socket.emit("join-room", { roomId, nickname: cleanNickname, guestId, authToken: authSession?.token });
     },
-    [authSession?.token, socket]
+    [authSession?.token, guestId, socket]
   );
 
   useEffect(() => {
@@ -106,6 +108,10 @@ export function App() {
       window.history.pushState({}, "", roomPath(room.id));
     };
     const handleCreateRoomError = (message: string) => {
+      if (message === "ROOM_LANGUAGE_LEVEL_INVALID") {
+        setCreateRoomError("Please select a valid primary language level.");
+        return;
+      }
       const errorKey = message === "ROOM_NAME_TOO_SHORT"
         ? "createRoomNameTooShort"
         : message === "ROOM_PRIMARY_LANGUAGE_REQUIRED"
@@ -171,6 +177,22 @@ export function App() {
     return () => {
       socket.off("room-full", handleRoomFull);
       socket.off("join-error", handleJoinError);
+    };
+  }, [language, socket]);
+
+  useEffect(() => {
+    const handleRoomSessionReplaced = () => {
+      setActiveRoom(null);
+      setPendingJoin(null);
+      setRouteRoomId(null);
+      setRouteInfoPage(null);
+      window.history.replaceState({}, "", homePath());
+      setError(translate(language, "roomSessionReplaced"));
+    };
+
+    socket.on("room-session-replaced", handleRoomSessionReplaced);
+    return () => {
+      socket.off("room-session-replaced", handleRoomSessionReplaced);
     };
   }, [language, socket]);
 
@@ -287,9 +309,14 @@ export function App() {
     setAuthError(null);
   };
 
-  const handleCreateRoom = (name: string, primaryLanguage: RoomLanguage, secondaryLanguage: RoomLanguage | null) => {
+  const handleCreateRoom = (
+    name: string,
+    primaryLanguage: RoomLanguage,
+    primaryLanguageLevel: RoomLanguageLevel,
+    secondaryLanguage: RoomLanguage | null
+  ) => {
     setCreateRoomError(null);
-    socket.emit("create-room", { name, primaryLanguage, secondaryLanguage, authToken: authSession?.token });
+    socket.emit("create-room", { name, primaryLanguage, primaryLanguageLevel, secondaryLanguage, authToken: authSession?.token });
   };
 
   const handleLeave = () => {

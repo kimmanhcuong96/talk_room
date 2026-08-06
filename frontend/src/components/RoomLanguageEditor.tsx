@@ -1,33 +1,37 @@
 import { Languages, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { type Language, translate } from "../lib/i18n";
-import { roomLanguages, type RoomLanguage } from "../lib/roomLanguages";
+import { roomLanguageLevels, roomLanguages, type RoomLanguage, type RoomLanguageLevel } from "../lib/roomLanguages";
 
 type RoomLanguageEditorProps = {
   language: Language;
   primaryLanguage: RoomLanguage;
+  primaryLanguageLevel: RoomLanguageLevel;
   secondaryLanguage: RoomLanguage | null;
   error: string | null;
   onClose: () => void;
-  onSave: (primaryLanguage: RoomLanguage, secondaryLanguage: RoomLanguage | null) => void;
+  onSave: (primaryLanguage: RoomLanguage, primaryLanguageLevel: RoomLanguageLevel, secondaryLanguage: RoomLanguage | null) => void;
 };
 
 export function RoomLanguageEditor({
   language,
   primaryLanguage,
+  primaryLanguageLevel,
   secondaryLanguage,
   error,
   onClose,
   onSave
 }: RoomLanguageEditorProps) {
   const [primary, setPrimary] = useState<RoomLanguage>(primaryLanguage);
+  const [primaryLevel, setPrimaryLevel] = useState<RoomLanguageLevel>(primaryLanguageLevel);
   const [secondary, setSecondary] = useState<RoomLanguage | "">(secondaryLanguage ?? "");
   const t = (key: Parameters<typeof translate>[1]) => translate(language, key);
 
   useEffect(() => {
     setPrimary(primaryLanguage);
+    setPrimaryLevel(primaryLanguageLevel);
     setSecondary(secondaryLanguage ?? "");
-  }, [primaryLanguage, secondaryLanguage]);
+  }, [primaryLanguage, primaryLanguageLevel, secondaryLanguage]);
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 px-4 backdrop-blur-sm">
@@ -43,14 +47,14 @@ export function RoomLanguageEditor({
         </div>
 
         <form
-          className="mt-6 grid gap-4"
+          className="mt-6 grid gap-4 sm:grid-cols-2"
           onSubmit={(event) => {
             event.preventDefault();
-            onSave(primary, secondary || null);
+            onSave(primary, primaryLevel, secondary || null);
           }}
         >
           <label className="text-sm font-medium text-white/75" htmlFor="edit-room-primary-language">
-            {t("primaryLanguage")}
+            <span className="flex min-h-10 items-start">{t("primaryLanguage")}</span>
             <select
               id="edit-room-primary-language"
               required
@@ -60,7 +64,7 @@ export function RoomLanguageEditor({
                 setPrimary(nextLanguage);
                 if (secondary === nextLanguage) setSecondary("");
               }}
-              className="mt-2 h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
+              className="h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
             >
               {roomLanguages.map((roomLanguage) => (
                 <option key={roomLanguage.code} value={roomLanguage.code} className="bg-[#182635] text-white">{roomLanguage.nativeName}</option>
@@ -68,7 +72,22 @@ export function RoomLanguageEditor({
             </select>
           </label>
 
-          <label className="text-sm font-medium text-white/75" htmlFor="edit-room-secondary-language">
+          <label className="text-sm font-medium text-white/75" htmlFor="edit-room-primary-language-level">
+            <span className="flex min-h-10 items-start">Primary language level</span>
+            <select
+              id="edit-room-primary-language-level"
+              required
+              value={primaryLevel}
+              onChange={(event) => setPrimaryLevel(event.target.value as RoomLanguageLevel)}
+              className="h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
+            >
+              {roomLanguageLevels.map((level) => (
+                <option key={level.code} value={level.code} className="bg-[#182635] text-white">{level.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="text-sm font-medium text-white/75 sm:col-span-2" htmlFor="edit-room-secondary-language">
             {t("secondaryLanguage")} <span className="font-normal text-white/40">({t("optional")})</span>
             <select
               id="edit-room-secondary-language"
@@ -83,9 +102,9 @@ export function RoomLanguageEditor({
             </select>
           </label>
 
-          {error ? <p className="rounded-md border border-coral/40 bg-coral/15 px-3 py-2 text-sm text-coral">{error}</p> : null}
+          {error ? <p className="rounded-md border border-coral/40 bg-coral/15 px-3 py-2 text-sm text-coral sm:col-span-2">{error}</p> : null}
 
-          <div className="mt-1 flex justify-end gap-3">
+          <div className="mt-1 flex justify-end gap-3 sm:col-span-2">
             <button type="button" onClick={onClose} className="h-10 rounded-md bg-white/5 px-4 text-sm text-white/75 transition hover:bg-white/10">{t("cancel")}</button>
             <button type="submit" className="h-10 rounded-md bg-mint px-4 text-sm font-semibold text-ink transition hover:bg-mint/90">{t("saveChanges")}</button>
           </div>

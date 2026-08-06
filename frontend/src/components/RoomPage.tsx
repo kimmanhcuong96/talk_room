@@ -14,7 +14,7 @@ import { ChatPanel } from "./ChatPanel";
 import { Toolbar } from "./Toolbar";
 import { VideoGrid } from "./VideoGrid";
 import { RoomLanguageEditor } from "./RoomLanguageEditor";
-import type { RoomLanguage } from "../lib/roomLanguages";
+import type { RoomLanguage, RoomLanguageLevel } from "../lib/roomLanguages";
 
 type RoomPageProps = {
   socket: AppSocket;
@@ -91,6 +91,10 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
       setMediaNotice(translate(language, "roomLanguagesUpdated"));
     };
     const handleLanguageError = (message: string) => {
+      if (message === "ROOM_LANGUAGE_LEVEL_INVALID") {
+        setLanguageEditorError("Please select a valid primary language level.");
+        return;
+      }
       const errorKey = message === "ROOM_PRIMARY_LANGUAGE_REQUIRED"
         ? "roomPrimaryLanguageRequired"
         : message === "ROOM_LANGUAGE_INVALID"
@@ -280,12 +284,13 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
         <RoomLanguageEditor
           language={language}
           primaryLanguage={room.primaryLanguage}
+          primaryLanguageLevel={room.primaryLanguageLevel}
           secondaryLanguage={room.secondaryLanguage}
           error={languageEditorError}
           onClose={() => { setLanguageEditorOpen(false); setLanguageEditorError(null); }}
-          onSave={(primaryLanguage: RoomLanguage, secondaryLanguage: RoomLanguage | null) => {
+          onSave={(primaryLanguage: RoomLanguage, primaryLanguageLevel: RoomLanguageLevel, secondaryLanguage: RoomLanguage | null) => {
             setLanguageEditorError(null);
-            socket.emit("update-room-languages", { roomId: room.id, primaryLanguage, secondaryLanguage });
+            socket.emit("update-room-languages", { roomId: room.id, primaryLanguage, primaryLanguageLevel, secondaryLanguage });
           }}
         />
       ) : null}

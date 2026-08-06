@@ -17,6 +17,22 @@ export const roomLanguages = [
 
 export type RoomLanguage = (typeof roomLanguages)[number]["code"];
 
+export const roomLanguageLevels = [
+  { code: "any", label: "Any level" },
+  { code: "a1", label: "Beginner (A1)" },
+  { code: "a2", label: "Elementary (A2)" },
+  { code: "b1", label: "Intermediate (B1)" },
+  { code: "b2", label: "Upper-intermediate (B2)" },
+  { code: "c1", label: "Advanced (C1)" },
+  { code: "c2", label: "Proficient (C2)" }
+] as const;
+
+export type RoomLanguageLevel = (typeof roomLanguageLevels)[number]["code"];
+
 export function getRoomLanguageName(code: RoomLanguage) {
   return roomLanguages.find((language) => language.code === code)?.nativeName ?? code;
+}
+
+export function getRoomLanguageLevelLabel(code: RoomLanguageLevel) {
+  return roomLanguageLevels.find((level) => level.code === code)?.label ?? code;
 }

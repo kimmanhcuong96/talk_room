@@ -1,10 +1,11 @@
 import type { UserRole } from "../lib/auth";
-import type { RoomLanguage } from "../lib/roomLanguages";
+import type { RoomLanguage, RoomLanguageLevel } from "../lib/roomLanguages";
 
 export type RoomSummary = {
   id: string;
   name: string;
   primaryLanguage: RoomLanguage;
+  primaryLanguageLevel: RoomLanguageLevel;
   secondaryLanguage: RoomLanguage | null;
   users: number;
   capacity: number;
@@ -32,9 +33,9 @@ export type ChatMessage = {
 };
 
 export type ClientToServerEvents = {
-  "join-room": (payload: { roomId: string; nickname: string; authToken?: string }) => void;
-  "create-room": (payload: { name: string; primaryLanguage: RoomLanguage; secondaryLanguage?: RoomLanguage | null; authToken?: string }) => void;
-  "update-room-languages": (payload: { roomId: string; primaryLanguage: RoomLanguage; secondaryLanguage?: RoomLanguage | null }) => void;
+  "join-room": (payload: { roomId: string; nickname: string; guestId?: string; authToken?: string }) => void;
+  "create-room": (payload: { name: string; primaryLanguage: RoomLanguage; primaryLanguageLevel: RoomLanguageLevel; secondaryLanguage?: RoomLanguage | null; authToken?: string }) => void;
+  "update-room-languages": (payload: { roomId: string; primaryLanguage: RoomLanguage; primaryLanguageLevel: RoomLanguageLevel; secondaryLanguage?: RoomLanguage | null }) => void;
   "request-room-language-permission": (payload: { roomId: string }) => void;
   "leave-room": () => void;
   "send-message": (payload: { text: string }) => void;
@@ -58,6 +59,7 @@ export type ServerToClientEvents = {
   "chat-history": (messages: ChatMessage[]) => void;
   "room-full": () => void;
   "join-error": (message: string) => void;
+  "room-session-replaced": () => void;
   "create-room-error": (message: string) => void;
   "room-created": (room: RoomSummary) => void;
   "room-languages-updated": (room: RoomSummary) => void;

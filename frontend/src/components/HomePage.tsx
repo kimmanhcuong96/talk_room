@@ -8,7 +8,7 @@ import { adminPath, infoPagePath, type InfoPage } from "../lib/routes";
 import { readAdminToken } from "../lib/adminAuth";
 import { hasPermission } from "../lib/permissions";
 import { SeoContent } from "./SeoContent";
-import { getRoomLanguageName, roomLanguages, type RoomLanguage } from "../lib/roomLanguages";
+import { getRoomLanguageLevelLabel, getRoomLanguageName, roomLanguageLevels, roomLanguages, type RoomLanguage, type RoomLanguageLevel } from "../lib/roomLanguages";
 import { RoomLanguageTags } from "./RoomLanguageTags";
 
 type HomePageProps = {
@@ -24,7 +24,7 @@ type HomePageProps = {
   onGoogleCredential: (idToken: string) => void;
   onSignOut: () => void;
   onJoin: (roomId: string) => void;
-  onCreateRoom: (name: string, primaryLanguage: RoomLanguage, secondaryLanguage: RoomLanguage | null) => void;
+  onCreateRoom: (name: string, primaryLanguage: RoomLanguage, primaryLanguageLevel: RoomLanguageLevel, secondaryLanguage: RoomLanguage | null) => void;
   createRoomError: string | null;
   onOpenInfoPage: (page: InfoPage) => void;
 };
@@ -105,7 +105,10 @@ export function HomePage({
   const [createRoomOpen, setCreateRoomOpen] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
   const [primaryLanguage, setPrimaryLanguage] = useState<RoomLanguage>(() => language);
+  const [primaryLanguageLevel, setPrimaryLanguageLevel] = useState<RoomLanguageLevel>("any");
   const [secondaryLanguage, setSecondaryLanguage] = useState<RoomLanguage | "">("");
+  const cleanNewRoomNameLength = newRoomName.trim().length;
+  const hasShortRoomName = newRoomName.length > 0 && cleanNewRoomNameLength < 3;
   const languageMenuRef = useRef<HTMLDivElement | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
@@ -124,6 +127,8 @@ export function HomePage({
         room.name,
         room.primaryLanguage,
         getRoomLanguageName(room.primaryLanguage),
+        room.primaryLanguageLevel,
+        getRoomLanguageLevelLabel(room.primaryLanguageLevel),
         room.secondaryLanguage ?? "",
         room.secondaryLanguage ? getRoomLanguageName(room.secondaryLanguage) : ""
       ];
@@ -398,23 +403,32 @@ export function HomePage({
                   event.preventDefault();
                   const cleanName = newRoomName.trim();
                   if (cleanName.length >= 3) {
-                    onCreateRoom(cleanName, primaryLanguage, secondaryLanguage || null);
+                    onCreateRoom(cleanName, primaryLanguage, primaryLanguageLevel, secondaryLanguage || null);
                   }
                 }}
               >
                 <label htmlFor="new-room-name" className="text-sm font-medium text-white/75">{t("createRoomName")}</label>
                 <input
                   id="new-room-name"
+                  aria-describedby="new-room-name-help"
+                  aria-invalid={hasShortRoomName}
                   value={newRoomName}
                   maxLength={60}
                   autoFocus
                   onChange={(event) => setNewRoomName(event.target.value)}
                   placeholder={t("createRoomNamePlaceholder")}
-                  className="mt-2 h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-mint"
+                  className={`mt-2 h-11 w-full rounded-md border bg-field px-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-mint ${hasShortRoomName ? "border-coral/70" : "border-white/10"}`}
                 />
+                <p
+                  id="new-room-name-help"
+                  role={hasShortRoomName ? "alert" : undefined}
+                  className={`mt-2 text-xs ${hasShortRoomName ? "text-coral" : "text-white/45"}`}
+                >
+                  {t("createRoomNameTooShort")}
+                </p>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <label className="text-sm font-medium text-white/75" htmlFor="room-primary-language">
-                    {t("primaryLanguage")}
+                    <span className="flex min-h-10 items-start">{t("primaryLanguage")}</span>
                     <select
                       id="room-primary-language"
                       required
@@ -424,7 +438,7 @@ export function HomePage({
                         setPrimaryLanguage(nextLanguage);
                         if (secondaryLanguage === nextLanguage) setSecondaryLanguage("");
                       }}
-                      className="mt-2 h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
+                      className="h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
                     >
                       {roomLanguages.map((roomLanguage) => (
                         <option key={roomLanguage.code} value={roomLanguage.code} className="bg-[#182635] text-white">
@@ -433,13 +447,30 @@ export function HomePage({
                       ))}
                     </select>
                   </label>
-                  <label className="text-sm font-medium text-white/75" htmlFor="room-secondary-language">
-                    {t("secondaryLanguage")} <span className="font-normal text-white/40">({t("optional")})</span>
+                  <label className="text-sm font-medium text-white/75" htmlFor="room-primary-language-level">
+                    <span className="flex min-h-10 items-start">Primary language level</span>
+                    <select
+                      id="room-primary-language-level"
+                      required
+                      value={primaryLanguageLevel}
+                      onChange={(event) => setPrimaryLanguageLevel(event.target.value as RoomLanguageLevel)}
+                      className="h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
+                    >
+                      {roomLanguageLevels.map((level) => (
+                        <option key={level.code} value={level.code} className="bg-[#182635] text-white">{level.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-sm font-medium text-white/75 sm:col-span-2" htmlFor="room-secondary-language">
+                    <span className="flex min-h-10 items-start gap-1">
+                      <span>{t("secondaryLanguage")}</span>
+                      <span className="font-normal text-white/40">({t("optional")})</span>
+                    </span>
                     <select
                       id="room-secondary-language"
                       value={secondaryLanguage}
                       onChange={(event) => setSecondaryLanguage(event.target.value as RoomLanguage | "")}
-                      className="mt-2 h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
+                      className="h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
                     >
                       <option value="" className="bg-[#182635] text-white">{t("selectLanguage")}</option>
                       {roomLanguages.filter((roomLanguage) => roomLanguage.code !== primaryLanguage).map((roomLanguage) => (
@@ -455,7 +486,7 @@ export function HomePage({
                   <button type="button" onClick={() => setCreateRoomOpen(false)} className="h-10 rounded-md bg-white/5 px-4 text-sm text-white/75 hover:bg-white/10">
                     {t("cancel")}
                   </button>
-                  <button type="submit" disabled={newRoomName.trim().length < 3} className="h-10 rounded-md bg-[#258ff4] px-4 text-sm font-semibold text-white hover:bg-[#1d7edb] disabled:cursor-not-allowed disabled:opacity-40">
+                  <button type="submit" disabled={cleanNewRoomNameLength < 3} className="h-10 rounded-md bg-[#258ff4] px-4 text-sm font-semibold text-white hover:bg-[#1d7edb] disabled:cursor-not-allowed disabled:opacity-40">
                     {t("createRoom")}
                   </button>
                 </div>
@@ -572,6 +603,7 @@ export function HomePage({
                   <div className="mt-3">
                     <RoomLanguageTags
                       primaryLanguage={room.primaryLanguage}
+                      primaryLanguageLevel={room.primaryLanguageLevel}
                       secondaryLanguage={room.secondaryLanguage}
                       language={language}
                     />

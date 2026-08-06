@@ -92,7 +92,7 @@ export type TranslationKey =
 
 const translations: Record<Language, Record<TranslationKey, string>> = {
   en: {
-    roomSessionReplaced: "You joined another room in a different tab or device, so this room was closed.",
+    roomSessionReplaced: "You joined another room in a different tab or device, so you were returned to Ready access for this room.",
     editRoomLanguages: "Edit room languages",
     languageSettings: "Room language settings",
     saveChanges: "Save changes",
@@ -182,7 +182,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     videoUnavailable: "No camera found"
   },
   vi: {
-    roomSessionReplaced: "Bạn đã vào một phòng khác trên tab hoặc thiết bị khác, vì vậy phòng này đã được đóng.",
+    roomSessionReplaced: "Bạn đã vào một phòng khác trên tab hoặc thiết bị khác, vì vậy bạn được đưa về màn hình Chuẩn bị vào phòng của phòng này.",
     editRoomLanguages: "Chỉnh ngôn ngữ phòng",
     languageSettings: "Cài đặt ngôn ngữ phòng",
     saveChanges: "Lưu thay đổi",
@@ -272,7 +272,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     videoUnavailable: "Không tìm thấy camera"
   },
   zh: {
-    roomSessionReplaced: "你已在其他标签页或设备加入另一个房间，因此当前房间已关闭。",
+    roomSessionReplaced: "你已在其他标签页或设备加入另一个房间，因此已返回此房间的进入准备页面。",
     editRoomLanguages: "编辑房间语言",
     languageSettings: "房间语言设置",
     saveChanges: "保存更改",
@@ -362,7 +362,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     videoUnavailable: "未找到摄像头"
   },
   ja: {
-    roomSessionReplaced: "別のタブまたは端末で他のルームに参加したため、このルームを退出しました。",
+    roomSessionReplaced: "別のタブまたは端末で他のルームに参加したため、このルームの入室準備画面に戻りました。",
     editRoomLanguages: "ルーム言語を編集",
     languageSettings: "ルーム言語設定",
     saveChanges: "変更を保存",

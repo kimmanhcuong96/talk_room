@@ -181,12 +181,12 @@ export function App() {
   }, [language, socket]);
 
   useEffect(() => {
-    const handleRoomSessionReplaced = () => {
+    const handleRoomSessionReplaced = ({ roomId }: { roomId: string }) => {
       setActiveRoom(null);
       setPendingJoin(null);
-      setRouteRoomId(null);
+      setRouteRoomId(roomId);
       setRouteInfoPage(null);
-      window.history.replaceState({}, "", homePath());
+      window.history.replaceState({}, "", roomPath(roomId));
       setError(translate(language, "roomSessionReplaced"));
     };
 

@@ -203,8 +203,10 @@ export function registerSocketHandlers(io: AppServer) {
       }
 
       for (const previousSocket of otherIdentitySockets) {
+        const previousRoomId = previousSocket.data.roomId;
+        if (!previousRoomId) continue;
         leaveCurrentRoom(io, previousSocket);
-        previousSocket.emit("room-session-replaced");
+        previousSocket.emit("room-session-replaced", { roomId: previousRoomId });
       }
 
       if (alreadyInTargetRoom) {

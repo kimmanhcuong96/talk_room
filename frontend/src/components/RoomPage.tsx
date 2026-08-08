@@ -18,7 +18,7 @@ import type { RoomLanguage, RoomLanguageLevel } from "../lib/roomLanguages";
 import { RoomModerationPanel } from "./RoomModerationPanel";
 import { moderationTranslate } from "../lib/moderationI18n";
 import type { ReportReason } from "../types/realtime";
-import { RoomTopicBanner, RoomTopicEditor } from "./RoomTopic";
+import { RoomTopicEditor, RoomTopicSlide } from "./RoomTopic";
 import { roomTopicTranslate } from "../lib/roomTopicI18n";
 
 type RoomPageProps = {
@@ -349,15 +349,22 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
           </div>
         </header>
 
-        {currentTopic ? <RoomTopicBanner topic={currentTopic} language={language}/> : null}
-
-        <div className="relative min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-4">
           {error || mediaNotice ? (
             <div className="absolute inset-x-2 top-2 z-20 rounded-md border border-coral/40 bg-coral/20 px-3 py-2 text-xs text-coral shadow-lg shadow-black/20 backdrop-blur sm:inset-x-4 sm:top-4 sm:text-sm">
               {error ?? mediaNotice}
             </div>
           ) : null}
-          <VideoGrid localStream={presentationStream} localCameraStream={stream} localUser={localUser} language={language} remotePeers={remotePeers} />
+          <div className="min-h-0 flex-1">
+            <VideoGrid
+              localStream={presentationStream}
+              localCameraStream={stream}
+              localUser={localUser}
+              language={language}
+              remotePeers={remotePeers}
+              stageContent={currentTopic ? <RoomTopicSlide topic={currentTopic} language={language} fill/> : undefined}
+            />
+          </div>
         </div>
 
         <Toolbar

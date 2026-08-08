@@ -5,11 +5,16 @@ import { getTopicBackground, getTopicFont, getTopicIcon, topicBackgrounds, topic
 import { roomTopicTranslate } from "../lib/roomTopicI18n";
 import type { RoomTopic as RoomTopicValue } from "../types/realtime";
 
-export function RoomTopicBanner({ topic, language }: { topic: RoomTopicValue; language: Language }) {
+export function RoomTopicSlide({ topic, language, compact = false, fill = false }: { topic: RoomTopicValue; language: Language; compact?: boolean; fill?: boolean }) {
   const Icon = getTopicIcon(topic.icon);
-  return <section aria-label={roomTopicTranslate(language, "topic")} className={`mx-2 mt-2 flex shrink-0 items-start gap-3 rounded-lg border px-4 py-3 shadow-lg shadow-black/10 sm:mx-4 sm:mt-4 ${getTopicBackground(topic.background)}`}>
-    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/10 text-white"><Icon size={19}/></span>
-    <div className="min-w-0"><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/45">{roomTopicTranslate(language, "topic")}</p><p className={`mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-white/90 ${getTopicFont(topic.font)}`}>{topic.description}</p></div>
+  return <section aria-label={roomTopicTranslate(language, "topic")} className={`relative isolate flex w-full shrink-0 items-center justify-center overflow-hidden rounded-2xl border px-6 text-center shadow-xl shadow-black/20 ${compact ? "min-h-40 py-6" : fill ? "h-full min-h-0 py-8 sm:px-12" : "h-[clamp(10rem,32dvh,20rem)] py-8 sm:px-12"} ${getTopicBackground(topic.background)}`}>
+    <span aria-hidden="true" className="absolute -left-12 -top-16 -z-10 h-48 w-48 rounded-full bg-white/[0.06] blur-sm"/>
+    <span aria-hidden="true" className="absolute -bottom-20 -right-10 -z-10 h-56 w-56 rounded-full border-[28px] border-white/[0.04]"/>
+    <div className="max-h-full w-full max-w-4xl overflow-y-auto">
+      <span className={`mx-auto grid shrink-0 place-items-center rounded-2xl border border-white/15 bg-white/10 text-white shadow-lg shadow-black/10 ${compact ? "h-11 w-11" : "h-14 w-14 sm:h-16 sm:w-16"}`}><Icon size={compact ? 22 : 29}/></span>
+      <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.24em] text-white/50 sm:text-xs">{roomTopicTranslate(language, "topic")}</p>
+      <p className={`mx-auto mt-2 whitespace-pre-wrap break-words text-white/95 ${compact ? "text-sm leading-6" : "text-base leading-7 sm:text-xl sm:leading-8 lg:text-2xl"} ${getTopicFont(topic.font)}`}>{topic.description}</p>
+    </div>
   </section>;
 }
 
@@ -27,7 +32,7 @@ export function RoomTopicEditor({ topic, language, error, saving, onClose, onSav
     <fieldset className="mt-4"><legend className="text-sm text-white/70">{t("background")}</legend><div className="mt-2 flex flex-wrap gap-2">{topicBackgrounds.map((item) => <button key={item.value} type="button" aria-label={item.value} aria-pressed={background === item.value} onClick={() => setBackground(item.value)} className={`h-8 w-8 rounded-full ${item.swatch} ${background === item.value ? "ring-2 ring-white ring-offset-2 ring-offset-panel" : "opacity-65 hover:opacity-100"}`}/>)}</div></fieldset>
     <fieldset className="mt-4"><legend className="text-sm text-white/70">{t("font")}</legend><div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">{topicFonts.map((item) => <button key={item.value} type="button" aria-pressed={font === item.value} onClick={() => setFont(item.value)} className={`rounded-md border px-3 py-2 text-sm ${item.className} ${font === item.value ? "border-mint bg-mint/10 text-mint" : "border-white/10 text-white/60 hover:bg-white/5"}`}>{t(item.value)}</button>)}</div></fieldset>
     <fieldset className="mt-4"><legend className="text-sm text-white/70">{t("icon")}</legend><div className="mt-2 flex flex-wrap gap-2">{topicIcons.map(({ value, Icon }) => <button key={value} type="button" aria-label={value} aria-pressed={icon === value} onClick={() => setIcon(value)} className={`grid h-10 w-10 place-items-center rounded-md border ${icon === value ? "border-mint bg-mint/10 text-mint" : "border-white/10 text-white/55 hover:bg-white/5"}`}><Icon size={18}/></button>)}</div></fieldset>
-    <div className="mt-5"><RoomTopicBanner topic={preview} language={language}/></div>
+    <div className="mt-5"><RoomTopicSlide topic={preview} language={language} compact/></div>
     {localError || error ? <p className="mt-3 text-sm text-coral">{localError ?? error}</p> : null}
     <div className="mt-5 flex flex-wrap justify-between gap-3"><div>{topic ? <button disabled={saving} type="button" onClick={() => onSave(null)} className="inline-flex h-10 items-center gap-2 rounded-md bg-coral/10 px-3 text-sm text-coral hover:bg-coral/20 disabled:opacity-45"><Trash2 size={16}/>{t("remove")}</button> : null}</div><div className="flex gap-2"><button disabled={saving} type="button" onClick={onClose} className="h-10 rounded-md bg-white/5 px-4 text-sm text-white/65 hover:bg-white/10 disabled:opacity-45">{t("cancel")}</button><button disabled={saving} className="h-10 rounded-md bg-mint px-4 text-sm font-semibold text-ink hover:bg-mint/90 disabled:cursor-wait disabled:opacity-55">{saving ? t("saving") : t("save")}</button></div></div>
   </form></div>;

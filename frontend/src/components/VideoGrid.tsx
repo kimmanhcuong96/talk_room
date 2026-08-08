@@ -2,6 +2,7 @@ import type { RoomUser } from "../types/realtime";
 import type { Language } from "../lib/i18n";
 import { VideoTile } from "./VideoTile";
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
 type RemotePeer = RoomUser & {
   stream: MediaStream | null;
@@ -20,6 +21,7 @@ type VideoGridProps = {
   };
   language: Language;
   remotePeers: RemotePeer[];
+  stageContent?: ReactNode;
 };
 
 type Participant = {
@@ -95,7 +97,7 @@ function getTrackSignature(stream: MediaStream | null) {
   return stream?.getTracks().map((track) => `${track.kind}:${track.id}:${track.readyState}`).join("|") ?? "";
 }
 
-export function VideoGrid({ localStream, localCameraStream, localUser, language, remotePeers }: VideoGridProps) {
+export function VideoGrid({ localStream, localCameraStream, localUser, language, remotePeers, stageContent }: VideoGridProps) {
   const [featuredParticipantId, setFeaturedParticipantId] = useState<string | null>(null);
   const totalUsers = remotePeers.length + 1;
   const participants = useMemo(
@@ -131,6 +133,11 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
   const thumbnailParticipants = featuredParticipant ? participants : [];
 
   useEffect(() => {
+    if (stageContent) {
+      setFeaturedParticipantId(null);
+      return;
+    }
+
     const screenSharingParticipant = participants.find((participant) => participant.screenSharing);
     if (screenSharingParticipant) {
       setFeaturedParticipantId(screenSharingParticipant.id);
@@ -140,7 +147,31 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
     if (featuredParticipantId && !participants.some((participant) => participant.id === featuredParticipantId)) {
       setFeaturedParticipantId(null);
     }
-  }, [featuredParticipantId, participants]);
+  }, [featuredParticipantId, participants, Boolean(stageContent)]);
+
+  if (stageContent) {
+    return (
+      <div className="flex h-full min-h-0 flex-col gap-2 sm:gap-3">
+        <div className="grid min-h-0 flex-1 place-items-center">
+          <div className="h-full max-h-full w-full max-w-xs sm:max-h-[min(100%,42vw)] sm:max-w-3xl">
+            {stageContent}
+          </div>
+        </div>
+        <div className="flex h-16 shrink-0 items-center justify-center gap-2 overflow-x-auto sm:h-20 sm:gap-3">
+          {participants.map((participant) => (
+            <div key={participant.id} className="h-full w-24 shrink-0 sm:w-28">
+              <ParticipantVideoTile
+                participant={participant}
+                mode="thumbnail"
+                language={language}
+                onClick={() => undefined}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (featuredParticipant) {
     return (

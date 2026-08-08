@@ -1,4 +1,4 @@
-import { BookOpen, Coffee, Gamepad2, Globe2, MessageCircle, Sparkles, type LucideIcon } from "lucide-react";
+import { BookOpen, CircleOff, Coffee, Gamepad2, Globe2, MessageCircle, Sparkles, type LucideIcon } from "lucide-react";
 import type { RoomTopic } from "../types/realtime";
 
 export const topicBackgrounds: Array<{ value: RoomTopic["background"]; swatch: string; banner: string }> = [
@@ -18,10 +18,10 @@ export const topicFonts: Array<{ value: RoomTopic["font"]; className: string }> 
 ];
 
 export const topicIcons: Array<{ value: RoomTopic["icon"]; Icon: LucideIcon }> = [
-  { value: "message", Icon: MessageCircle }, { value: "sparkles", Icon: Sparkles }, { value: "book", Icon: BookOpen },
+  { value: "none", Icon: CircleOff }, { value: "message", Icon: MessageCircle }, { value: "sparkles", Icon: Sparkles }, { value: "book", Icon: BookOpen },
   { value: "globe", Icon: Globe2 }, { value: "coffee", Icon: Coffee }, { value: "game", Icon: Gamepad2 }
 ];
 
 export const getTopicBackground = (value: RoomTopic["background"]) => topicBackgrounds.find((item) => item.value === value)?.banner ?? topicBackgrounds[0].banner;
 export const getTopicFont = (value: RoomTopic["font"]) => topicFonts.find((item) => item.value === value)?.className ?? topicFonts[0].className;
-export const getTopicIcon = (value: RoomTopic["icon"]) => topicIcons.find((item) => item.value === value)?.Icon ?? MessageCircle;
+export const getTopicIcon = (value: RoomTopic["icon"]) => value === "none" ? null : topicIcons.find((item) => item.value === value)?.Icon ?? MessageCircle;

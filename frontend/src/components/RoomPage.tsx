@@ -37,6 +37,7 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
   const [chatOpen, setChatOpen] = useState(false);
   const [roomConnectionError, setRoomConnectionError] = useState<string | null>(null);
   const [mediaNotice, setMediaNotice] = useState<string | null>(null);
+  const [successNotice, setSuccessNotice] = useState<string | null>(null);
   const [screenShareBlocked, setScreenShareBlocked] = useState(false);
   const [canManageLanguages, setCanManageLanguages] = useState(false);
   const [languageEditorOpen, setLanguageEditorOpen] = useState(false);
@@ -145,7 +146,8 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
       setTopicEditorError(null);
       setTopicSaving(false);
       setTopicEditorOpen(false);
-      setMediaNotice(roomTopicTranslate(language, "updated"));
+      setMediaNotice(null);
+      setSuccessNotice(roomTopicTranslate(language, "updated"));
     };
     const handleError = (message: string) => {
       setTopicSaving(false);
@@ -264,6 +266,12 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
   }, [mediaNotice]);
 
   useEffect(() => {
+    if (!successNotice) return;
+    const timeoutId = window.setTimeout(() => setSuccessNotice(null), 3500);
+    return () => window.clearTimeout(timeoutId);
+  }, [successNotice]);
+
+  useEffect(() => {
     if (!isConnected) {
       setRoomConnectionError(connectionError ?? t("roomConnectionLost"));
       return;
@@ -350,9 +358,9 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
         </header>
 
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-4">
-          {error || mediaNotice ? (
-            <div className="absolute inset-x-2 top-2 z-20 rounded-md border border-coral/40 bg-coral/20 px-3 py-2 text-xs text-coral shadow-lg shadow-black/20 backdrop-blur sm:inset-x-4 sm:top-4 sm:text-sm">
-              {error ?? mediaNotice}
+          {error || mediaNotice || successNotice ? (
+            <div className={`absolute inset-x-2 top-2 z-20 rounded-md border px-3 py-2 text-xs shadow-lg shadow-black/20 backdrop-blur sm:inset-x-4 sm:top-4 sm:text-sm ${error || mediaNotice ? "border-coral/40 bg-coral/20 text-coral" : "border-mint/40 bg-mint/20 text-mint"}`}>
+              {error ?? mediaNotice ?? successNotice}
             </div>
           ) : null}
           <div className="min-h-0 flex-1">

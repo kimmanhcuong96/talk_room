@@ -17,7 +17,7 @@ export type RoomTopic = {
   description: string;
   background: "slate" | "mint" | "blue" | "coral" | "violet" | "amber";
   font: "sans" | "serif" | "mono" | "display";
-  icon: "message" | "sparkles" | "book" | "globe" | "coffee" | "game";
+  icon: "none" | "message" | "sparkles" | "book" | "globe" | "coffee" | "game";
 };
 
 export type RoomParticipantSummary = Pick<RoomUser, "nickname" | "avatar" | "role">;

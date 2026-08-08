@@ -95,7 +95,7 @@ function emitRoomTopicPermissions(io: AppServer, roomId: string) {
 
 const topicBackgrounds = new Set<RoomTopic["background"]>(["slate", "mint", "blue", "coral", "violet", "amber"]);
 const topicFonts = new Set<RoomTopic["font"]>(["sans", "serif", "mono", "display"]);
-const topicIcons = new Set<RoomTopic["icon"]>(["message", "sparkles", "book", "globe", "coffee", "game"]);
+const topicIcons = new Set<RoomTopic["icon"]>(["none", "message", "sparkles", "book", "globe", "coffee", "game"]);
 
 function resolveIdentityKey(authenticatedUser: UserProfile | null, guestId: unknown, socketId: string) {
   if (authenticatedUser) return `user:${authenticatedUser.id}`;

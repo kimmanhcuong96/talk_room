@@ -9,13 +9,14 @@ const quickEmojis = ["😀", "😂", "👍", "❤️", "👏", "🎉", "✋", "�
 
 type ChatPanelProps = {
   messages: ChatMessage[];
+  currentSocketId: string | undefined;
   open: boolean;
   language: Language;
   onClose: () => void;
   onSend: (text: string) => void;
 };
 
-export function ChatPanel({ messages, open, language, onClose, onSend }: ChatPanelProps) {
+export function ChatPanel({ messages, currentSocketId, open, language, onClose, onSend }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -88,8 +89,10 @@ export function ChatPanel({ messages, open, language, onClose, onSend }: ChatPan
       </div>
 
       <div ref={messagesRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-        {messages.map((message) => (
-          <div key={message.id} className="rounded-md bg-white/5 px-3 py-2">
+        {messages.map((message) => {
+          const isOwnMessage = message.socketId === currentSocketId;
+          return (
+          <div key={message.id} className={`rounded-md border px-3 py-2 transition-colors ${isOwnMessage ? "border-mint/20 bg-mint/10" : "border-transparent bg-white/5"}`}>
             <div className="flex items-center justify-between gap-2 text-xs text-white/45">
               <span className="flex min-w-0 items-center gap-2">
                 <AvatarBadge avatar={message.avatar} size="sm" />
@@ -99,7 +102,8 @@ export function ChatPanel({ messages, open, language, onClose, onSend }: ChatPan
             </div>
             <p className="mt-2 break-words text-sm text-white/90">{message.text}</p>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="border-t border-white/10 p-3">

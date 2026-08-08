@@ -48,6 +48,7 @@ const io: AppServer = new Server(httpServer, {
   pingTimeout: 3000
 });
 
+app.set("io", io);
 registerSocketHandlers(io);
 
 httpServer.listen(env.port, () => {

@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Coffee, Grid2X2, Info, LoaderCircle, LogIn, LogOut, MessageCircle, Plus, Search, Settings, ShieldCheck, UserCircle, Users, X } from "lucide-react";
+import { Check, ChevronDown, Coffee, Grid2X2, Info, Languages, LoaderCircle, LogIn, LogOut, MessageCircle, Plus, Search, Settings, ShieldCheck, UserCircle, Users, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GoogleSignInButton } from "./GoogleSignInButton";
 import type { AuthUser } from "../lib/auth";
@@ -100,6 +100,7 @@ export function HomePage({
 }: HomePageProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [density, setDensity] = useState<RoomDensity>("3x");
+  const [selectedLanguageTag, setSelectedLanguageTag] = useState<RoomLanguage | null>(null);
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [oauthMenuOpen, setOauthMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -117,13 +118,23 @@ export function HomePage({
   const canCreateRoom = hasPermission(user?.role ?? "unverified", "create_room");
   const roleLabel = user ? t(user.role === "supporter" ? "roleSupporter" : user.role === "verified" ? "roleVerified" : "roleUnverified") : "";
 
+  const availableLanguageTags = useMemo(() => {
+    const tags = new Set<RoomLanguage>();
+    rooms.forEach((room) => {
+      tags.add(room.primaryLanguage);
+      if (room.secondaryLanguage) tags.add(room.secondaryLanguage);
+    });
+    return roomLanguages.filter((languageOption) => tags.has(languageOption.code));
+  }, [rooms]);
+
   const filteredRooms = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) {
-      return rooms;
-    }
-
     return rooms.filter((room) => {
+      const matchesTag = !selectedLanguageTag
+        || room.primaryLanguage === selectedLanguageTag
+        || room.secondaryLanguage === selectedLanguageTag;
+      if (!matchesTag) return false;
+      if (!query) return true;
       const searchableValues = [
         room.name,
         room.primaryLanguage,
@@ -135,7 +146,13 @@ export function HomePage({
       ];
       return searchableValues.some((value) => value.toLowerCase().includes(query));
     });
-  }, [rooms, searchQuery]);
+  }, [rooms, searchQuery, selectedLanguageTag]);
+
+  useEffect(() => {
+    if (selectedLanguageTag && !availableLanguageTags.some((tag) => tag.code === selectedLanguageTag)) {
+      setSelectedLanguageTag(null);
+    }
+  }, [availableLanguageTags, selectedLanguageTag]);
 
   useEffect(() => {
     if (!userMenuOpen) {
@@ -587,6 +604,29 @@ export function HomePage({
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto rounded-md border border-white/10 bg-white/[0.025] p-2" aria-label={t("filterByLanguage")}>
+          <Languages size={17} className="ml-1 shrink-0 text-white/45" aria-hidden="true" />
+          <button
+            type="button"
+            aria-pressed={selectedLanguageTag === null}
+            onClick={() => setSelectedLanguageTag(null)}
+            className={`h-8 shrink-0 rounded-full px-3 text-xs font-semibold transition ${selectedLanguageTag === null ? "bg-mint text-ink" : "bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"}`}
+          >
+            {t("allLanguages")}
+          </button>
+          {availableLanguageTags.map((tag) => (
+            <button
+              key={tag.code}
+              type="button"
+              aria-pressed={selectedLanguageTag === tag.code}
+              onClick={() => setSelectedLanguageTag((current) => current === tag.code ? null : tag.code)}
+              className={`h-8 shrink-0 rounded-full px-3 text-xs font-semibold transition ${selectedLanguageTag === tag.code ? "bg-[#258ff4] text-white" : "bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"}`}
+            >
+              {tag.nativeName}
+            </button>
+          ))}
         </div>
       </section>
 

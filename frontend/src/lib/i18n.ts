@@ -2,6 +2,7 @@ export type Language = "en" | "vi" | "zh" | "ja";
 
 export type TranslationKey =
   | "aboutUs"
+  | "allLanguages"
   | "adminArea"
   | "backToRooms"
   | "buyMeCoffee"
@@ -26,6 +27,7 @@ export type TranslationKey =
   | "createRoomVerifiedOnly"
   | "free4TalkApp"
   | "full"
+  | "filterByLanguage"
   | "google"
   | "googlePromptNotDisplayed"
   | "googlePromptSkipped"
@@ -92,6 +94,8 @@ export type TranslationKey =
 
 const translations: Record<Language, Record<TranslationKey, string>> = {
   en: {
+    allLanguages: "All languages",
+    filterByLanguage: "Filter rooms by language",
     roomSessionReplaced: "You joined another room in a different tab or device, so you were returned to Ready access for this room.",
     editRoomLanguages: "Edit room languages",
     languageSettings: "Room language settings",
@@ -182,6 +186,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     videoUnavailable: "No camera found"
   },
   vi: {
+    allLanguages: "Tất cả ngôn ngữ",
+    filterByLanguage: "Lọc phòng theo ngôn ngữ",
     roomSessionReplaced: "Bạn đã vào một phòng khác trên tab hoặc thiết bị khác, vì vậy bạn được đưa về màn hình Chuẩn bị vào phòng của phòng này.",
     editRoomLanguages: "Chỉnh ngôn ngữ phòng",
     languageSettings: "Cài đặt ngôn ngữ phòng",
@@ -272,6 +278,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     videoUnavailable: "Không tìm thấy camera"
   },
   zh: {
+    allLanguages: "所有语言",
+    filterByLanguage: "按语言筛选房间",
     roomSessionReplaced: "你已在其他标签页或设备加入另一个房间，因此已返回此房间的进入准备页面。",
     editRoomLanguages: "编辑房间语言",
     languageSettings: "房间语言设置",
@@ -362,6 +370,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     videoUnavailable: "未找到摄像头"
   },
   ja: {
+    allLanguages: "すべての言語",
+    filterByLanguage: "言語でルームを絞り込む",
     roomSessionReplaced: "別のタブまたは端末で他のルームに参加したため、このルームの入室準備画面に戻りました。",
     editRoomLanguages: "ルーム言語を編集",
     languageSettings: "ルーム言語設定",

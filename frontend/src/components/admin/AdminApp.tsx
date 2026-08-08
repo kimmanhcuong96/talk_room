@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, LoaderCircle, LogOut, ShieldCheck, UserCog, Users } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Flag, LoaderCircle, LogOut, ShieldCheck, UserCog, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
   clearAdminToken,
@@ -20,6 +20,8 @@ import { adminTranslate, type AdminTranslationKey } from "../../lib/adminI18n";
 import type { UserRole } from "../../lib/auth";
 import { isLanguage, type Language } from "../../lib/i18n";
 import { adminPath, getAdminPageFromPath, homePath } from "../../lib/routes";
+import { ReportsPage } from "./ReportsPage";
+import { adminModerationCopy } from "../../lib/adminModerationI18n";
 
 const LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
 
@@ -79,14 +81,16 @@ function AdminLayout({ session, title, t, onSignOut, children }: {
 }
 
 function Dashboard({ session, t }: { session: AdminSession; t: Translator }) {
+  const moderation = adminModerationCopy(getAdminLanguage());
   const cards = [
     { page: "users" as const, icon: Users, title: t("userManagement"), description: t("userManagementDescription"), allowed: true },
+    { page: "reports" as const, icon: Flag, title: moderation.title, description: moderation.description, allowed: true },
     { page: "admins" as const, icon: UserCog, title: t("adminManagement"), description: t("adminManagementDescription"), allowed: session.admin.role === "owner" }
   ];
   return (
     <div>
       <p className="mb-6 text-white/60">{t("dashboardDescription")}</p>
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid gap-5 md:grid-cols-3">
         {cards.map((card) => {
           const Icon = card.icon;
           const content = <><div className="flex items-start justify-between"><span className="grid h-12 w-12 place-items-center rounded-lg bg-[#258ff4]/15 text-[#55aaff]"><Icon size={24} /></span>{!card.allowed ? <span className="rounded-full bg-[#ffd84d]/15 px-3 py-1 text-xs font-semibold text-[#ffd84d]">{t("ownerOnly")}</span> : null}</div><h2 className="mt-5 text-xl font-semibold">{card.title}</h2><p className="mt-2 leading-6 text-white/60">{card.description}</p><span className="mt-6 inline-flex items-center gap-2 font-semibold text-mint">{card.allowed ? t("manage") : t("accessDenied")}</span></>;
@@ -212,9 +216,10 @@ export function AdminApp() {
   if (!session) return <main className="grid min-h-screen place-items-center bg-ink text-white"><LoaderCircle size={28} className="animate-spin text-mint" /></main>;
 
   const signOut = () => { clearAdminToken(); setSession(null); };
-  const pageTitle = page === "users" ? t("userManagement") : page === "admins" ? t("adminManagement") : t("adminArea");
+  const pageTitle = page === "users" ? t("userManagement") : page === "admins" ? t("adminManagement") : page === "reports" ? adminModerationCopy(language).title : t("adminArea");
   let content: ReactNode = <Dashboard session={session} t={t} />;
   if (page === "users") content = <UsersPage session={session} language={language} t={t} />;
   if (page === "admins") content = <AdminsPage session={session} language={language} t={t} />;
+  if (page === "reports") content = <ReportsPage session={session} language={language} backLabel={t("backToDashboard")} previousLabel={t("previous")} nextLabel={t("next")} loadingLabel={t("loading")} pageLabel={(current, pages) => t("pageOf", { page: current, pages })} />;
   return <AdminLayout session={session} title={pageTitle} t={t} onSignOut={signOut}>{content}</AdminLayout>;
 }

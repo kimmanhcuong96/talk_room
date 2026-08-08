@@ -35,13 +35,15 @@ type Room = {
   source: "system" | "user";
   users: RoomUser[];
   messages: ChatMessage[];
+  blockedUserIds: Set<string>;
+  blockedIpHashes: Map<string, number>;
 };
 
 const rooms = new Map<string, Room>(
   roomNames.map((name, index) => {
     const id = `room-${index + 1}`;
     const primaryLanguageLevel: RoomLanguageLevel = index === 0 ? "a1" : index === 1 ? "b1" : "any";
-    return [id, { id, name, primaryLanguage: "en", primaryLanguageLevel, secondaryLanguage: null, creatorUserId: null, source: "system", users: [], messages: [] }];
+    return [id, { id, name, primaryLanguage: "en", primaryLanguageLevel, secondaryLanguage: null, creatorUserId: null, source: "system", users: [], messages: [], blockedUserIds: new Set(), blockedIpHashes: new Map() }];
   })
 );
 
@@ -90,7 +92,9 @@ export function createRoom(
     creatorUserId,
     source: "user",
     users: [],
-    messages: []
+    messages: [],
+    blockedUserIds: new Set(),
+    blockedIpHashes: new Map()
   };
 
   rooms.set(room.id, room);
@@ -115,6 +119,39 @@ export function canManageRoomLanguages(roomId: string, socketId: string, userId:
   }
 
   return room.users[0]?.socketId === socketId;
+}
+
+export function canBlockUsersInRoom(roomId: string, userId: string | undefined) {
+  const room = rooms.get(roomId);
+  return Boolean(room?.source === "user" && userId && room.creatorUserId === userId);
+}
+
+export function blockUserFromRoom(roomId: string, targetUserId: string | undefined, targetIpHash: string) {
+  const room = rooms.get(roomId);
+  if (!room || room.source !== "user") return null;
+
+  if (targetUserId) {
+    room.blockedUserIds.add(targetUserId);
+    return { expiresAt: null };
+  }
+
+  const expiresAt = Date.now() + 3 * 24 * 60 * 60 * 1000;
+  room.blockedIpHashes.set(targetIpHash, expiresAt);
+  return { expiresAt: new Date(expiresAt).toISOString() };
+}
+
+export function isBlockedFromRoom(roomId: string, userId: string | null, ipHash: string) {
+  const room = rooms.get(roomId);
+  if (!room) return { blocked: false, expiresAt: null };
+  if (userId) return { blocked: room.blockedUserIds.has(userId), expiresAt: null };
+
+  const expiresAt = room.blockedIpHashes.get(ipHash);
+  if (!expiresAt) return { blocked: false, expiresAt: null };
+  if (expiresAt <= Date.now()) {
+    room.blockedIpHashes.delete(ipHash);
+    return { blocked: false, expiresAt: null };
+  }
+  return { blocked: true, expiresAt: new Date(expiresAt).toISOString() };
 }
 
 export function updateRoomLanguages(

@@ -60,7 +60,7 @@ function toManagedUser(row: ManagedUserRow) {
   };
 }
 
-async function writeAudit(
+export async function writeAudit(
   client: PoolClient,
   actorAdminId: string | null,
   action: string,

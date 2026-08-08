@@ -36,11 +36,16 @@ export type ChatMessage = {
   timestamp: number;
 };
 
+export type ReportReason = "harassment" | "hate_speech" | "sexual_content" | "spam" | "impersonation" | "other";
+
 export type ClientToServerEvents = {
   "join-room": (payload: { roomId: string; nickname: string; guestId?: string; authToken?: string }) => void;
   "create-room": (payload: { name: string; primaryLanguage: RoomLanguage; primaryLanguageLevel: RoomLanguageLevel; secondaryLanguage?: RoomLanguage | null; authToken?: string }) => void;
   "update-room-languages": (payload: { roomId: string; primaryLanguage: RoomLanguage; primaryLanguageLevel: RoomLanguageLevel; secondaryLanguage?: RoomLanguage | null }) => void;
   "request-room-language-permission": (payload: { roomId: string }) => void;
+  "request-room-moderation-permission": (payload: { roomId: string }) => void;
+  "block-room-user": (payload: { targetSocketId: string }) => void;
+  "report-user": (payload: { targetSocketId: string; reason: ReportReason; details?: string }) => void;
   "leave-room": () => void;
   "send-message": (payload: { text: string }) => void;
   "media-status": (payload: { micEnabled: boolean; cameraEnabled: boolean; screenSharing: boolean; screenTrackId: string | null }) => void;
@@ -69,6 +74,10 @@ export type ServerToClientEvents = {
   "room-languages-updated": (room: RoomSummary) => void;
   "room-language-permission": (payload: { roomId: string; canManage: boolean }) => void;
   "room-language-error": (message: string) => void;
+  "room-moderation-permission": (payload: { roomId: string; canBlock: boolean }) => void;
+  "moderation-success": (payload: { action: "block" | "report"; targetSocketId?: string }) => void;
+  "moderation-error": (message: string) => void;
+  "access-blocked": (payload: { scope: "room" | "global"; expiresAt: string | null }) => void;
   "room-removed": (payload: { roomId: string }) => void;
   "camera-denied": () => void;
   "user-joined": (user: RoomUser) => void;
@@ -89,6 +98,7 @@ export type SocketData = {
   role?: UserRole;
   userId?: string;
   identityKey?: string;
+  ipHash?: string;
 };
 
 export type AppServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;

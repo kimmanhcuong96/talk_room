@@ -1,4 +1,4 @@
-import { Home, Languages, MessageSquare } from "lucide-react";
+import { Home, Languages, MessageSquare, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useChat } from "../hooks/useChat";
 import { useLocalMedia } from "../hooks/useLocalMedia";
@@ -15,6 +15,9 @@ import { Toolbar } from "./Toolbar";
 import { VideoGrid } from "./VideoGrid";
 import { RoomLanguageEditor } from "./RoomLanguageEditor";
 import type { RoomLanguage, RoomLanguageLevel } from "../lib/roomLanguages";
+import { RoomModerationPanel } from "./RoomModerationPanel";
+import { moderationTranslate } from "../lib/moderationI18n";
+import type { ReportReason } from "../types/realtime";
 
 type RoomPageProps = {
   socket: AppSocket;
@@ -36,6 +39,8 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
   const [canManageLanguages, setCanManageLanguages] = useState(false);
   const [languageEditorOpen, setLanguageEditorOpen] = useState(false);
   const [languageEditorError, setLanguageEditorError] = useState<string | null>(null);
+  const [moderationOpen, setModerationOpen] = useState(false);
+  const [canBlockUsers, setCanBlockUsers] = useState(false);
   const canUseCamera = hasPermission(role, "use_camera");
   const { stream, error, micEnabled, cameraEnabled, hasMicrophone, hasCamera, toggleMic, toggleCamera } = useLocalMedia(canUseCamera);
   const {
@@ -115,6 +120,25 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
       socket.off("room-language-permission", handlePermission);
       socket.off("room-languages-updated", handleLanguagesUpdated);
       socket.off("room-language-error", handleLanguageError);
+    };
+  }, [language, room.id, socket]);
+
+  useEffect(() => {
+    const handlePermission = ({ roomId, canBlock }: { roomId: string; canBlock: boolean }) => {
+      if (roomId === room.id) setCanBlockUsers(canBlock);
+    };
+    const handleSuccess = ({ action }: { action: "block" | "report" }) => {
+      setMediaNotice(moderationTranslate(language, action === "block" ? "userBlocked" : "reportSent"));
+    };
+    const handleError = () => setMediaNotice(moderationTranslate(language, "moderationFailed"));
+    socket.on("room-moderation-permission", handlePermission);
+    socket.on("moderation-success", handleSuccess);
+    socket.on("moderation-error", handleError);
+    socket.emit("request-room-moderation-permission", { roomId: room.id });
+    return () => {
+      socket.off("room-moderation-permission", handlePermission);
+      socket.off("moderation-success", handleSuccess);
+      socket.off("moderation-error", handleError);
     };
   }, [language, room.id, socket]);
 
@@ -232,6 +256,16 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
             <p className="text-xs text-white/50 sm:text-sm">{t("speakers", { count: remotePeers.length + 1 })}</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              title={moderationTranslate(language, "safety")}
+              aria-label={moderationTranslate(language, "safety")}
+              onClick={() => setModerationOpen(true)}
+              className="inline-flex h-9 items-center gap-2 rounded-md border border-white/10 bg-white/5 px-2.5 text-white/75 transition hover:bg-white/10 hover:text-white sm:px-3"
+            >
+              <ShieldAlert size={18} />
+              <span className="hidden text-sm font-medium sm:inline">{moderationTranslate(language, "safety")}</span>
+            </button>
             {canManageLanguages ? (
               <button
                 type="button"
@@ -278,7 +312,18 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
         />
       </section>
 
-      <ChatPanel messages={messages} open={chatOpen} language={language} onClose={() => setChatOpen(false)} onSend={sendMessage} />
+      <ChatPanel messages={messages} currentSocketId={socket.id} open={chatOpen} language={language} onClose={() => setChatOpen(false)} onSend={sendMessage} />
+
+      <RoomModerationPanel
+        users={users}
+        currentSocketId={socket.id ?? ""}
+        canBlock={canBlockUsers}
+        language={language}
+        open={moderationOpen}
+        onClose={() => setModerationOpen(false)}
+        onReport={(targetSocketId: string, reason: ReportReason, details: string) => socket.emit("report-user", { targetSocketId, reason, details })}
+        onBlock={(targetSocketId: string) => socket.emit("block-room-user", { targetSocketId })}
+      />
 
       {languageEditorOpen && canManageLanguages ? (
         <RoomLanguageEditor

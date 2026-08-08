@@ -2,6 +2,8 @@ import type { AppServer, AppSocket } from "../types/socket.js";
 import {
   addRoomMessage,
   addUserToRoom,
+  blockUserFromRoom,
+  canBlockUsersInRoom,
   canManageRoomLanguages,
   createRoom,
   deleteUserCreatedRoomIfEmpty,
@@ -10,6 +12,7 @@ import {
   getRoomSummaries,
   getRoomUsers,
   isUserCreatedRoomEmpty,
+  isBlockedFromRoom,
   removeUser,
   updateRoomLanguages,
   updateUserMedia
@@ -18,6 +21,12 @@ import { verifyAppJwt } from "../auth/jwt.js";
 import { findUserById, type UserProfile } from "../users/userRepository.js";
 import { hasPermission } from "../users/userPermissions.js";
 import { isRoomLanguage, isRoomLanguageLevel } from "../rooms/roomLanguages.js";
+import { getSocketIpHash } from "../moderation/ipIdentity.js";
+import {
+  createModerationReport,
+  findActiveGlobalBlock,
+  reportReasons
+} from "../moderation/moderationRepository.js";
 
 const avatars = ["🐣", "🐼", "🐰", "🦊", "🐨", "🐥", "🐧", "🐸", "🦄", "🐙", "🐢", "🐹"];
 
@@ -58,6 +67,16 @@ function emitRoomLanguagePermissions(io: AppServer, roomId: string) {
     io.to(user.socketId).emit("room-language-permission", {
       roomId,
       canManage: canManageRoomLanguages(roomId, user.socketId, connectedSocket?.data.userId)
+    });
+  }
+}
+
+function emitRoomModerationPermissions(io: AppServer, roomId: string) {
+  for (const user of getRoomUsers(roomId)) {
+    const connectedSocket = io.sockets.sockets.get(user.socketId);
+    io.to(user.socketId).emit("room-moderation-permission", {
+      roomId,
+      canBlock: canBlockUsersInRoom(roomId, connectedSocket?.data.userId)
     });
   }
 }
@@ -125,11 +144,27 @@ function leaveCurrentRoom(io: AppServer, socket: AppSocket) {
   clearWebRtcTransportLogs(socket.id);
   emitRoomList(io);
   emitRoomLanguagePermissions(io, previousRoomId);
+  emitRoomModerationPermissions(io, previousRoomId);
   scheduleEmptyRoomDeletion(io, previousRoomId);
+}
+
+export function evictGloballyBlockedUsers(
+  io: AppServer,
+  block: { targetUserId: string | null; targetIpHash: string | null; expiresAt: string | null }
+) {
+  for (const connectedSocket of io.sockets.sockets.values()) {
+    const matches = block.targetUserId
+      ? connectedSocket.data.userId === block.targetUserId
+      : !connectedSocket.data.userId && connectedSocket.data.ipHash === block.targetIpHash;
+    if (!matches) continue;
+    leaveCurrentRoom(io, connectedSocket);
+    connectedSocket.emit("access-blocked", { scope: "global", expiresAt: block.expiresAt });
+  }
 }
 
 export function registerSocketHandlers(io: AppServer) {
   io.on("connection", (socket) => {
+    socket.data.ipHash = getSocketIpHash(socket);
     socket.emit("room-list", getRoomSummaries());
 
     socket.on("create-room", async ({ name, primaryLanguage, primaryLanguageLevel, secondaryLanguage, authToken }) => {
@@ -178,6 +213,7 @@ export function registerSocketHandlers(io: AppServer) {
       const authenticatedUser = await getAuthenticatedUser(authToken);
       const role = authenticatedUser?.role ?? "unverified";
       const identityKey = resolveIdentityKey(authenticatedUser, guestId, socket.id);
+      const ipHash = socket.data.ipHash ?? getSocketIpHash(socket);
 
       if (!cleanNickname) {
         socket.emit("join-error", "Nickname is required.");
@@ -187,6 +223,24 @@ export function registerSocketHandlers(io: AppServer) {
       const targetRoom = getRoomSummary(roomId);
       if (!targetRoom) {
         socket.emit("join-error", "Room does not exist.");
+        return;
+      }
+
+      try {
+        const globalBlock = await findActiveGlobalBlock(authenticatedUser?.id ?? null, ipHash);
+        if (globalBlock) {
+          socket.emit("access-blocked", { scope: "global", expiresAt: globalBlock.expires_at?.toISOString() ?? null });
+          return;
+        }
+      } catch (error) {
+        console.error("Unable to check global moderation status", error);
+        socket.emit("join-error", "Moderation service is temporarily unavailable.");
+        return;
+      }
+
+      const roomBlock = isBlockedFromRoom(roomId, authenticatedUser?.id ?? null, ipHash);
+      if (roomBlock.blocked) {
+        socket.emit("access-blocked", { scope: "room", expiresAt: roomBlock.expiresAt });
         return;
       }
 
@@ -213,6 +267,7 @@ export function registerSocketHandlers(io: AppServer) {
         socket.emit("room-users", getRoomUsers(roomId));
         socket.emit("chat-history", getRoomMessages(roomId));
         emitRoomLanguagePermissions(io, roomId);
+        emitRoomModerationPermissions(io, roomId);
         return;
       }
 
@@ -253,6 +308,7 @@ export function registerSocketHandlers(io: AppServer) {
 
       emitRoomList(io);
       emitRoomLanguagePermissions(io, roomId);
+      emitRoomModerationPermissions(io, roomId);
     });
 
     socket.on("update-room-languages", ({ roomId, primaryLanguage, primaryLanguageLevel, secondaryLanguage }) => {
@@ -298,6 +354,78 @@ export function registerSocketHandlers(io: AppServer) {
         roomId,
         canManage: canManageRoomLanguages(roomId, socket.id, socket.data.userId)
       });
+    });
+
+    socket.on("request-room-moderation-permission", ({ roomId }) => {
+      if (socket.data.roomId !== roomId) return;
+      socket.emit("room-moderation-permission", {
+        roomId,
+        canBlock: canBlockUsersInRoom(roomId, socket.data.userId)
+      });
+    });
+
+    socket.on("report-user", async ({ targetSocketId, reason, details }) => {
+      const roomId = socket.data.roomId;
+      const targetSocket = io.sockets.sockets.get(targetSocketId);
+      if (!roomId || !targetSocket || targetSocket.data.roomId !== roomId || targetSocketId === socket.id) {
+        socket.emit("moderation-error", "INVALID_MODERATION_TARGET");
+        return;
+      }
+      if (!reportReasons.includes(reason)) {
+        socket.emit("moderation-error", "INVALID_REPORT_REASON");
+        return;
+      }
+
+      const room = getRoomSummary(roomId);
+      const targetUser = getRoomUsers(roomId).find((user) => user.socketId === targetSocketId);
+      if (!room || !targetUser || !socket.data.nickname) {
+        socket.emit("moderation-error", "INVALID_MODERATION_TARGET");
+        return;
+      }
+
+      try {
+        const reporterIpHash = socket.data.ipHash ?? getSocketIpHash(socket);
+        const targetIpHash = targetSocket.data.ipHash ?? getSocketIpHash(targetSocket);
+        await createModerationReport({
+          reporterUserId: socket.data.userId ?? null,
+          reporterIpHash,
+          reporterDisplayName: socket.data.nickname,
+          targetUserId: targetSocket.data.userId ?? null,
+          targetIpHash,
+          targetDisplayName: targetUser.nickname,
+          roomId,
+          roomName: room.name,
+          reason,
+          details: typeof details === "string" ? details.trim().slice(0, 500) : ""
+        });
+        socket.emit("moderation-success", { action: "report", targetSocketId });
+      } catch (error) {
+        console.error("Unable to create moderation report", error);
+        socket.emit("moderation-error", "REPORT_FAILED");
+      }
+    });
+
+    socket.on("block-room-user", ({ targetSocketId }) => {
+      const roomId = socket.data.roomId;
+      const targetSocket = io.sockets.sockets.get(targetSocketId);
+      if (!roomId || !targetSocket || targetSocket.data.roomId !== roomId || targetSocketId === socket.id) {
+        socket.emit("moderation-error", "INVALID_MODERATION_TARGET");
+        return;
+      }
+      if (!canBlockUsersInRoom(roomId, socket.data.userId)) {
+        socket.emit("moderation-error", "ROOM_BLOCK_PERMISSION_DENIED");
+        return;
+      }
+
+      const targetIpHash = targetSocket.data.ipHash ?? getSocketIpHash(targetSocket);
+      const result = blockUserFromRoom(roomId, targetSocket.data.userId, targetIpHash);
+      if (!result) {
+        socket.emit("moderation-error", "ROOM_BLOCK_FAILED");
+        return;
+      }
+      leaveCurrentRoom(io, targetSocket);
+      targetSocket.emit("access-blocked", { scope: "room", expiresAt: result.expiresAt });
+      socket.emit("moderation-success", { action: "block", targetSocketId });
     });
 
     socket.on("leave-room", () => {

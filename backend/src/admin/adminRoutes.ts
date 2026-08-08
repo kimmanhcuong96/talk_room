@@ -14,10 +14,19 @@ import {
   updateManagedUserRole
 } from "./adminRepository.js";
 import type { AdminRole, AdminStatus } from "./adminTypes.js";
+import {
+  blockReportedUser,
+  dismissModerationReport,
+  listModerationReports,
+  type ReportStatus
+} from "../moderation/moderationRepository.js";
+import { evictGloballyBlockedUsers } from "../socket/registerSocketHandlers.js";
+import type { AppServer } from "../types/socket.js";
 
 const userRoles = new Set<UserRole>(["unverified", "verified", "supporter"]);
 const adminRoles = new Set<AdminRole>(["owner", "admin"]);
 const adminStatuses = new Set<AdminStatus>(["invited", "active", "suspended"]);
+const reportStatuses = new Set<ReportStatus>(["pending", "blocked", "dismissed"]);
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function requireUuid(value: string) {
@@ -66,6 +75,42 @@ adminRouter.patch("/users/:id/role", requireAdmin, async (request, response, nex
     }
     const user = await updateManagedUserRole(getRequestAdmin(request).id, requireUuid(request.params.id), role);
     response.json({ user });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/reports", requireAdmin, async (request, response, next) => {
+  try {
+    const page = Math.max(1, Number.parseInt(String(request.query.page ?? "1"), 10) || 1);
+    const limit = Math.min(100, Math.max(1, Number.parseInt(String(request.query.limit ?? "20"), 10) || 20));
+    const statusValue = String(request.query.status ?? "");
+    const status = reportStatuses.has(statusValue as ReportStatus) ? statusValue as ReportStatus : undefined;
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+    const fromValue = String(request.query.from ?? "");
+    const toValue = String(request.query.to ?? "");
+    const from = datePattern.test(fromValue) ? fromValue : undefined;
+    const to = datePattern.test(toValue) ? toValue : undefined;
+    response.json(await listModerationReports({ page, limit, status, from, to }));
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.post("/reports/:id/block", requireAdmin, async (request, response, next) => {
+  try {
+    const block = await blockReportedUser(getRequestAdmin(request).id, requireUuid(request.params.id));
+    const io = request.app.get("io") as AppServer | undefined;
+    if (io) evictGloballyBlockedUsers(io, block);
+    response.json({ block });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.post("/reports/:id/dismiss", requireAdmin, async (request, response, next) => {
+  try {
+    response.json(await dismissModerationReport(getRequestAdmin(request).id, requireUuid(request.params.id)));
   } catch (error) {
     next(error);
   }

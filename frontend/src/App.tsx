@@ -12,6 +12,7 @@ import { isGeneratedNickname, resolveGuestNickname } from "./lib/nickname";
 import { Seo } from "./components/Seo";
 import type { RoomLanguage, RoomLanguageLevel } from "./lib/roomLanguages";
 import { getOrCreateGuestId } from "./lib/guestIdentity";
+import { moderationTranslate } from "./lib/moderationI18n";
 
 const NICKNAME_STORAGE_KEY = "english-talk-rooms:nickname";
 const LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
@@ -130,6 +131,19 @@ export function App() {
       socket.off("room-created", handleRoomCreated);
       socket.off("create-room-error", handleCreateRoomError);
     };
+  }, [language, socket]);
+
+  useEffect(() => {
+    const handleAccessBlocked = ({ scope }: { scope: "room" | "global"; expiresAt: string | null }) => {
+      setPendingJoin(null);
+      setActiveRoom(null);
+      setRouteRoomId(null);
+      setRouteInfoPage(null);
+      window.history.replaceState({}, "", homePath());
+      setError(moderationTranslate(language, scope === "global" ? "globalBlocked" : "roomBlocked"));
+    };
+    socket.on("access-blocked", handleAccessBlocked);
+    return () => { socket.off("access-blocked", handleAccessBlocked); };
   }, [language, socket]);
 
   useEffect(() => {

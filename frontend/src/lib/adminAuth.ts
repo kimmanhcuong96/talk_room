@@ -27,6 +27,15 @@ export type ManagedUser = {
   lastLogin: string;
 };
 
+export type ReportStatus = "pending" | "blocked" | "dismissed";
+export type ModerationReport = {
+  id: string;
+  reporter: { userId: string | null; displayName: string; email: string | null };
+  target: { userId: string | null; displayName: string; email: string | null };
+  roomId: string; roomName: string; reason: string; details: string | null; status: ReportStatus;
+  reviewerEmail: string | null; reviewedAt: string | null; createdAt: string;
+};
+
 export type AdminSession = { token: string; admin: AdminProfile };
 export const ADMIN_TOKEN_STORAGE_KEY = "talking-room:admin-token";
 
@@ -112,4 +121,23 @@ export async function setAdminAccount(token: string, adminId: string, changes: {
 export async function suspendAdminAccount(token: string, adminId: string) {
   const response = await fetch(`${apiUrl}/admin/admins/${adminId}`, { method: "DELETE", headers: authHeaders(token) });
   return (await parseResponse<{ admin: AdminProfile }>(response)).admin;
+}
+
+export async function getModerationReports(token: string, options: { page: number; status: string; from: string; to: string }) {
+  const params = new URLSearchParams({ page: String(options.page), limit: "20" });
+  if (options.status) params.set("status", options.status);
+  if (options.from) params.set("from", options.from);
+  if (options.to) params.set("to", options.to);
+  const response = await fetch(`${apiUrl}/admin/reports?${params}`, { headers: authHeaders(token) });
+  return parseResponse<{ items: ModerationReport[]; total: number; page: number; limit: number }>(response);
+}
+
+export async function confirmModerationBlock(token: string, reportId: string) {
+  const response = await fetch(`${apiUrl}/admin/reports/${reportId}/block`, { method: "POST", headers: authHeaders(token) });
+  return parseResponse<{ block: { reportId: string } }>(response);
+}
+
+export async function dismissModerationReport(token: string, reportId: string) {
+  const response = await fetch(`${apiUrl}/admin/reports/${reportId}/dismiss`, { method: "POST", headers: authHeaders(token) });
+  return parseResponse<{ reportId: string }>(response);
 }

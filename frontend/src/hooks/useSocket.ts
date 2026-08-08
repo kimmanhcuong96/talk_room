@@ -20,6 +20,7 @@ export function useSocket() {
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("connect_error", handleConnectError);
+    socket.connect();
 
     return () => {
       socket.off("connect", handleConnect);

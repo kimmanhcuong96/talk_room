@@ -25,7 +25,7 @@ type HomePageProps = {
   onGoogleCredential: (idToken: string) => void;
   onSignOut: () => void;
   onJoin: (roomId: string) => void;
-  onCreateRoom: (name: string, primaryLanguage: RoomLanguage, primaryLanguageLevel: RoomLanguageLevel, secondaryLanguage: RoomLanguage | null) => void;
+  onCreateRoom: (name: string, primaryLanguage: RoomLanguage, primaryLanguageLevel: RoomLanguageLevel, secondaryLanguage: RoomLanguage | null, capacity: number) => void;
   createRoomError: string | null;
   onOpenInfoPage: (page: InfoPage) => void;
 };
@@ -109,6 +109,7 @@ export function HomePage({
   const [primaryLanguage, setPrimaryLanguage] = useState<RoomLanguage>(() => language);
   const [primaryLanguageLevel, setPrimaryLanguageLevel] = useState<RoomLanguageLevel>("any");
   const [secondaryLanguage, setSecondaryLanguage] = useState<RoomLanguage | "">("");
+  const [roomCapacity, setRoomCapacity] = useState(2);
   const cleanNewRoomNameLength = newRoomName.trim().length;
   const hasShortRoomName = newRoomName.length > 0 && cleanNewRoomNameLength < 3;
   const languageMenuRef = useRef<HTMLDivElement | null>(null);
@@ -119,12 +120,15 @@ export function HomePage({
   const roleLabel = user ? t(user.role === "supporter" ? "roleSupporter" : user.role === "verified" ? "roleVerified" : "roleUnverified") : "";
 
   const availableLanguageTags = useMemo(() => {
-    const tags = new Set<RoomLanguage>();
+    const counts = new Map<RoomLanguage, number>();
     rooms.forEach((room) => {
-      tags.add(room.primaryLanguage);
-      if (room.secondaryLanguage) tags.add(room.secondaryLanguage);
+      const roomTags = new Set<RoomLanguage>([room.primaryLanguage]);
+      if (room.secondaryLanguage) roomTags.add(room.secondaryLanguage);
+      roomTags.forEach((tag) => counts.set(tag, (counts.get(tag) ?? 0) + 1));
     });
-    return roomLanguages.filter((languageOption) => tags.has(languageOption.code));
+    return roomLanguages
+      .filter((languageOption) => counts.has(languageOption.code))
+      .map((languageOption) => ({ ...languageOption, count: counts.get(languageOption.code) ?? 0 }));
   }, [rooms]);
 
   const filteredRooms = useMemo(() => {
@@ -421,7 +425,7 @@ export function HomePage({
                   event.preventDefault();
                   const cleanName = newRoomName.trim();
                   if (cleanName.length >= 3) {
-                    onCreateRoom(cleanName, primaryLanguage, primaryLanguageLevel, secondaryLanguage || null);
+                    onCreateRoom(cleanName, primaryLanguage, primaryLanguageLevel, secondaryLanguage || null, roomCapacity);
                   }
                 }}
               >
@@ -496,6 +500,18 @@ export function HomePage({
                           {roomLanguage.nativeName}
                         </option>
                       ))}
+                    </select>
+                  </label>
+                  <label className="text-sm font-medium text-white/75 sm:col-span-2" htmlFor="room-capacity">
+                    <span className="flex min-h-7 items-start">{t("roomCapacity")}</span>
+                    <select
+                      id="room-capacity"
+                      required
+                      value={roomCapacity}
+                      onChange={(event) => setRoomCapacity(Number(event.target.value))}
+                      className="h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
+                    >
+                      {[1, 2, 3, 4].map((value) => <option key={value} value={value} className="bg-[#182635] text-white">{value}</option>)}
                     </select>
                   </label>
                 </div>
@@ -614,7 +630,7 @@ export function HomePage({
             onClick={() => setSelectedLanguageTag(null)}
             className={`h-8 shrink-0 rounded-full px-3 text-xs font-semibold transition ${selectedLanguageTag === null ? "bg-mint text-ink" : "bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"}`}
           >
-            {t("allLanguages")}
+            {t("allLanguages")} ({rooms.length})
           </button>
           {availableLanguageTags.map((tag) => (
             <button
@@ -624,7 +640,7 @@ export function HomePage({
               onClick={() => setSelectedLanguageTag((current) => current === tag.code ? null : tag.code)}
               className={`h-8 shrink-0 rounded-full px-3 text-xs font-semibold transition ${selectedLanguageTag === tag.code ? "bg-[#258ff4] text-white" : "bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"}`}
             >
-              {tag.nativeName}
+              {tag.nativeName} ({tag.count})
             </button>
           ))}
         </div>

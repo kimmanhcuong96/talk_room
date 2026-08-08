@@ -40,7 +40,7 @@ export type ReportReason = "harassment" | "hate_speech" | "sexual_content" | "sp
 
 export type ClientToServerEvents = {
   "join-room": (payload: { roomId: string; nickname: string; guestId?: string; authToken?: string }) => void;
-  "create-room": (payload: { name: string; primaryLanguage: RoomLanguage; primaryLanguageLevel: RoomLanguageLevel; secondaryLanguage?: RoomLanguage | null; authToken?: string }) => void;
+  "create-room": (payload: { name: string; primaryLanguage: RoomLanguage; primaryLanguageLevel: RoomLanguageLevel; secondaryLanguage?: RoomLanguage | null; capacity: number; authToken?: string }) => void;
   "update-room-languages": (payload: { roomId: string; primaryLanguage: RoomLanguage; primaryLanguageLevel: RoomLanguageLevel; secondaryLanguage?: RoomLanguage | null }) => void;
   "request-room-language-permission": (payload: { roomId: string }) => void;
   "request-room-moderation-permission": (payload: { roomId: string }) => void;

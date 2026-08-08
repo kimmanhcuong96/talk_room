@@ -5,7 +5,7 @@ export type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 export function createSocket(): AppSocket {
   return io(import.meta.env.VITE_SOCKET_URL ?? "http://localhost:4000", {
-    autoConnect: true,
+    autoConnect: false,
     closeOnBeforeunload: true,
     transports: ["websocket", "polling"]
   });

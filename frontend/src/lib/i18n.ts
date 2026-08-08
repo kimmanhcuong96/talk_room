@@ -68,6 +68,8 @@ export type TranslationKey =
   | "roleUnverified"
   | "roleVerified"
   | "roomConnectionFailed"
+  | "roomCapacity"
+  | "roomCapacityInvalid"
   | "roomConnectionLost"
   | "roomFull"
   | "roomFullError"
@@ -131,6 +133,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     createRoomName: "Room name",
     createRoomNamePlaceholder: "Example: Everyday Japanese",
     createRoomNameTooShort: "Room name must contain at least 3 characters.",
+    roomCapacity: "Maximum participants",
+    roomCapacityInvalid: "Room capacity must be between 1 and 4 participants.",
     createRoomVerifiedOnly: "Only verified users and supporters can create rooms.",
     free4TalkApp: "Free4Talk APP",
     full: "Full",
@@ -223,6 +227,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     createRoomName: "Tên phòng",
     createRoomNamePlaceholder: "Ví dụ: Luyện nói tiếng Nhật hằng ngày",
     createRoomNameTooShort: "Tên phòng phải có ít nhất 3 ký tự.",
+    roomCapacity: "Số người tham gia tối đa",
+    roomCapacityInvalid: "Sức chứa phòng phải từ 1 đến 4 người.",
     createRoomVerifiedOnly: "Chỉ tài khoản Verified và Supporter mới có thể tạo phòng.",
     free4TalkApp: "Ứng dụng Free4Talk",
     full: "Đầy",
@@ -315,6 +321,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     createRoomName: "房间名称",
     createRoomNamePlaceholder: "例如：日常日语练习",
     createRoomNameTooShort: "房间名称至少需要 3 个字符。",
+    roomCapacity: "最大参与人数",
+    roomCapacityInvalid: "房间人数必须在 1 到 4 人之间。",
     createRoomVerifiedOnly: "只有 Verified 和 Supporter 用户可以创建房间。",
     free4TalkApp: "Free4Talk 应用",
     full: "已满",
@@ -407,6 +415,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     createRoomName: "ルーム名",
     createRoomNamePlaceholder: "例：毎日の日本語練習",
     createRoomNameTooShort: "ルーム名は3文字以上で入力してください。",
+    roomCapacity: "最大参加人数",
+    roomCapacityInvalid: "ルームの定員は1〜4人で設定してください。",
     createRoomVerifiedOnly: "ルームを作成できるのは Verified と Supporter のみです。",
     free4TalkApp: "Free4Talk アプリ",
     full: "満室",

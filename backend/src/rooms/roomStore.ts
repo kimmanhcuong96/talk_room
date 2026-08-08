@@ -33,6 +33,7 @@ type Room = {
   secondaryLanguage: RoomLanguage | null;
   creatorUserId: string | null;
   source: "system" | "user";
+  capacity: number;
   users: RoomUser[];
   messages: ChatMessage[];
   blockedUserIds: Set<string>;
@@ -43,7 +44,7 @@ const rooms = new Map<string, Room>(
   roomNames.map((name, index) => {
     const id = `room-${index + 1}`;
     const primaryLanguageLevel: RoomLanguageLevel = index === 0 ? "a1" : index === 1 ? "b1" : "any";
-    return [id, { id, name, primaryLanguage: "en", primaryLanguageLevel, secondaryLanguage: null, creatorUserId: null, source: "system", users: [], messages: [], blockedUserIds: new Set(), blockedIpHashes: new Map() }];
+    return [id, { id, name, primaryLanguage: "en", primaryLanguageLevel, secondaryLanguage: null, creatorUserId: null, source: "system", capacity: ROOM_CAPACITY, users: [], messages: [], blockedUserIds: new Set(), blockedIpHashes: new Map() }];
   })
 );
 
@@ -55,7 +56,7 @@ export function getRoomSummaries(): RoomSummary[] {
     primaryLanguageLevel: room.primaryLanguageLevel,
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
-    capacity: ROOM_CAPACITY,
+    capacity: room.capacity,
     participants: room.users.map(({ nickname, avatar, role }) => ({ nickname, avatar, role }))
   }));
 }
@@ -71,7 +72,7 @@ export function getRoomSummary(roomId: string): RoomSummary | undefined {
     primaryLanguageLevel: room.primaryLanguageLevel,
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
-    capacity: ROOM_CAPACITY,
+    capacity: room.capacity,
     participants: room.users.map(({ nickname, avatar, role }) => ({ nickname, avatar, role }))
   };
 }
@@ -81,7 +82,8 @@ export function createRoom(
   primaryLanguage: RoomLanguage,
   primaryLanguageLevel: RoomLanguageLevel,
   secondaryLanguage: RoomLanguage | null,
-  creatorUserId: string
+  creatorUserId: string,
+  capacity: number
 ): RoomSummary {
   const room: Room = {
     id: `room-${randomUUID()}`,
@@ -91,6 +93,7 @@ export function createRoom(
     secondaryLanguage,
     creatorUserId,
     source: "user",
+    capacity,
     users: [],
     messages: [],
     blockedUserIds: new Set(),
@@ -105,7 +108,7 @@ export function createRoom(
     primaryLanguageLevel: room.primaryLanguageLevel,
     secondaryLanguage: room.secondaryLanguage,
     users: 0,
-    capacity: ROOM_CAPACITY,
+    capacity: room.capacity,
     participants: []
   };
 }
@@ -173,7 +176,7 @@ export function updateRoomLanguages(
     primaryLanguageLevel: room.primaryLanguageLevel,
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
-    capacity: ROOM_CAPACITY,
+    capacity: room.capacity,
     participants: room.users.map(({ nickname, avatar, role }) => ({ nickname, avatar, role }))
   };
 }
@@ -217,7 +220,7 @@ export function addUserToRoom(roomId: string, user: RoomUser): { ok: true; users
     return { ok: false, reason: "Room does not exist." };
   }
 
-  if (room.users.length >= ROOM_CAPACITY) {
+  if (room.users.length >= room.capacity) {
     return { ok: false, reason: "Room is full." };
   }
 

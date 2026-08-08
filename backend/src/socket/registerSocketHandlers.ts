@@ -167,9 +167,10 @@ export function registerSocketHandlers(io: AppServer) {
     socket.data.ipHash = getSocketIpHash(socket);
     socket.emit("room-list", getRoomSummaries());
 
-    socket.on("create-room", async ({ name, primaryLanguage, primaryLanguageLevel, secondaryLanguage, authToken }) => {
+    socket.on("create-room", async ({ name, primaryLanguage, primaryLanguageLevel, secondaryLanguage, capacity, authToken }) => {
       const user = await getAuthenticatedUser(authToken);
       const cleanName = typeof name === "string" ? name.trim().replace(/\s+/g, " ").slice(0, 60) : "";
+      const cleanCapacity = capacity ?? 2;
 
       if (!user || !hasPermission(user.role, "create_room")) {
         socket.emit("create-room-error", "CREATE_ROOM_PERMISSION_DENIED");
@@ -202,7 +203,12 @@ export function registerSocketHandlers(io: AppServer) {
         return;
       }
 
-      const room = createRoom(cleanName, primaryLanguage, primaryLanguageLevel, cleanSecondaryLanguage, user.id);
+      if (!Number.isInteger(cleanCapacity) || cleanCapacity < 1 || cleanCapacity > 4) {
+        socket.emit("create-room-error", "ROOM_CAPACITY_INVALID");
+        return;
+      }
+
+      const room = createRoom(cleanName, primaryLanguage, primaryLanguageLevel, cleanSecondaryLanguage, user.id, cleanCapacity);
       socket.emit("room-created", room);
       emitRoomList(io);
       scheduleEmptyRoomDeletion(io, room.id);

@@ -115,13 +115,15 @@ export function App() {
       }
       const errorKey = message === "ROOM_NAME_TOO_SHORT"
         ? "createRoomNameTooShort"
-        : message === "ROOM_PRIMARY_LANGUAGE_REQUIRED"
-          ? "roomPrimaryLanguageRequired"
-          : message === "ROOM_LANGUAGE_INVALID"
-            ? "roomLanguageInvalid"
-            : message === "ROOM_LANGUAGES_MUST_DIFFER"
-              ? "roomLanguagesMustDiffer"
-              : "createRoomVerifiedOnly";
+        : message === "ROOM_CAPACITY_INVALID"
+          ? "roomCapacityInvalid"
+          : message === "ROOM_PRIMARY_LANGUAGE_REQUIRED"
+            ? "roomPrimaryLanguageRequired"
+            : message === "ROOM_LANGUAGE_INVALID"
+              ? "roomLanguageInvalid"
+              : message === "ROOM_LANGUAGES_MUST_DIFFER"
+                ? "roomLanguagesMustDiffer"
+                : "createRoomVerifiedOnly";
       setCreateRoomError(translate(language, errorKey));
     };
 
@@ -337,10 +339,11 @@ export function App() {
     name: string,
     primaryLanguage: RoomLanguage,
     primaryLanguageLevel: RoomLanguageLevel,
-    secondaryLanguage: RoomLanguage | null
+    secondaryLanguage: RoomLanguage | null,
+    capacity: number
   ) => {
     setCreateRoomError(null);
-    socket.emit("create-room", { name, primaryLanguage, primaryLanguageLevel, secondaryLanguage, authToken: authSession?.token });
+    socket.emit("create-room", { name, primaryLanguage, primaryLanguageLevel, secondaryLanguage, capacity, authToken: authSession?.token });
   };
 
   const handleLeave = () => {

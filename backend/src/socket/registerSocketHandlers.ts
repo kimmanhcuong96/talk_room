@@ -1,10 +1,11 @@
-import type { AppServer, AppSocket } from "../types/socket.js";
+import type { AppServer, AppSocket, RoomTopic } from "../types/socket.js";
 import {
   addRoomMessage,
   addUserToRoom,
   blockUserFromRoom,
   canBlockUsersInRoom,
   canManageRoomLanguages,
+  canManageRoomTopic,
   createRoom,
   deleteUserCreatedRoomIfEmpty,
   getRoomMessages,
@@ -15,6 +16,7 @@ import {
   isBlockedFromRoom,
   removeUser,
   updateRoomLanguages,
+  updateRoomTopic,
   updateUserMedia
 } from "../rooms/roomStore.js";
 import { verifyAppJwt } from "../auth/jwt.js";
@@ -81,6 +83,20 @@ function emitRoomModerationPermissions(io: AppServer, roomId: string) {
   }
 }
 
+function emitRoomTopicPermissions(io: AppServer, roomId: string) {
+  for (const user of getRoomUsers(roomId)) {
+    const connectedSocket = io.sockets.sockets.get(user.socketId);
+    io.to(user.socketId).emit("room-topic-permission", {
+      roomId,
+      canManage: canManageRoomTopic(roomId, user.socketId, connectedSocket?.data.userId)
+    });
+  }
+}
+
+const topicBackgrounds = new Set<RoomTopic["background"]>(["slate", "mint", "blue", "coral", "violet", "amber"]);
+const topicFonts = new Set<RoomTopic["font"]>(["sans", "serif", "mono", "display"]);
+const topicIcons = new Set<RoomTopic["icon"]>(["message", "sparkles", "book", "globe", "coffee", "game"]);
+
 function resolveIdentityKey(authenticatedUser: UserProfile | null, guestId: unknown, socketId: string) {
   if (authenticatedUser) return `user:${authenticatedUser.id}`;
 
@@ -145,6 +161,7 @@ function leaveCurrentRoom(io: AppServer, socket: AppSocket) {
   emitRoomList(io);
   emitRoomLanguagePermissions(io, previousRoomId);
   emitRoomModerationPermissions(io, previousRoomId);
+  emitRoomTopicPermissions(io, previousRoomId);
   scheduleEmptyRoomDeletion(io, previousRoomId);
 }
 
@@ -274,6 +291,7 @@ export function registerSocketHandlers(io: AppServer) {
         socket.emit("chat-history", getRoomMessages(roomId));
         emitRoomLanguagePermissions(io, roomId);
         emitRoomModerationPermissions(io, roomId);
+        emitRoomTopicPermissions(io, roomId);
         return;
       }
 
@@ -315,6 +333,7 @@ export function registerSocketHandlers(io: AppServer) {
       emitRoomList(io);
       emitRoomLanguagePermissions(io, roomId);
       emitRoomModerationPermissions(io, roomId);
+      emitRoomTopicPermissions(io, roomId);
     });
 
     socket.on("update-room-languages", ({ roomId, primaryLanguage, primaryLanguageLevel, secondaryLanguage }) => {
@@ -360,6 +379,43 @@ export function registerSocketHandlers(io: AppServer) {
         roomId,
         canManage: canManageRoomLanguages(roomId, socket.id, socket.data.userId)
       });
+    });
+
+    socket.on("request-room-topic-permission", ({ roomId }) => {
+      if (socket.data.roomId !== roomId) return;
+      socket.emit("room-topic-permission", {
+        roomId,
+        canManage: canManageRoomTopic(roomId, socket.id, socket.data.userId)
+      });
+    });
+
+    socket.on("update-room-topic", ({ roomId, topic }, respond) => {
+      if (socket.data.roomId !== roomId || !canManageRoomTopic(roomId, socket.id, socket.data.userId)) {
+        socket.emit("room-topic-error", "ROOM_TOPIC_PERMISSION_DENIED");
+        respond?.({ ok: false, error: "ROOM_TOPIC_PERMISSION_DENIED" });
+        return;
+      }
+
+      let cleanTopic: RoomTopic | null = null;
+      if (topic !== null) {
+        const description = typeof topic.description === "string" ? topic.description.trim().slice(0, 500) : "";
+        if (!description || !topicBackgrounds.has(topic.background) || !topicFonts.has(topic.font) || !topicIcons.has(topic.icon)) {
+          socket.emit("room-topic-error", "ROOM_TOPIC_INVALID");
+          respond?.({ ok: false, error: "ROOM_TOPIC_INVALID" });
+          return;
+        }
+        cleanTopic = { description, background: topic.background, font: topic.font, icon: topic.icon };
+      }
+
+      const updatedTopic = updateRoomTopic(roomId, cleanTopic);
+      if (updatedTopic === undefined) {
+        socket.emit("room-topic-error", "ROOM_NOT_FOUND");
+        respond?.({ ok: false, error: "ROOM_NOT_FOUND" });
+        return;
+      }
+      io.to(roomId).emit("room-topic-updated", { roomId, topic: updatedTopic });
+      respond?.({ ok: true, topic: updatedTopic });
+      emitRoomList(io);
     });
 
     socket.on("request-room-moderation-permission", ({ roomId }) => {

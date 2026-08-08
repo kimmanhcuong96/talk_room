@@ -1,4 +1,4 @@
-import { Home, Languages, MessageSquare, ShieldAlert } from "lucide-react";
+import { Home, Languages, MessageSquare, Palette, ShieldAlert } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useChat } from "../hooks/useChat";
 import { useLocalMedia } from "../hooks/useLocalMedia";
@@ -18,6 +18,8 @@ import type { RoomLanguage, RoomLanguageLevel } from "../lib/roomLanguages";
 import { RoomModerationPanel } from "./RoomModerationPanel";
 import { moderationTranslate } from "../lib/moderationI18n";
 import type { ReportReason } from "../types/realtime";
+import { RoomTopicBanner, RoomTopicEditor } from "./RoomTopic";
+import { roomTopicTranslate } from "../lib/roomTopicI18n";
 
 type RoomPageProps = {
   socket: AppSocket;
@@ -41,6 +43,12 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
   const [languageEditorError, setLanguageEditorError] = useState<string | null>(null);
   const [moderationOpen, setModerationOpen] = useState(false);
   const [canBlockUsers, setCanBlockUsers] = useState(false);
+  const [currentTopic, setCurrentTopic] = useState(room.topic);
+  const [canManageTopic, setCanManageTopic] = useState(false);
+  const [topicEditorOpen, setTopicEditorOpen] = useState(false);
+  const [topicEditorError, setTopicEditorError] = useState<string | null>(null);
+  const [topicSaving, setTopicSaving] = useState(false);
+  const canEditTopic = canManageTopic || canManageLanguages;
   const canUseCamera = hasPermission(role, "use_camera");
   const { stream, error, micEnabled, cameraEnabled, hasMicrophone, hasCamera, toggleMic, toggleCamera } = useLocalMedia(canUseCamera);
   const {
@@ -122,6 +130,46 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
       socket.off("room-language-error", handleLanguageError);
     };
   }, [language, room.id, socket]);
+
+  useEffect(() => setCurrentTopic(room.topic), [room.topic]);
+
+  useEffect(() => {
+    const handlePermission = ({ roomId, canManage }: { roomId: string; canManage: boolean }) => {
+      if (roomId !== room.id) return;
+      setCanManageTopic(canManage);
+      if (!canManage) setTopicEditorOpen(false);
+    };
+    const handleUpdated = ({ roomId, topic }: { roomId: string; topic: RoomSummary["topic"] }) => {
+      if (roomId !== room.id) return;
+      setCurrentTopic(topic);
+      setTopicEditorError(null);
+      setTopicSaving(false);
+      setTopicEditorOpen(false);
+      setMediaNotice(roomTopicTranslate(language, "updated"));
+    };
+    const handleError = (message: string) => {
+      setTopicSaving(false);
+      setTopicEditorError(roomTopicTranslate(language, message === "ROOM_TOPIC_PERMISSION_DENIED" ? "denied" : "invalid"));
+    };
+    socket.on("room-topic-permission", handlePermission);
+    socket.on("room-topic-updated", handleUpdated);
+    socket.on("room-topic-error", handleError);
+    socket.emit("request-room-topic-permission", { roomId: room.id });
+    return () => {
+      socket.off("room-topic-permission", handlePermission);
+      socket.off("room-topic-updated", handleUpdated);
+      socket.off("room-topic-error", handleError);
+    };
+  }, [language, room.id, socket]);
+
+  useEffect(() => {
+    if (!topicSaving) return;
+    const timeoutId = window.setTimeout(() => {
+      setTopicSaving(false);
+      setTopicEditorError(roomTopicTranslate(language, "unavailable"));
+    }, 7000);
+    return () => window.clearTimeout(timeoutId);
+  }, [language, topicSaving]);
 
   useEffect(() => {
     const handlePermission = ({ roomId, canBlock }: { roomId: string; canBlock: boolean }) => {
@@ -256,6 +304,17 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
             <p className="text-xs text-white/50 sm:text-sm">{t("speakers", { count: remotePeers.length + 1 })}</p>
           </div>
           <div className="flex items-center gap-2">
+            {canEditTopic ? (
+              <button
+                type="button"
+                title={roomTopicTranslate(language, "edit")}
+                aria-label={roomTopicTranslate(language, "edit")}
+                onClick={() => { setTopicEditorError(null); setTopicEditorOpen(true); }}
+                className="inline-flex h-9 items-center gap-2 rounded-md border border-violet-300/20 bg-violet-400/10 px-2.5 text-violet-200 transition hover:bg-violet-400/15 sm:px-3"
+              >
+                <Palette size={18}/><span className="hidden text-sm font-medium md:inline">{roomTopicTranslate(language, "edit")}</span>
+              </button>
+            ) : null}
             <button
               type="button"
               title={moderationTranslate(language, "safety")}
@@ -289,6 +348,8 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
             </button>
           </div>
         </header>
+
+        {currentTopic ? <RoomTopicBanner topic={currentTopic} language={language}/> : null}
 
         <div className="relative min-h-0 flex-1 overflow-hidden p-2 sm:p-4">
           {error || mediaNotice ? (
@@ -324,6 +385,25 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
         onReport={(targetSocketId: string, reason: ReportReason, details: string) => socket.emit("report-user", { targetSocketId, reason, details })}
         onBlock={(targetSocketId: string) => socket.emit("block-room-user", { targetSocketId })}
       />
+
+      {topicEditorOpen && canEditTopic ? (
+        <RoomTopicEditor
+          topic={currentTopic}
+          language={language}
+          error={topicEditorError}
+          saving={topicSaving}
+          onClose={() => { setTopicEditorOpen(false); setTopicEditorError(null); }}
+          onSave={(topic) => {
+            setTopicEditorError(null);
+            setTopicSaving(true);
+            socket.emit("update-room-topic", { roomId: room.id, topic }, (result) => {
+              if (result.ok) return;
+              setTopicSaving(false);
+              setTopicEditorError(roomTopicTranslate(language, result.error === "ROOM_TOPIC_PERMISSION_DENIED" ? "denied" : "invalid"));
+            });
+          }}
+        />
+      ) : null}
 
       {languageEditorOpen && canManageLanguages ? (
         <RoomLanguageEditor

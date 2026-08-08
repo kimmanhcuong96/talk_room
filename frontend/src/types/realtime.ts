@@ -9,7 +9,15 @@ export type RoomSummary = {
   secondaryLanguage: RoomLanguage | null;
   users: number;
   capacity: number;
+  topic: RoomTopic | null;
   participants: RoomParticipantSummary[];
+};
+
+export type RoomTopic = {
+  description: string;
+  background: "slate" | "mint" | "blue" | "coral" | "violet" | "amber";
+  font: "sans" | "serif" | "mono" | "display";
+  icon: "message" | "sparkles" | "book" | "globe" | "coffee" | "game";
 };
 
 export type RoomParticipantSummary = Pick<RoomUser, "nickname" | "avatar" | "role">;
@@ -42,6 +50,8 @@ export type ClientToServerEvents = {
   "create-room": (payload: { name: string; primaryLanguage: RoomLanguage; primaryLanguageLevel: RoomLanguageLevel; secondaryLanguage?: RoomLanguage | null; capacity: number; authToken?: string }) => void;
   "update-room-languages": (payload: { roomId: string; primaryLanguage: RoomLanguage; primaryLanguageLevel: RoomLanguageLevel; secondaryLanguage?: RoomLanguage | null }) => void;
   "request-room-language-permission": (payload: { roomId: string }) => void;
+  "request-room-topic-permission": (payload: { roomId: string }) => void;
+  "update-room-topic": (payload: { roomId: string; topic: RoomTopic | null }, respond?: (result: { ok: true; topic: RoomTopic | null } | { ok: false; error: string }) => void) => void;
   "request-room-moderation-permission": (payload: { roomId: string }) => void;
   "block-room-user": (payload: { targetSocketId: string }) => void;
   "report-user": (payload: { targetSocketId: string; reason: ReportReason; details?: string }) => void;
@@ -73,6 +83,9 @@ export type ServerToClientEvents = {
   "room-languages-updated": (room: RoomSummary) => void;
   "room-language-permission": (payload: { roomId: string; canManage: boolean }) => void;
   "room-language-error": (message: string) => void;
+  "room-topic-permission": (payload: { roomId: string; canManage: boolean }) => void;
+  "room-topic-updated": (payload: { roomId: string; topic: RoomTopic | null }) => void;
+  "room-topic-error": (message: string) => void;
   "room-moderation-permission": (payload: { roomId: string; canBlock: boolean }) => void;
   "moderation-success": (payload: { action: "block" | "report"; targetSocketId?: string }) => void;
   "moderation-error": (message: string) => void;

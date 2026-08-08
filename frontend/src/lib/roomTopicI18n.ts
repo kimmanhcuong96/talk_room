@@ -1,0 +1,11 @@
+import type { Language } from "./i18n";
+
+const copy = {
+  en: { topic: "Room topic", edit: "Edit topic", description: "Topic description", placeholder: "What would you like everyone to talk about?", background: "Background", font: "Font style", icon: "Icon", save: "Save topic", saving: "Saving...", remove: "Remove topic", cancel: "Cancel", required: "Please enter a topic description.", invalid: "Please check the topic settings.", denied: "You do not have permission to edit this topic.", unavailable: "We couldn't save the room topic. Please try again in a moment.", updated: "Room topic updated.", sans: "Sans", serif: "Serif", mono: "Mono", display: "Display" },
+  vi: { topic: "Chủ đề phòng", edit: "Sửa chủ đề", description: "Mô tả chủ đề", placeholder: "Bạn muốn mọi người cùng trò chuyện về điều gì?", background: "Màu nền", font: "Kiểu chữ", icon: "Biểu tượng", save: "Lưu chủ đề", saving: "Đang lưu...", remove: "Xóa chủ đề", cancel: "Hủy", required: "Vui lòng nhập mô tả chủ đề.", invalid: "Vui lòng kiểm tra lại thiết lập chủ đề.", denied: "Bạn không có quyền sửa chủ đề này.", unavailable: "Chưa thể lưu chủ đề phòng. Vui lòng thử lại sau ít phút.", updated: "Đã cập nhật chủ đề phòng.", sans: "Sans", serif: "Serif", mono: "Mono", display: "Nổi bật" },
+  zh: { topic: "房间主题", edit: "编辑主题", description: "主题描述", placeholder: "你希望大家讨论什么？", background: "背景颜色", font: "字体样式", icon: "图标", save: "保存主题", saving: "保存中...", remove: "删除主题", cancel: "取消", required: "请输入主题描述。", invalid: "请检查主题设置。", denied: "你没有权限编辑此主题。", unavailable: "暂时无法保存房间主题，请稍后重试。", updated: "房间主题已更新。", sans: "无衬线", serif: "衬线", mono: "等宽", display: "展示" },
+  ja: { topic: "ルームトピック", edit: "トピックを編集", description: "トピックの説明", placeholder: "みんなで何について話しますか？", background: "背景色", font: "フォント", icon: "アイコン", save: "トピックを保存", saving: "保存中...", remove: "トピックを削除", cancel: "キャンセル", required: "トピックの説明を入力してください。", invalid: "トピック設定を確認してください。", denied: "このトピックを編集する権限がありません。", unavailable: "現在ルームトピックを保存できません。しばらくしてからもう一度お試しください。", updated: "ルームトピックを更新しました。", sans: "ゴシック", serif: "明朝", mono: "等幅", display: "ディスプレイ" }
+} satisfies Record<Language, Record<string, string>>;
+
+export type RoomTopicCopyKey = keyof typeof copy.en;
+export const roomTopicTranslate = (language: Language, key: RoomTopicCopyKey) => copy[language][key] ?? copy.en[key];

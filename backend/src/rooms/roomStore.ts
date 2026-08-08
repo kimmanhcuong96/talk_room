@@ -1,4 +1,4 @@
-import type { ChatMessage, RoomSummary, RoomUser } from "../types/socket.js";
+import type { ChatMessage, RoomSummary, RoomTopic, RoomUser } from "../types/socket.js";
 import { randomUUID } from "node:crypto";
 import type { RoomLanguage, RoomLanguageLevel } from "./roomLanguages.js";
 
@@ -34,6 +34,7 @@ type Room = {
   creatorUserId: string | null;
   source: "system" | "user";
   capacity: number;
+  topic: RoomTopic | null;
   users: RoomUser[];
   messages: ChatMessage[];
   blockedUserIds: Set<string>;
@@ -44,7 +45,7 @@ const rooms = new Map<string, Room>(
   roomNames.map((name, index) => {
     const id = `room-${index + 1}`;
     const primaryLanguageLevel: RoomLanguageLevel = index === 0 ? "a1" : index === 1 ? "b1" : "any";
-    return [id, { id, name, primaryLanguage: "en", primaryLanguageLevel, secondaryLanguage: null, creatorUserId: null, source: "system", capacity: ROOM_CAPACITY, users: [], messages: [], blockedUserIds: new Set(), blockedIpHashes: new Map() }];
+    return [id, { id, name, primaryLanguage: "en", primaryLanguageLevel, secondaryLanguage: null, creatorUserId: null, source: "system", capacity: ROOM_CAPACITY, topic: null, users: [], messages: [], blockedUserIds: new Set(), blockedIpHashes: new Map() }];
   })
 );
 
@@ -57,6 +58,7 @@ export function getRoomSummaries(): RoomSummary[] {
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
     capacity: room.capacity,
+    topic: room.topic,
     participants: room.users.map(({ nickname, avatar, role }) => ({ nickname, avatar, role }))
   }));
 }
@@ -73,6 +75,7 @@ export function getRoomSummary(roomId: string): RoomSummary | undefined {
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
     capacity: room.capacity,
+    topic: room.topic,
     participants: room.users.map(({ nickname, avatar, role }) => ({ nickname, avatar, role }))
   };
 }
@@ -94,6 +97,7 @@ export function createRoom(
     creatorUserId,
     source: "user",
     capacity,
+    topic: null,
     users: [],
     messages: [],
     blockedUserIds: new Set(),
@@ -109,6 +113,7 @@ export function createRoom(
     secondaryLanguage: room.secondaryLanguage,
     users: 0,
     capacity: room.capacity,
+    topic: room.topic,
     participants: []
   };
 }
@@ -127,6 +132,17 @@ export function canManageRoomLanguages(roomId: string, socketId: string, userId:
 export function canBlockUsersInRoom(roomId: string, userId: string | undefined) {
   const room = rooms.get(roomId);
   return Boolean(room?.source === "user" && userId && room.creatorUserId === userId);
+}
+
+export function canManageRoomTopic(roomId: string, socketId: string, userId: string | undefined) {
+  return canManageRoomLanguages(roomId, socketId, userId);
+}
+
+export function updateRoomTopic(roomId: string, topic: RoomTopic | null) {
+  const room = rooms.get(roomId);
+  if (!room) return undefined;
+  room.topic = topic;
+  return topic;
 }
 
 export function blockUserFromRoom(roomId: string, targetUserId: string | undefined, targetIpHash: string) {
@@ -177,6 +193,7 @@ export function updateRoomLanguages(
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
     capacity: room.capacity,
+    topic: room.topic,
     participants: room.users.map(({ nickname, avatar, role }) => ({ nickname, avatar, role }))
   };
 }

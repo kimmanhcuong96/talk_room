@@ -110,8 +110,24 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
     iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
     iframe.allowFullscreen = true;
     iframe.referrerPolicy = "strict-origin-when-cross-origin";
+
+    // A newly-created iframe initially has the parent page's about:blank
+    // origin. Binding YT.Player before its load event makes widgetapi send
+    // YouTube-targeted messages to that temporary window and causes an origin
+    // mismatch. Wait until navigation to youtube.com has completed first.
+    const iframeLoaded = new Promise<void>((resolve, reject) => {
+      const timeoutId = window.setTimeout(() => reject(new Error("YOUTUBE_IFRAME_LOAD_TIMEOUT")), 12_000);
+      iframe.addEventListener("load", () => {
+        window.clearTimeout(timeoutId);
+        resolve();
+      }, { once: true });
+      iframe.addEventListener("error", () => {
+        window.clearTimeout(timeoutId);
+        reject(new Error("YOUTUBE_IFRAME_LOAD_FAILED"));
+      }, { once: true });
+    });
     container.appendChild(iframe);
-    void loadYouTubeApi().then((YT) => {
+    void Promise.all([loadYouTubeApi(), iframeLoaded]).then(([YT]) => {
       if (cancelled) return;
       playerRef.current = new YT.Player(iframe, {
         events: {
@@ -189,8 +205,8 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
 
   return <section className="relative h-full min-h-[200px] w-full overflow-hidden rounded-lg border border-white/10 bg-black shadow-2xl shadow-black/30">
     <div ref={containerRef} className="absolute inset-0"/>
-    {!ready && playerError === null ? <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-black"><LoaderCircle className="animate-spin text-white/65" size={30}/></div> : null}
-    {playerError !== null ? <div className="absolute inset-0 z-20 grid place-items-center bg-black/90 px-5 text-center"><div><p className="text-sm font-medium text-white/80">{t(playerError === 101 || playerError === 150 ? "embeddingDisabled" : playerError === 2 || playerError === 100 ? "videoUnavailable" : "playerFailed")}</p><a href={`https://www.youtube.com/watch?v=${video.videoId}`} target="_blank" rel="noopener" className="mt-4 inline-flex h-10 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-500">{t("openYouTube")}<ExternalLink size={15}/></a></div></div> : null}
+    {!ready && playerError === null ? <div className="pointer-events-none absolute left-2 top-2 z-10 grid h-9 w-9 place-items-center rounded-full bg-black/70"><LoaderCircle className="animate-spin text-white/65" size={20}/></div> : null}
+    {playerError !== null && playerError !== -1 ? <div className="absolute inset-0 z-20 grid place-items-center bg-black/90 px-5 text-center"><div><p className="text-sm font-medium text-white/80">{t(playerError === 101 || playerError === 150 ? "embeddingDisabled" : playerError === 2 || playerError === 100 ? "videoUnavailable" : "playerFailed")}</p><a href={`https://www.youtube.com/watch?v=${video.videoId}`} target="_blank" rel="noopener" className="mt-4 inline-flex h-10 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-500">{t("openYouTube")}<ExternalLink size={15}/></a></div></div> : null}
     <button type="button" onClick={onClose} title={t("hide")} aria-label={t("hide")} className="absolute right-2 top-2 z-30 grid h-9 w-9 place-items-center rounded-full bg-black/75 text-white shadow-lg hover:bg-black"><X size={18}/></button>
     {!canManage ? <><div className="absolute inset-0 z-[5]" aria-hidden="true"/><div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 bg-black/75 px-3 py-2 backdrop-blur"><button type="button" onClick={toggleViewerPlayback} className="inline-flex h-9 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold text-white hover:bg-white/20">{locallyPaused ? <Play size={16}/> : <Pause size={16}/>} {locallyPaused ? t("resume") : t("pause")}</button><span className="hidden text-xs text-white/45 sm:inline">{t("ownerControls")}</span></div></> : null}
   </section>;

@@ -2,20 +2,24 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Flag, LoaderCircle, LogOut, Shiel
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
   clearAdminToken,
+  AdminRequestError,
   createAdminInvite,
   getAdminMe,
   getAdminUsers,
   getManagedUsers,
   readAdminToken,
+  refreshAdminSession,
   setAdminAccount,
   setManagedUserRole,
   suspendAdminAccount,
+  storeAdminToken,
   type AdminProfile,
   type AdminRole,
   type AdminSession,
   type AdminStatus,
   type ManagedUser
 } from "../../lib/adminAuth";
+import { readStoredToken, storeApplicationToken } from "../../lib/auth";
 import { adminTranslate, type AdminTranslationKey } from "../../lib/adminI18n";
 import type { UserRole } from "../../lib/auth";
 import { isLanguage, type Language } from "../../lib/i18n";
@@ -197,22 +201,95 @@ export function AdminApp() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = readAdminToken();
-    if (!token) { window.location.replace(homePath()); return; }
-    getAdminMe(token)
-      .then((admin) => {
-        if (page === "admins" && admin.role !== "owner") {
+    let cancelled = false;
+    const acceptSession = (nextSession: AdminSession) => {
+      if (cancelled) return;
+      if (page === "admins" && nextSession.admin.role !== "owner") {
+        window.location.replace(adminPath());
+        return;
+      }
+      storeAdminToken(nextSession.token);
+      setSession(nextSession);
+      setLoading(false);
+    };
+
+    const restoreSession = async () => {
+      const adminToken = readAdminToken();
+      if (adminToken) {
+        try {
+          acceptSession({ token: adminToken, admin: await getAdminMe(adminToken) });
+          return;
+        } catch {
+          // Fall through and renew from the still-valid application session.
+        }
+      }
+
+      const applicationToken = readStoredToken();
+      if (applicationToken) {
+        try {
+          const refreshed = await refreshAdminSession(applicationToken);
+          storeApplicationToken(refreshed.applicationToken);
+          acceptSession(refreshed);
+          return;
+        } catch {
+          // The application session or admin access is no longer valid.
+        }
+      }
+
+      if (!cancelled) {
+        clearAdminToken();
+        window.location.replace(homePath());
+      }
+    };
+
+    void restoreSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [page]);
+
+  useEffect(() => {
+    if (!session) return;
+    let refreshing = false;
+
+    const renewSession = async () => {
+      if (refreshing) return;
+      const applicationToken = readStoredToken();
+      if (!applicationToken) {
+        clearAdminToken();
+        window.location.replace(homePath());
+        return;
+      }
+
+      refreshing = true;
+      try {
+        const nextSession = await refreshAdminSession(applicationToken);
+        if (page === "admins" && nextSession.admin.role !== "owner") {
           window.location.replace(adminPath());
           return;
         }
-        setSession({ token, admin });
-        setLoading(false);
-      })
-      .catch(() => {
-        clearAdminToken();
-        window.location.replace(homePath());
-      });
-  }, [page]);
+        storeAdminToken(nextSession.token);
+        storeApplicationToken(nextSession.applicationToken);
+        setSession(nextSession);
+      } catch (error) {
+        if (error instanceof AdminRequestError && (error.status === 401 || error.status === 403)) {
+          clearAdminToken();
+          window.location.replace(homePath());
+        }
+      } finally {
+        refreshing = false;
+      }
+    };
+
+    const interval = window.setInterval(() => void renewSession(), 30 * 60 * 1000);
+    const handleFocus = () => void renewSession();
+    window.addEventListener("focus", handleFocus);
+    void renewSession();
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [page, session?.admin.id]);
 
   if (loading) return <main className="grid min-h-screen place-items-center bg-ink text-white"><LoaderCircle size={28} className="animate-spin text-mint" /></main>;
   if (!session) return <main className="grid min-h-screen place-items-center bg-ink text-white"><LoaderCircle size={28} className="animate-spin text-mint" /></main>;

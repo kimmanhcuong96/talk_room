@@ -3,7 +3,7 @@ import { HttpError } from "../errors/httpError.js";
 import { issueAppJwt, verifyAppJwt } from "./jwt.js";
 import { verifyGoogleIdToken } from "./providers/googleProvider.js";
 import { findUserById, upsertGoogleUser } from "../users/userRepository.js";
-import { activateAdminIfEligible } from "../admin/adminRepository.js";
+import { activateAdminIfEligible, findActiveAdminForUser } from "../admin/adminRepository.js";
 import { issueAdminJwt } from "../admin/adminJwt.js";
 
 export const authRouter = Router();
@@ -44,7 +44,9 @@ authRouter.get("/me", async (request, response, next) => {
       throw new HttpError(401, "User no longer exists.");
     }
 
-    response.json({ user });
+    const admin = await findActiveAdminForUser(user);
+    const adminSession = admin ? { token: issueAdminJwt(admin), admin } : null;
+    response.json({ token: issueAppJwt(user), user, adminSession });
   } catch (error) {
     next(error);
   }

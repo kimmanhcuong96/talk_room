@@ -4,9 +4,12 @@ import { HttpError } from "../errors/httpError.js";
 import type { UserRole } from "../users/userRepository.js";
 import { getRequestAdmin, requireAdmin, requireOwner } from "./adminAuth.js";
 import { issueAdminJwt } from "./adminJwt.js";
+import { issueAppJwt, verifyAppJwt } from "../auth/jwt.js";
+import { findUserById } from "../users/userRepository.js";
 import {
   activateAdminWithGoogle,
   inviteAdmin,
+  findActiveAdminForUser,
   listAdminUsers,
   listManagedUsers,
   suspendAdminUser,
@@ -54,6 +57,24 @@ adminRouter.post("/auth/google", async (request, response, next) => {
 
 adminRouter.get("/auth/me", requireAdmin, (request, response) => {
   response.json({ admin: getRequestAdmin(request) });
+});
+
+adminRouter.post("/auth/refresh", async (request, response, next) => {
+  try {
+    const authorization = request.header("authorization") ?? "";
+    const [scheme, token] = authorization.split(" ");
+    if (scheme !== "Bearer" || !token) throw new HttpError(401, "Application authentication token is required.");
+
+    const { userId } = verifyAppJwt(token);
+    const user = await findUserById(userId);
+    if (!user) throw new HttpError(401, "User no longer exists.");
+
+    const admin = await findActiveAdminForUser(user);
+    if (!admin) throw new HttpError(403, "Admin account is unavailable.");
+    response.json({ token: issueAdminJwt(admin), applicationToken: issueAppJwt(user), admin });
+  } catch (error) {
+    next(error);
+  }
 });
 
 adminRouter.get("/users", requireAdmin, async (request, response, next) => {

@@ -270,9 +270,8 @@ export function App() {
     setIsAuthLoading(true);
 
     getCurrentUser(token)
-      .then((user) => {
+      .then((refreshedSession) => {
         if (!cancelled) {
-          const refreshedSession = { token, user };
           storeSession(refreshedSession);
           setAuthSession(refreshedSession);
           setAuthError(null);

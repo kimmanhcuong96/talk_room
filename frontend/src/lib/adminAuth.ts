@@ -44,13 +44,21 @@ export type VirtualUserSettings = {
 };
 
 export type AdminSession = { token: string; admin: AdminProfile };
+export type RefreshedAdminSession = AdminSession & { applicationToken: string };
 export const ADMIN_TOKEN_STORAGE_KEY = "talking-room:admin-token";
 
 const apiUrl = (import.meta.env.VITE_API_URL ?? import.meta.env.VITE_SOCKET_URL ?? "http://localhost:4000").replace(/\/$/, "");
 
+export class AdminRequestError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "AdminRequestError";
+  }
+}
+
 async function parseResponse<T>(response: Response): Promise<T> {
   const body = await response.json().catch(() => ({})) as T & { error?: string };
-  if (!response.ok) throw new Error(body.error ?? "ADMIN_REQUEST_FAILED");
+  if (!response.ok) throw new AdminRequestError(body.error ?? "ADMIN_REQUEST_FAILED", response.status);
   return body;
 }
 
@@ -66,8 +74,12 @@ export function storeAdminToken(token: string) {
   localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token);
 }
 
-export function clearAdminToken() {
+export function removeAdminToken() {
   localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+}
+
+export function clearAdminToken() {
+  removeAdminToken();
   window.google?.accounts.id.disableAutoSelect();
 }
 
@@ -83,6 +95,14 @@ export async function loginAdmin(idToken: string) {
 export async function getAdminMe(token: string) {
   const response = await fetch(`${apiUrl}/admin/auth/me`, { headers: authHeaders(token) });
   return (await parseResponse<{ admin: AdminProfile }>(response)).admin;
+}
+
+export async function refreshAdminSession(applicationToken: string) {
+  const response = await fetch(`${apiUrl}/admin/auth/refresh`, {
+    method: "POST",
+    headers: authHeaders(applicationToken)
+  });
+  return parseResponse<RefreshedAdminSession>(response);
 }
 
 export async function getManagedUsers(token: string, options: { page: number; search: string; role: string }) {

@@ -1,4 +1,4 @@
-import { clearAdminToken, storeAdminToken, type AdminSession } from "./adminAuth";
+import { clearAdminToken, removeAdminToken, storeAdminToken, type AdminSession } from "./adminAuth";
 
 export const AUTH_TOKEN_STORAGE_KEY = "english-talk-rooms:auth-token";
 export const AUTH_USER_STORAGE_KEY = "english-talk-rooms:auth-user";
@@ -35,6 +35,10 @@ export function readStoredToken() {
   return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
 }
 
+export function storeApplicationToken(token: string) {
+  localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+}
+
 export function readStoredSession(): AuthSession | null {
   const token = readStoredToken();
   const storedUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
@@ -55,9 +59,10 @@ export function isInvalidAuthSessionError(error: unknown) {
 }
 
 export function storeSession(session: AuthSession) {
-  localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, session.token);
+  storeApplicationToken(session.token);
   localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(session.user));
   if (session.adminSession) storeAdminToken(session.adminSession.token);
+  else if (session.adminSession === null) removeAdminToken();
 }
 
 export function clearStoredSession() {
@@ -83,16 +88,16 @@ export async function loginWithGoogleIdToken(idToken: string): Promise<AuthSessi
   return { token: body.token, user: body.user, adminSession: body.adminSession ?? null };
 }
 
-export async function getCurrentUser(token: string): Promise<AuthUser> {
+export async function getCurrentUser(token: string): Promise<AuthSession> {
   const response = await fetch(`${apiUrl}/auth/me`, {
     headers: { Authorization: `Bearer ${token}` }
   });
 
-  const body = (await response.json().catch(() => ({}))) as { user?: AuthUser; error?: string };
+  const body = (await response.json().catch(() => ({}))) as { token?: string; user?: AuthUser; adminSession?: AdminSession | null; error?: string };
 
   if (!response.ok || !body.user) {
     throw new AuthRequestError(body.error ?? "LOAD_USER_PROFILE_FAILED", response.status);
   }
 
-  return body.user;
+  return { token: body.token ?? token, user: body.user, adminSession: body.adminSession ?? null };
 }

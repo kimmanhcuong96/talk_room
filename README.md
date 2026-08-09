@@ -102,7 +102,7 @@ After running `backend/migrations/003_create_admin_users.sql`, bootstrap the fir
 npm run admin:bootstrap -w backend -- --email owner@example.com
 ```
 
-The owner first signs in from the main site with that exact Google email, then opens `/admin`. The normal Google login response provisions a separate admin session only when the email belongs to an eligible `admin_users` row. Admin URLs redirect to the home page when that session is missing, expired, or suspended. Owners can invite and manage other admin accounts from `/admin/admins`; both owners and admins can update app-user roles from `/admin/users` and review reports from `/admin/reports`. Removing an admin performs a soft suspension, and the final active owner cannot be demoted or suspended. Configure a separate `ADMIN_JWT_SECRET` in production; admin sessions default to 8 hours.
+The owner first signs in from the main site with that exact Google email, then opens `/admin`. The normal Google login response provisions a separate admin session only when the email belongs to an eligible `admin_users` row. Admin and application tokens rotate while the signed-in application session remains valid, including when `/admin` is reopened, focused, or kept open; suspended accounts cannot refresh. Owners can invite and manage other admin accounts from `/admin/admins`; both owners and admins can update app-user roles from `/admin/users` and review reports from `/admin/reports`. Removing an admin performs a soft suspension, and the final active owner cannot be demoted or suspended. Configure a separate `ADMIN_JWT_SECRET` in production; individual admin tokens default to 8 hours but are renewed through the active application session.
 
 ## Deployment
 

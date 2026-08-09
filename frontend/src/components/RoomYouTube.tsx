@@ -1,4 +1,4 @@
-import { ExternalLink, Pause, Play, Trash2, X, Youtube } from "lucide-react";
+import { ExternalLink, LoaderCircle, Pause, Play, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Language } from "../lib/i18n";
 import { youtubeTranslate } from "../lib/youtubeI18n";
@@ -17,15 +17,42 @@ declare global {
 }
 
 let youtubeApiPromise: Promise<NonNullable<Window["YT"]>> | null = null;
-function loadYouTubeApi() {
+function loadYouTubeApi(): Promise<NonNullable<Window["YT"]>> {
   if (window.YT?.Player) return Promise.resolve(window.YT);
-  youtubeApiPromise ??= new Promise((resolve) => {
+  if (youtubeApiPromise) return youtubeApiPromise;
+
+  youtubeApiPromise = new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = () => {
+      if (settled || !window.YT?.Player) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      resolve(window.YT);
+    };
+    const fail = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      youtubeApiPromise = null;
+      reject(new Error("YOUTUBE_IFRAME_API_UNAVAILABLE"));
+    };
+    const timeoutId = window.setTimeout(fail, 12_000);
     const previousReady = window.onYouTubeIframeAPIReady;
-    window.onYouTubeIframeAPIReady = () => { previousReady?.(); if (window.YT) resolve(window.YT); };
-    if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+    window.onYouTubeIframeAPIReady = () => {
+      previousReady?.();
+      finish();
+    };
+
+    const existingScript = document.querySelector<HTMLScriptElement>('script[src="https://www.youtube.com/iframe_api"]');
+    if (existingScript) {
+      existingScript.addEventListener("load", finish, { once: true });
+      existingScript.addEventListener("error", fail, { once: true });
+    } else {
       const script = document.createElement("script");
       script.src = "https://www.youtube.com/iframe_api";
       script.async = true;
+      script.addEventListener("load", finish, { once: true });
+      script.addEventListener("error", fail, { once: true });
       document.head.appendChild(script);
     }
   });
@@ -41,7 +68,7 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
   onOwnerPlayback: (playback: "playing" | "paused", positionSeconds: number) => void;
   onViewerPlayback: (playback: "playing" | "paused") => void;
 }) {
-  const hostRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YouTubePlayer | null>(null);
   const videoRef = useRef(video);
   const onOwnerPlaybackRef = useRef(onOwnerPlayback);
@@ -58,8 +85,14 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
 
   useEffect(() => {
     let cancelled = false;
-    const host = hostRef.current;
-    if (!host) return;
+    const container = containerRef.current;
+    if (!container) return;
+    setReady(false);
+    setPlayerError(null);
+    container.replaceChildren();
+    const host = document.createElement("div");
+    host.className = "h-full w-full";
+    container.appendChild(host);
     void loadYouTubeApi().then((YT) => {
       if (cancelled) return;
       playerRef.current = new YT.Player(host, {
@@ -91,8 +124,17 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
           }
         }
       });
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      console.warn("[YouTube Player] iframe API failed to load", error);
+      setPlayerError(-1);
     });
-    return () => { cancelled = true; playerRef.current?.destroy(); playerRef.current = null; };
+    return () => {
+      cancelled = true;
+      try { playerRef.current?.destroy(); } catch { /* The API may already have removed its iframe. */ }
+      playerRef.current = null;
+      container.replaceChildren();
+    };
   }, [canManage, video.videoId]);
 
   useEffect(() => {
@@ -132,7 +174,8 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
   };
 
   return <section className="relative h-full min-h-[200px] w-full overflow-hidden rounded-lg border border-white/10 bg-black shadow-2xl shadow-black/30">
-    <div ref={hostRef} className="h-full w-full"/>
+    <div ref={containerRef} className="absolute inset-0"/>
+    {!ready && playerError === null ? <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-black"><LoaderCircle className="animate-spin text-white/65" size={30}/></div> : null}
     {playerError !== null ? <div className="absolute inset-0 z-20 grid place-items-center bg-black/90 px-5 text-center"><div><p className="text-sm font-medium text-white/80">{t(playerError === 101 || playerError === 150 ? "embeddingDisabled" : playerError === 2 || playerError === 100 ? "videoUnavailable" : "playerFailed")}</p><a href={`https://www.youtube.com/watch?v=${video.videoId}`} target="_blank" rel="noopener" className="mt-4 inline-flex h-10 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-500">{t("openYouTube")}<ExternalLink size={15}/></a></div></div> : null}
     <button type="button" onClick={onClose} title={t("hide")} aria-label={t("hide")} className="absolute right-2 top-2 z-30 grid h-9 w-9 place-items-center rounded-full bg-black/75 text-white shadow-lg hover:bg-black"><X size={18}/></button>
     {!canManage ? <div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 bg-black/75 px-3 py-2 backdrop-blur"><button type="button" onClick={toggleViewerPlayback} className="inline-flex h-9 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold text-white hover:bg-white/20">{locallyPaused ? <Play size={16}/> : <Pause size={16}/>} {locallyPaused ? t("resume") : t("pause")}</button><span className="hidden text-xs text-white/45 sm:inline">{t("ownerControls")}</span></div> : null}
@@ -142,10 +185,4 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
 export function YouTubeVideoDock({ videoId, language, onClick, compact = false, active = false }: { videoId: string; language: Language; onClick: () => void; compact?: boolean; active?: boolean }) {
   const label = youtubeTranslate(language, active ? "hide" : "show");
   return <button type="button" onClick={onClick} title={label} aria-label={label} className={`group relative overflow-hidden rounded-lg border border-red-400/40 bg-black shadow-2xl shadow-black/40 transition hover:-translate-y-0.5 hover:border-red-400 ${compact ? "h-full w-full" : "aspect-video w-36 sm:w-44"}`}><img src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover opacity-80 transition group-hover:opacity-100"/><span className="absolute inset-0 grid place-items-center"><span className={`grid place-items-center rounded-xl bg-red-600 text-white shadow-lg ${compact ? "h-8 w-10" : "h-10 w-12"}`}><Play size={compact ? 16 : 20} fill="currentColor"/></span></span></button>;
-}
-
-export function YouTubeSettings({ currentVideo, language, error, saving, onClose, onShare, onRemove }: { currentVideo: RoomYouTubeVideo | null; language: Language; error: string | null; saving: boolean; onClose: () => void; onShare: (url: string) => void; onRemove: () => void }) {
-  const [url, setUrl] = useState("");
-  const t = (key: Parameters<typeof youtubeTranslate>[1]) => youtubeTranslate(language, key);
-  return <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 px-4 backdrop-blur-sm" onMouseDown={() => { if (!saving) onClose(); }}><form onSubmit={(event) => { event.preventDefault(); if (!saving && url.trim()) onShare(url.trim()); }} onMouseDown={(event) => event.stopPropagation()} className="w-full max-w-md rounded-xl border border-white/10 bg-panel p-5 text-white shadow-2xl"><div className="flex items-center justify-between"><h2 className="flex items-center gap-2 text-lg font-semibold"><Youtube className="text-red-500" size={22}/>{t("manage")}</h2><button disabled={saving} type="button" onClick={onClose} className="rounded-md p-2 text-white/55 hover:bg-white/10 disabled:opacity-40"><X size={18}/></button></div><label className="mt-5 block text-sm text-white/70">{t("url")}<input disabled={saving} autoFocus value={url} onChange={(event) => setUrl(event.target.value)} placeholder={t("placeholder")} className="mt-2 h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm outline-none focus:border-red-400 disabled:opacity-50"/></label>{error ? <p className="mt-3 text-sm text-coral">{error}</p> : null}<div className="mt-5 flex justify-between gap-3"><div>{currentVideo ? <button disabled={saving} type="button" onClick={onRemove} className="inline-flex h-10 items-center gap-2 rounded-md bg-coral/10 px-3 text-sm text-coral hover:bg-coral/20 disabled:opacity-40"><Trash2 size={16}/>{t("remove")}</button> : null}</div><div className="flex gap-2"><button disabled={saving} type="button" onClick={onClose} className="h-10 rounded-md bg-white/5 px-4 text-sm text-white/65 hover:bg-white/10 disabled:opacity-40">{t("cancel")}</button><button disabled={saving || !url.trim()} className="h-10 rounded-md bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-500 disabled:cursor-wait disabled:opacity-40">{saving ? "..." : currentVideo ? t("replace") : t("add")}</button></div></div></form></div>;
 }

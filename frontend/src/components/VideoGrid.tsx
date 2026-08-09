@@ -22,6 +22,7 @@ type VideoGridProps = {
   language: Language;
   remotePeers: RemotePeer[];
   stageContent?: ReactNode;
+  stageAccessory?: ReactNode;
 };
 
 type Participant = {
@@ -97,7 +98,7 @@ function getTrackSignature(stream: MediaStream | null) {
   return stream?.getTracks().map((track) => `${track.kind}:${track.id}:${track.readyState}`).join("|") ?? "";
 }
 
-export function VideoGrid({ localStream, localCameraStream, localUser, language, remotePeers, stageContent }: VideoGridProps) {
+export function VideoGrid({ localStream, localCameraStream, localUser, language, remotePeers, stageContent, stageAccessory }: VideoGridProps) {
   const [featuredParticipantId, setFeaturedParticipantId] = useState<string | null>(null);
   const totalUsers = remotePeers.length + 1;
   const participants = useMemo(
@@ -168,6 +169,7 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
               />
             </div>
           ))}
+          {stageAccessory ? <div className="h-full w-24 shrink-0 sm:w-28">{stageAccessory}</div> : null}
         </div>
       </div>
     );

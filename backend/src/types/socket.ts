@@ -20,6 +20,13 @@ export type RoomTopic = {
   icon: "none" | "message" | "sparkles" | "book" | "globe" | "coffee" | "game";
 };
 
+export type RoomYouTubeVideo = {
+  videoId: string;
+  playback: "playing" | "paused";
+  positionSeconds: number;
+  updatedAt: number;
+};
+
 export type RoomSummary = {
   id: string;
   name: string;
@@ -29,6 +36,7 @@ export type RoomSummary = {
   users: number;
   capacity: number;
   topic: RoomTopic | null;
+  youtubeVideo: RoomYouTubeVideo | null;
   participants: RoomParticipantSummary[];
 };
 
@@ -53,6 +61,11 @@ export type ClientToServerEvents = {
   "request-room-language-permission": (payload: { roomId: string }) => void;
   "request-room-topic-permission": (payload: { roomId: string }) => void;
   "update-room-topic": (payload: { roomId: string; topic: RoomTopic | null }, respond?: (result: { ok: true; topic: RoomTopic | null } | { ok: false; error: string }) => void) => void;
+  "request-room-youtube-permission": (payload: { roomId: string }) => void;
+  "share-room-youtube": (payload: { roomId: string; url: string }, respond?: (result: { ok: true } | { ok: false; error: string }) => void) => void;
+  "remove-room-youtube": (payload: { roomId: string }, respond?: (result: { ok: true } | { ok: false; error: string }) => void) => void;
+  "update-room-youtube-playback": (payload: { roomId: string; playback: "playing" | "paused"; positionSeconds: number }) => void;
+  "set-room-youtube-playback": (payload: { roomId: string; playback: "playing" | "paused" }) => void;
   "request-room-moderation-permission": (payload: { roomId: string }) => void;
   "block-room-user": (payload: { targetSocketId: string }) => void;
   "report-user": (payload: { targetSocketId: string; reason: ReportReason; details?: string }) => void;
@@ -87,6 +100,9 @@ export type ServerToClientEvents = {
   "room-topic-permission": (payload: { roomId: string; canManage: boolean }) => void;
   "room-topic-updated": (payload: { roomId: string; topic: RoomTopic | null }) => void;
   "room-topic-error": (message: string) => void;
+  "room-youtube-permission": (payload: { roomId: string; canManage: boolean }) => void;
+  "room-youtube-updated": (payload: { roomId: string; video: RoomYouTubeVideo | null; reason: "shared" | "removed" | "playback" }) => void;
+  "room-youtube-error": (message: string) => void;
   "room-moderation-permission": (payload: { roomId: string; canBlock: boolean }) => void;
   "moderation-success": (payload: { action: "block" | "report"; targetSocketId?: string }) => void;
   "moderation-error": (message: string) => void;

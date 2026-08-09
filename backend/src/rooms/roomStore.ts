@@ -1,4 +1,4 @@
-import type { ChatMessage, RoomSummary, RoomTopic, RoomUser } from "../types/socket.js";
+import type { ChatMessage, RoomSummary, RoomTopic, RoomUser, RoomYouTubeVideo } from "../types/socket.js";
 import { randomUUID } from "node:crypto";
 import type { RoomLanguage, RoomLanguageLevel } from "./roomLanguages.js";
 
@@ -35,6 +35,7 @@ type Room = {
   source: "system" | "user";
   capacity: number;
   topic: RoomTopic | null;
+  youtubeVideo: RoomYouTubeVideo | null;
   users: RoomUser[];
   messages: ChatMessage[];
   blockedUserIds: Set<string>;
@@ -45,9 +46,20 @@ const rooms = new Map<string, Room>(
   roomNames.map((name, index) => {
     const id = `room-${index + 1}`;
     const primaryLanguageLevel: RoomLanguageLevel = index === 0 ? "a1" : index === 1 ? "b1" : "any";
-    return [id, { id, name, primaryLanguage: "en", primaryLanguageLevel, secondaryLanguage: null, creatorUserId: null, source: "system", capacity: ROOM_CAPACITY, topic: null, users: [], messages: [], blockedUserIds: new Set(), blockedIpHashes: new Map() }];
+    return [id, { id, name, primaryLanguage: "en", primaryLanguageLevel, secondaryLanguage: null, creatorUserId: null, source: "system", capacity: ROOM_CAPACITY, topic: null, youtubeVideo: null, users: [], messages: [], blockedUserIds: new Set(), blockedIpHashes: new Map() }];
   })
 );
+
+function getYouTubeVideoSnapshot(room: Room): RoomYouTubeVideo | null {
+  if (!room.youtubeVideo) return null;
+  const now = Date.now();
+  const elapsedSeconds = room.youtubeVideo.playback === "playing" ? (now - room.youtubeVideo.updatedAt) / 1000 : 0;
+  return {
+    ...room.youtubeVideo,
+    positionSeconds: Math.max(0, room.youtubeVideo.positionSeconds + elapsedSeconds),
+    updatedAt: now
+  };
+}
 
 export function getRoomSummaries(): RoomSummary[] {
   return [...rooms.values()].map((room) => ({
@@ -59,6 +71,7 @@ export function getRoomSummaries(): RoomSummary[] {
     users: room.users.length,
     capacity: room.capacity,
     topic: room.topic,
+    youtubeVideo: getYouTubeVideoSnapshot(room),
     participants: room.users.map(({ nickname, avatar, role }) => ({ nickname, avatar, role }))
   }));
 }
@@ -76,6 +89,7 @@ export function getRoomSummary(roomId: string): RoomSummary | undefined {
     users: room.users.length,
     capacity: room.capacity,
     topic: room.topic,
+    youtubeVideo: getYouTubeVideoSnapshot(room),
     participants: room.users.map(({ nickname, avatar, role }) => ({ nickname, avatar, role }))
   };
 }
@@ -98,6 +112,7 @@ export function createRoom(
     source: "user",
     capacity,
     topic: null,
+    youtubeVideo: null,
     users: [],
     messages: [],
     blockedUserIds: new Set(),
@@ -114,6 +129,7 @@ export function createRoom(
     users: 0,
     capacity: room.capacity,
     topic: room.topic,
+    youtubeVideo: getYouTubeVideoSnapshot(room),
     participants: []
   };
 }
@@ -143,6 +159,13 @@ export function updateRoomTopic(roomId: string, topic: RoomTopic | null) {
   if (!room) return undefined;
   room.topic = topic;
   return topic;
+}
+
+export function updateRoomYouTubeVideo(roomId: string, video: RoomYouTubeVideo | null) {
+  const room = rooms.get(roomId);
+  if (!room) return undefined;
+  room.youtubeVideo = video;
+  return video;
 }
 
 export function blockUserFromRoom(roomId: string, targetUserId: string | undefined, targetIpHash: string) {
@@ -194,6 +217,7 @@ export function updateRoomLanguages(
     users: room.users.length,
     capacity: room.capacity,
     topic: room.topic,
+    youtubeVideo: getYouTubeVideoSnapshot(room),
     participants: room.users.map(({ nickname, avatar, role }) => ({ nickname, avatar, role }))
   };
 }

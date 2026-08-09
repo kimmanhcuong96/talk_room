@@ -1,4 +1,4 @@
-import type { AppServer, AppSocket, RoomTopic } from "../types/socket.js";
+import type { AppServer, AppSocket, RoomTopic, RoomYouTubeVideo } from "../types/socket.js";
 import {
   addRoomMessage,
   addUserToRoom,
@@ -17,6 +17,7 @@ import {
   removeUser,
   updateRoomLanguages,
   updateRoomTopic,
+  updateRoomYouTubeVideo,
   updateUserMedia
 } from "../rooms/roomStore.js";
 import { verifyAppJwt } from "../auth/jwt.js";
@@ -93,9 +94,37 @@ function emitRoomTopicPermissions(io: AppServer, roomId: string) {
   }
 }
 
+function emitRoomYouTubePermissions(io: AppServer, roomId: string) {
+  for (const user of getRoomUsers(roomId)) {
+    const connectedSocket = io.sockets.sockets.get(user.socketId);
+    io.to(user.socketId).emit("room-youtube-permission", {
+      roomId,
+      canManage: canManageRoomTopic(roomId, user.socketId, connectedSocket?.data.userId)
+    });
+  }
+}
+
 const topicBackgrounds = new Set<RoomTopic["background"]>(["slate", "mint", "blue", "coral", "violet", "amber"]);
 const topicFonts = new Set<RoomTopic["font"]>(["sans", "serif", "mono", "display"]);
 const topicIcons = new Set<RoomTopic["icon"]>(["none", "message", "sparkles", "book", "globe", "coffee", "game"]);
+
+function extractYouTubeVideoId(value: unknown) {
+  const input = typeof value === "string" ? value.trim().slice(0, 500) : "";
+  const idPattern = /^[A-Za-z0-9_-]{11}$/;
+  if (idPattern.test(input)) return input;
+  try {
+    const url = new URL(input);
+    const hostname = url.hostname.toLowerCase().replace(/^(www\.|m\.)/, "");
+    let candidate = "";
+    if (hostname === "youtu.be") candidate = url.pathname.split("/").filter(Boolean)[0] ?? "";
+    if (hostname === "youtube.com" || hostname === "youtube-nocookie.com") {
+      candidate = url.searchParams.get("v") ?? url.pathname.match(/^\/(?:embed|shorts|live)\/([^/]+)/)?.[1] ?? "";
+    }
+    return idPattern.test(candidate) ? candidate : null;
+  } catch {
+    return null;
+  }
+}
 
 function resolveIdentityKey(authenticatedUser: UserProfile | null, guestId: unknown, socketId: string) {
   if (authenticatedUser) return `user:${authenticatedUser.id}`;
@@ -162,6 +191,7 @@ function leaveCurrentRoom(io: AppServer, socket: AppSocket) {
   emitRoomLanguagePermissions(io, previousRoomId);
   emitRoomModerationPermissions(io, previousRoomId);
   emitRoomTopicPermissions(io, previousRoomId);
+  emitRoomYouTubePermissions(io, previousRoomId);
   scheduleEmptyRoomDeletion(io, previousRoomId);
 }
 
@@ -182,6 +212,7 @@ export function evictGloballyBlockedUsers(
 export function registerSocketHandlers(io: AppServer) {
   io.on("connection", (socket) => {
     socket.data.ipHash = getSocketIpHash(socket);
+    let lastYouTubePlaybackRequestAt = 0;
     socket.emit("room-list", getRoomSummaries());
 
     socket.on("create-room", async ({ name, primaryLanguage, primaryLanguageLevel, secondaryLanguage, capacity, authToken }) => {
@@ -292,6 +323,7 @@ export function registerSocketHandlers(io: AppServer) {
         emitRoomLanguagePermissions(io, roomId);
         emitRoomModerationPermissions(io, roomId);
         emitRoomTopicPermissions(io, roomId);
+        emitRoomYouTubePermissions(io, roomId);
         return;
       }
 
@@ -334,6 +366,7 @@ export function registerSocketHandlers(io: AppServer) {
       emitRoomLanguagePermissions(io, roomId);
       emitRoomModerationPermissions(io, roomId);
       emitRoomTopicPermissions(io, roomId);
+      emitRoomYouTubePermissions(io, roomId);
     });
 
     socket.on("update-room-languages", ({ roomId, primaryLanguage, primaryLanguageLevel, secondaryLanguage }) => {
@@ -416,6 +449,85 @@ export function registerSocketHandlers(io: AppServer) {
       io.to(roomId).emit("room-topic-updated", { roomId, topic: updatedTopic });
       respond?.({ ok: true, topic: updatedTopic });
       emitRoomList(io);
+    });
+
+    socket.on("request-room-youtube-permission", ({ roomId }) => {
+      if (socket.data.roomId !== roomId) return;
+      socket.emit("room-youtube-permission", {
+        roomId,
+        canManage: canManageRoomTopic(roomId, socket.id, socket.data.userId)
+      });
+    });
+
+    socket.on("share-room-youtube", ({ roomId, url }, respond) => {
+      if (socket.data.roomId !== roomId || !canManageRoomTopic(roomId, socket.id, socket.data.userId)) {
+        socket.emit("room-youtube-error", "ROOM_YOUTUBE_PERMISSION_DENIED");
+        respond?.({ ok: false, error: "ROOM_YOUTUBE_PERMISSION_DENIED" });
+        return;
+      }
+      const videoId = extractYouTubeVideoId(url);
+      if (!videoId) {
+        socket.emit("room-youtube-error", "ROOM_YOUTUBE_URL_INVALID");
+        respond?.({ ok: false, error: "ROOM_YOUTUBE_URL_INVALID" });
+        return;
+      }
+      const video: RoomYouTubeVideo = { videoId, playback: "paused", positionSeconds: 0, updatedAt: Date.now() };
+      if (updateRoomYouTubeVideo(roomId, video) === undefined) {
+        socket.emit("room-youtube-error", "ROOM_NOT_FOUND");
+        respond?.({ ok: false, error: "ROOM_NOT_FOUND" });
+        return;
+      }
+      io.to(roomId).emit("room-youtube-updated", { roomId, video, reason: "shared" });
+      respond?.({ ok: true });
+      emitRoomList(io);
+    });
+
+    socket.on("remove-room-youtube", ({ roomId }, respond) => {
+      if (socket.data.roomId !== roomId || !canManageRoomTopic(roomId, socket.id, socket.data.userId)) {
+        socket.emit("room-youtube-error", "ROOM_YOUTUBE_PERMISSION_DENIED");
+        respond?.({ ok: false, error: "ROOM_YOUTUBE_PERMISSION_DENIED" });
+        return;
+      }
+      if (updateRoomYouTubeVideo(roomId, null) === undefined) {
+        socket.emit("room-youtube-error", "ROOM_NOT_FOUND");
+        respond?.({ ok: false, error: "ROOM_NOT_FOUND" });
+        return;
+      }
+      io.to(roomId).emit("room-youtube-updated", { roomId, video: null, reason: "removed" });
+      respond?.({ ok: true });
+      emitRoomList(io);
+    });
+
+    socket.on("update-room-youtube-playback", ({ roomId, playback, positionSeconds }) => {
+      if (socket.data.roomId !== roomId || !canManageRoomTopic(roomId, socket.id, socket.data.userId)) return;
+      const room = getRoomSummary(roomId);
+      if (!room?.youtubeVideo || !["playing", "paused"].includes(playback) || !Number.isFinite(positionSeconds)) return;
+      const video: RoomYouTubeVideo = {
+        ...room.youtubeVideo,
+        playback,
+        positionSeconds: Math.min(604_800, Math.max(0, positionSeconds)),
+        updatedAt: Date.now()
+      };
+      updateRoomYouTubeVideo(roomId, video);
+      io.to(roomId).emit("room-youtube-updated", { roomId, video, reason: "playback" });
+    });
+
+    socket.on("set-room-youtube-playback", ({ roomId, playback }) => {
+      if (socket.data.roomId !== roomId || !["playing", "paused"].includes(playback)) return;
+      const now = Date.now();
+      if (now - lastYouTubePlaybackRequestAt < 300) return;
+      lastYouTubePlaybackRequestAt = now;
+      const room = getRoomSummary(roomId);
+      if (!room?.youtubeVideo) return;
+      const elapsedSeconds = room.youtubeVideo.playback === "playing" ? (Date.now() - room.youtubeVideo.updatedAt) / 1000 : 0;
+      const video: RoomYouTubeVideo = {
+        ...room.youtubeVideo,
+        playback,
+        positionSeconds: Math.min(604_800, Math.max(0, room.youtubeVideo.positionSeconds + elapsedSeconds)),
+        updatedAt: Date.now()
+      };
+      updateRoomYouTubeVideo(roomId, video);
+      io.to(roomId).emit("room-youtube-updated", { roomId, video, reason: "playback" });
     });
 
     socket.on("request-room-moderation-permission", ({ roomId }) => {

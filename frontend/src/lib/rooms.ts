@@ -30,5 +30,6 @@ export const defaultRooms: RoomSummary[] = roomNames.map((name, index) => ({
   users: 0,
     capacity: 4,
     topic: null,
+    youtubeVideo: null,
     participants: []
 }));

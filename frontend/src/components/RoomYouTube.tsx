@@ -11,12 +11,13 @@ type YouTubePlayer = {
 
 declare global {
   interface Window {
-    YT?: { Player: new (element: HTMLElement, options: Record<string, unknown>) => YouTubePlayer; PlayerState: { PLAYING: number; PAUSED: number; ENDED: number } };
+    YT?: { Player: new (element: string | HTMLElement, options: Record<string, unknown>) => YouTubePlayer; PlayerState: { PLAYING: number; PAUSED: number; ENDED: number } };
     onYouTubeIframeAPIReady?: () => void;
   }
 }
 
 let youtubeApiPromise: Promise<NonNullable<Window["YT"]>> | null = null;
+let nextYouTubePlayerId = 0;
 function loadYouTubeApi(): Promise<NonNullable<Window["YT"]>> {
   if (window.YT?.Player) return Promise.resolve(window.YT);
   if (youtubeApiPromise) return youtubeApiPromise;
@@ -69,12 +70,13 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
   onViewerPlayback: (playback: "playing" | "paused") => void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const hostIdRef = useRef("");
+  if (!hostIdRef.current) hostIdRef.current = `room-youtube-player-${++nextYouTubePlayerId}`;
   const playerRef = useRef<YouTubePlayer | null>(null);
   const videoRef = useRef(video);
   const canManageRef = useRef(canManage);
   const onOwnerPlaybackRef = useRef(onOwnerPlayback);
   const onViewerPlaybackRef = useRef(onViewerPlayback);
-  const suppressEventsUntil = useRef(0);
   const applyingRoomStateUntil = useRef(0);
   const [ready, setReady] = useState(false);
   const [locallyPaused, setLocallyPaused] = useState(video.playback !== "playing");
@@ -92,50 +94,36 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
     setReady(false);
     setPlayerError(null);
     container.replaceChildren();
-    // Bind the API to an iframe that already has its final YouTube origin. This
-    // avoids YT.Player replacing a React-owned div while widgetapi is sending
-    // postMessage commands to it.
-    const iframe = document.createElement("iframe");
-    const parameters = new URLSearchParams({
-      enablejsapi: "1",
-      origin: window.location.origin,
-      hl: language,
-      playsinline: "1",
-      rel: "0",
-      controls: "1"
-    });
-    iframe.src = `https://www.youtube.com/embed/${encodeURIComponent(video.videoId)}?${parameters.toString()}`;
-    iframe.title = "YouTube video player";
-    iframe.className = "h-full w-full border-0";
-    iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
-    iframe.allowFullscreen = true;
-    iframe.referrerPolicy = "strict-origin-when-cross-origin";
-
-    // A newly-created iframe initially has the parent page's about:blank
-    // origin. Binding YT.Player before its load event makes widgetapi send
-    // YouTube-targeted messages to that temporary window and causes an origin
-    // mismatch. Wait until navigation to youtube.com has completed first.
-    const iframeLoaded = new Promise<void>((resolve, reject) => {
-      const timeoutId = window.setTimeout(() => reject(new Error("YOUTUBE_IFRAME_LOAD_TIMEOUT")), 12_000);
-      iframe.addEventListener("load", () => {
-        window.clearTimeout(timeoutId);
-        resolve();
-      }, { once: true });
-      iframe.addEventListener("error", () => {
-        window.clearTimeout(timeoutId);
-        reject(new Error("YOUTUBE_IFRAME_LOAD_FAILED"));
-      }, { once: true });
-    });
-    container.appendChild(iframe);
-    void Promise.all([loadYouTubeApi(), iframeLoaded]).then(([YT]) => {
+    // YT.Player must own the complete placeholder -> iframe transition. Mixing
+    // a preloaded iframe with a later controller attachment creates two player
+    // handshakes and can send postMessage calls to a stale window.
+    const host = document.createElement("div");
+    host.id = hostIdRef.current;
+    host.className = "h-full w-full";
+    container.appendChild(host);
+    void loadYouTubeApi().then((YT) => {
       if (cancelled) return;
-      playerRef.current = new YT.Player(iframe, {
+      playerRef.current = new YT.Player(host.id, {
+        videoId: video.videoId,
+        width: "100%",
+        height: "100%",
+        playerVars: {
+          enablejsapi: 1,
+          origin: window.location.origin,
+          hl: language,
+          playsinline: 1,
+          rel: 0,
+          controls: 1
+        },
         events: {
           onReady: (event: { target: YouTubePlayer }) => {
             setPlayerError(null);
-            suppressEventsUntil.current = Date.now() + 1200;
-            event.target.seekTo(effectivePosition(videoRef.current), true);
-            if (videoRef.current.playback === "playing") event.target.playVideo(); else event.target.pauseVideo();
+            const position = effectivePosition(videoRef.current);
+            if (position > 0.5) event.target.seekTo(position, true);
+            // A fresh YouTube player is already paused. Do not issue a delayed
+            // pause command here because it can override the owner's first
+            // click. Only restore an explicitly playing room state.
+            if (videoRef.current.playback === "playing") event.target.playVideo();
             setLocallyPaused(videoRef.current.playback !== "playing");
             setReady(true);
           },
@@ -143,10 +131,10 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
             const playback = event.data === YT.PlayerState.PLAYING ? "playing" : event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED ? "paused" : null;
             if (!playback) return;
             setLocallyPaused(playback === "paused");
-            if (!canManageRef.current && Date.now() >= suppressEventsUntil.current && Date.now() >= applyingRoomStateUntil.current) {
+            if (!canManageRef.current && Date.now() >= applyingRoomStateUntil.current) {
               onViewerPlaybackRef.current(playback);
             }
-            if (canManageRef.current && Date.now() >= suppressEventsUntil.current) onOwnerPlaybackRef.current(playback, event.target.getCurrentTime());
+            if (canManageRef.current) onOwnerPlaybackRef.current(playback, event.target.getCurrentTime());
           },
           onError: (event: { data: number }) => {
             console.warn(`[YouTube Player] video=${video.videoId} error=${event.data}`);
@@ -165,7 +153,7 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
       playerRef.current = null;
       container.replaceChildren();
     };
-  }, [language, video.videoId]);
+  }, [video.videoId]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -205,8 +193,8 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
 
   return <section className="relative h-full min-h-[200px] w-full overflow-hidden rounded-lg border border-white/10 bg-black shadow-2xl shadow-black/30">
     <div ref={containerRef} className="absolute inset-0"/>
-    {!ready && playerError === null ? <div className="pointer-events-none absolute left-2 top-2 z-10 grid h-9 w-9 place-items-center rounded-full bg-black/70"><LoaderCircle className="animate-spin text-white/65" size={20}/></div> : null}
-    {playerError !== null && playerError !== -1 ? <div className="absolute inset-0 z-20 grid place-items-center bg-black/90 px-5 text-center"><div><p className="text-sm font-medium text-white/80">{t(playerError === 101 || playerError === 150 ? "embeddingDisabled" : playerError === 2 || playerError === 100 ? "videoUnavailable" : "playerFailed")}</p><a href={`https://www.youtube.com/watch?v=${video.videoId}`} target="_blank" rel="noopener" className="mt-4 inline-flex h-10 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-500">{t("openYouTube")}<ExternalLink size={15}/></a></div></div> : null}
+    {!ready && playerError === null ? <div className="absolute inset-0 z-10 grid place-items-center bg-black"><LoaderCircle className="animate-spin text-white/65" size={28}/></div> : null}
+    {playerError !== null ? <div className="absolute inset-0 z-20 grid place-items-center bg-black/90 px-5 text-center"><div><p className="text-sm font-medium text-white/80">{t(playerError === 101 || playerError === 150 ? "embeddingDisabled" : playerError === 2 || playerError === 100 ? "videoUnavailable" : "playerFailed")}</p><a href={`https://www.youtube.com/watch?v=${video.videoId}`} target="_blank" rel="noopener" className="mt-4 inline-flex h-10 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-500">{t("openYouTube")}<ExternalLink size={15}/></a></div></div> : null}
     <button type="button" onClick={onClose} title={t("hide")} aria-label={t("hide")} className="absolute right-2 top-2 z-30 grid h-9 w-9 place-items-center rounded-full bg-black/75 text-white shadow-lg hover:bg-black"><X size={18}/></button>
     {!canManage ? <><div className="absolute inset-0 z-[5]" aria-hidden="true"/><div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 bg-black/75 px-3 py-2 backdrop-blur"><button type="button" onClick={toggleViewerPlayback} className="inline-flex h-9 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold text-white hover:bg-white/20">{locallyPaused ? <Play size={16}/> : <Pause size={16}/>} {locallyPaused ? t("resume") : t("pause")}</button><span className="hidden text-xs text-white/45 sm:inline">{t("ownerControls")}</span></div></> : null}
   </section>;

@@ -17,10 +17,11 @@ import { RoomLanguageEditor } from "./RoomLanguageEditor";
 import type { RoomLanguage, RoomLanguageLevel } from "../lib/roomLanguages";
 import { RoomModerationPanel } from "./RoomModerationPanel";
 import { moderationTranslate } from "../lib/moderationI18n";
-import type { ReportReason, RoomYouTubeVideo } from "../types/realtime";
+import type { ReportReason, RoomYouTubeVideo, YouTubeRecommendation } from "../types/realtime";
 import { RoomTopicEditor, RoomTopicSlide } from "./RoomTopic";
 import { roomTopicTranslate } from "../lib/roomTopicI18n";
-import { YouTubeSettings, YouTubeVideoDock, YouTubeVideoStage } from "./RoomYouTube";
+import { YouTubeVideoDock, YouTubeVideoStage } from "./RoomYouTube";
+import { YouTubeSettings } from "./RoomYouTubeSettings";
 import { youtubeTranslate } from "../lib/youtubeI18n";
 
 type RoomPageProps = {
@@ -57,7 +58,10 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
   const [youtubeSettingsOpen, setYoutubeSettingsOpen] = useState(false);
   const [youtubeSettingsError, setYoutubeSettingsError] = useState<string | null>(null);
   const [youtubeSaving, setYoutubeSaving] = useState(false);
-  const [youtubeOnStage, setYoutubeOnStage] = useState(false);
+  const [youtubeOnStage, setYoutubeOnStage] = useState(() => Boolean(room.youtubeVideo));
+  const [youtubeRecommendations, setYoutubeRecommendations] = useState<YouTubeRecommendation[]>([]);
+  const [youtubeRecommendationsLoading, setYoutubeRecommendationsLoading] = useState(false);
+  const [youtubeRecommendationsError, setYoutubeRecommendationsError] = useState(false);
   const canEditYoutube = canManageYoutube || canManageLanguages;
   const canUseCamera = hasPermission(role, "use_camera");
   const { stream, error, micEnabled, cameraEnabled, hasMicrophone, hasCamera, toggleMic, toggleCamera } = useLocalMedia(canUseCamera);
@@ -153,6 +157,7 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
       if (roomId !== room.id) return;
       setYoutubeVideo(video ? { ...video, updatedAt: Date.now() } : null);
       if (!video) setYoutubeOnStage(false);
+      else if (reason === "shared") setYoutubeOnStage(true);
       if (reason !== "playback" && canEditYoutube) {
         setYoutubeSaving(false);
         setYoutubeSettingsOpen(false);
@@ -188,6 +193,34 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
 
   const handleViewerYouTubePlayback = useCallback((playback: "playing" | "paused") => {
     socket.emit("set-room-youtube-playback", { roomId: room.id, playback });
+  }, [room.id, socket]);
+
+  const openYoutubeSettings = useCallback(() => {
+    setYoutubeSettingsError(null);
+    setYoutubeRecommendations([]);
+    setYoutubeRecommendationsError(false);
+    setYoutubeRecommendationsLoading(true);
+    setYoutubeSettingsOpen(true);
+
+    let completed = false;
+    const timeoutId = window.setTimeout(() => {
+      if (completed) return;
+      completed = true;
+      setYoutubeRecommendationsLoading(false);
+      setYoutubeRecommendationsError(true);
+    }, 8_000);
+    socket.emit("request-room-youtube-recommendations", { roomId: room.id }, (result) => {
+      if (completed) return;
+      completed = true;
+      window.clearTimeout(timeoutId);
+      setYoutubeRecommendationsLoading(false);
+      if (!result.ok) {
+        setYoutubeRecommendationsError(true);
+        return;
+      }
+      setYoutubeRecommendations(result.videos);
+      setYoutubeRecommendationsError(result.videos.length === 0);
+    });
   }, [room.id, socket]);
 
   useEffect(() => setCurrentTopic(room.topic), [room.topic]);
@@ -371,7 +404,7 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
           </div>
           <div className="flex items-center gap-2">
             {canEditYoutube ? (
-              <button type="button" title={youtubeTranslate(language, "manage")} aria-label={youtubeTranslate(language, "manage")} onClick={() => { setYoutubeSettingsError(null); setYoutubeSettingsOpen(true); }} className="inline-flex h-9 items-center gap-2 rounded-md border border-red-400/25 bg-red-500/10 px-2.5 text-red-300 transition hover:bg-red-500/15 sm:px-3">
+              <button type="button" title={youtubeTranslate(language, "manage")} aria-label={youtubeTranslate(language, "manage")} onClick={openYoutubeSettings} className="inline-flex h-9 items-center gap-2 rounded-md border border-red-400/25 bg-red-500/10 px-2.5 text-red-300 transition hover:bg-red-500/15 sm:px-3">
                 <Youtube size={19}/><span className="hidden text-sm font-medium lg:inline">{youtubeTranslate(language, "share")}</span>
               </button>
             ) : null}
@@ -436,12 +469,9 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
               stageContent={youtubeOnStage && youtubeVideo
                 ? <YouTubeVideoStage video={youtubeVideo} canManage={canEditYoutube} language={language} onClose={() => setYoutubeOnStage(false)} onOwnerPlayback={handleOwnerYouTubePlayback} onViewerPlayback={handleViewerYouTubePlayback}/>
                 : currentTopic ? <RoomTopicSlide topic={currentTopic} language={language} fill/> : undefined}
-              stageAccessory={youtubeVideo && (youtubeOnStage || currentTopic)
-                ? <YouTubeVideoDock videoId={youtubeVideo.videoId} language={language} compact active={youtubeOnStage} onClick={() => setYoutubeOnStage((visible) => !visible)}/>
-                : undefined}
             />
           </div>
-          {youtubeVideo && !youtubeOnStage && !currentTopic ? <div className="absolute bottom-4 right-4 z-10"><YouTubeVideoDock videoId={youtubeVideo.videoId} language={language} onClick={() => setYoutubeOnStage(true)}/></div> : null}
+          {youtubeVideo && !youtubeOnStage ? <div className="absolute bottom-4 right-4 z-10"><YouTubeVideoDock videoId={youtubeVideo.videoId} language={language} onClick={() => setYoutubeOnStage(true)}/></div> : null}
         </div>
 
         <Toolbar
@@ -492,6 +522,9 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
       {youtubeSettingsOpen && canEditYoutube ? (
         <YouTubeSettings
           currentVideo={youtubeVideo}
+          recommendations={youtubeRecommendations}
+          recommendationsLoading={youtubeRecommendationsLoading}
+          recommendationsError={youtubeRecommendationsError}
           language={language}
           error={youtubeSettingsError}
           saving={youtubeSaving}

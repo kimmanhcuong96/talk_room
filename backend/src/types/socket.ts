@@ -30,6 +30,13 @@ export type RoomYouTubeVideo = {
   updatedAt: number;
 };
 
+export type YouTubeRecommendation = {
+  videoId: string;
+  title: string;
+  channelTitle: string;
+  thumbnailUrl: string;
+};
+
 export type RoomSummary = {
   id: string;
   name: string;
@@ -67,6 +74,10 @@ export type ClientToServerEvents = {
   "request-room-topic-permission": (payload: { roomId: string }) => void;
   "update-room-topic": (payload: { roomId: string; topic: RoomTopic | null }, respond?: (result: { ok: true; topic: RoomTopic | null } | { ok: false; error: string }) => void) => void;
   "request-room-youtube-permission": (payload: { roomId: string }) => void;
+  "request-room-youtube-recommendations": (
+    payload: { roomId: string },
+    respond?: (result: { ok: true; videos: YouTubeRecommendation[] } | { ok: false; error: string }) => void
+  ) => void;
   "share-room-youtube": (payload: { roomId: string; url: string }, respond?: (result: { ok: true } | { ok: false; error: string }) => void) => void;
   "remove-room-youtube": (payload: { roomId: string }, respond?: (result: { ok: true } | { ok: false; error: string }) => void) => void;
   "update-room-youtube-playback": (payload: { roomId: string; playback: "playing" | "paused"; positionSeconds: number }) => void;

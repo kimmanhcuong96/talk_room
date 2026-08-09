@@ -35,6 +35,7 @@ Backend:
 - `JWT_EXPIRES_IN`: optional JWT lifetime, defaults to `7d`
 - `ADMIN_JWT_SECRET`: separate long random secret for admin sessions; falls back to `JWT_SECRET`
 - `ADMIN_JWT_EXPIRES_IN`: optional admin JWT lifetime, defaults to `8h`
+- `YOUTUBE_DATA_API_KEY`: optional server-side YouTube Data API v3 key used to load the 10 recommendations in Manage YouTube; manual URL sharing remains available when omitted
 - `CLOUDFLARE_TURN_KEY_ID`: optional Cloudflare Realtime TURN key ID
 - `CLOUDFLARE_TURN_API_TOKEN`: optional Cloudflare API token for generating short-lived TURN credentials
 - `CLOUDFLARE_TURN_TTL_SECONDS`: optional TURN credential lifetime, defaults to `86400`

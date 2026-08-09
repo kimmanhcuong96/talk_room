@@ -33,6 +33,7 @@ import {
   reportReasons
 } from "../moderation/moderationRepository.js";
 import { rebalanceVirtualUsers, scheduleVirtualUserDepartures } from "../virtualUsers/virtualUserService.js";
+import { getYouTubeRecommendations } from "../youtube/youtubeRecommendationService.js";
 
 const avatars = ["🐣", "🐼", "🐰", "🦊", "🐨", "🐥", "🐧", "🐸", "🦄", "🐙", "🐢", "🐹"];
 
@@ -474,6 +475,29 @@ export function registerSocketHandlers(io: AppServer) {
         roomId,
         canManage: canManageRoomTopic(roomId, socket.id, socket.data.userId)
       });
+    });
+
+    socket.on("request-room-youtube-recommendations", async ({ roomId }, respond) => {
+      if (socket.data.roomId !== roomId || !canManageRoomTopic(roomId, socket.id, socket.data.userId)) {
+        respond?.({ ok: false, error: "ROOM_YOUTUBE_PERMISSION_DENIED" });
+        return;
+      }
+      const room = getRoomSummary(roomId);
+      if (!room) {
+        respond?.({ ok: false, error: "ROOM_NOT_FOUND" });
+        return;
+      }
+      try {
+        const videos = await getYouTubeRecommendations({
+          roomName: room.name,
+          primaryLanguage: room.primaryLanguage,
+          currentVideoId: room.youtubeVideo?.videoId ?? null
+        });
+        respond?.({ ok: true, videos });
+      } catch (error) {
+        console.error("Unable to load YouTube recommendations", error);
+        respond?.({ ok: false, error: "YOUTUBE_RECOMMENDATIONS_UNAVAILABLE" });
+      }
     });
 
     socket.on("share-room-youtube", ({ roomId, url }, respond) => {

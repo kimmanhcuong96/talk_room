@@ -71,6 +71,7 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
   const containerRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YouTubePlayer | null>(null);
   const videoRef = useRef(video);
+  const canManageRef = useRef(canManage);
   const onOwnerPlaybackRef = useRef(onOwnerPlayback);
   const onViewerPlaybackRef = useRef(onViewerPlayback);
   const suppressEventsUntil = useRef(0);
@@ -80,6 +81,7 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
   const [playerError, setPlayerError] = useState<number | null>(null);
   const t = (key: Parameters<typeof youtubeTranslate>[1]) => youtubeTranslate(language, key);
   videoRef.current = video;
+  canManageRef.current = canManage;
   onOwnerPlaybackRef.current = onOwnerPlayback;
   onViewerPlaybackRef.current = onViewerPlayback;
 
@@ -90,16 +92,28 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
     setReady(false);
     setPlayerError(null);
     container.replaceChildren();
-    const host = document.createElement("div");
-    host.className = "h-full w-full";
-    container.appendChild(host);
+    // Bind the API to an iframe that already has its final YouTube origin. This
+    // avoids YT.Player replacing a React-owned div while widgetapi is sending
+    // postMessage commands to it.
+    const iframe = document.createElement("iframe");
+    const parameters = new URLSearchParams({
+      enablejsapi: "1",
+      origin: window.location.origin,
+      hl: language,
+      playsinline: "1",
+      rel: "0",
+      controls: "1"
+    });
+    iframe.src = `https://www.youtube.com/embed/${encodeURIComponent(video.videoId)}?${parameters.toString()}`;
+    iframe.title = "YouTube video player";
+    iframe.className = "h-full w-full border-0";
+    iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+    iframe.allowFullscreen = true;
+    iframe.referrerPolicy = "strict-origin-when-cross-origin";
+    container.appendChild(iframe);
     void loadYouTubeApi().then((YT) => {
       if (cancelled) return;
-      playerRef.current = new YT.Player(host, {
-        videoId: video.videoId,
-        width: "100%",
-        height: "100%",
-        playerVars: { enablejsapi: 1, origin: window.location.origin, widget_referrer: window.location.href, hl: language, playsinline: 1, rel: 0, controls: canManage ? 1 : 0, disablekb: canManage ? 0 : 1 },
+      playerRef.current = new YT.Player(iframe, {
         events: {
           onReady: (event: { target: YouTubePlayer }) => {
             setPlayerError(null);
@@ -113,10 +127,10 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
             const playback = event.data === YT.PlayerState.PLAYING ? "playing" : event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.ENDED ? "paused" : null;
             if (!playback) return;
             setLocallyPaused(playback === "paused");
-            if (!canManage && Date.now() >= suppressEventsUntil.current && Date.now() >= applyingRoomStateUntil.current) {
+            if (!canManageRef.current && Date.now() >= suppressEventsUntil.current && Date.now() >= applyingRoomStateUntil.current) {
               onViewerPlaybackRef.current(playback);
             }
-            if (canManage && Date.now() >= suppressEventsUntil.current) onOwnerPlaybackRef.current(playback, event.target.getCurrentTime());
+            if (canManageRef.current && Date.now() >= suppressEventsUntil.current) onOwnerPlaybackRef.current(playback, event.target.getCurrentTime());
           },
           onError: (event: { data: number }) => {
             console.warn(`[YouTube Player] video=${video.videoId} error=${event.data}`);
@@ -135,7 +149,7 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
       playerRef.current = null;
       container.replaceChildren();
     };
-  }, [canManage, video.videoId]);
+  }, [language, video.videoId]);
 
   useEffect(() => {
     const player = playerRef.current;
@@ -178,7 +192,7 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
     {!ready && playerError === null ? <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center bg-black"><LoaderCircle className="animate-spin text-white/65" size={30}/></div> : null}
     {playerError !== null ? <div className="absolute inset-0 z-20 grid place-items-center bg-black/90 px-5 text-center"><div><p className="text-sm font-medium text-white/80">{t(playerError === 101 || playerError === 150 ? "embeddingDisabled" : playerError === 2 || playerError === 100 ? "videoUnavailable" : "playerFailed")}</p><a href={`https://www.youtube.com/watch?v=${video.videoId}`} target="_blank" rel="noopener" className="mt-4 inline-flex h-10 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-500">{t("openYouTube")}<ExternalLink size={15}/></a></div></div> : null}
     <button type="button" onClick={onClose} title={t("hide")} aria-label={t("hide")} className="absolute right-2 top-2 z-30 grid h-9 w-9 place-items-center rounded-full bg-black/75 text-white shadow-lg hover:bg-black"><X size={18}/></button>
-    {!canManage ? <div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 bg-black/75 px-3 py-2 backdrop-blur"><button type="button" onClick={toggleViewerPlayback} className="inline-flex h-9 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold text-white hover:bg-white/20">{locallyPaused ? <Play size={16}/> : <Pause size={16}/>} {locallyPaused ? t("resume") : t("pause")}</button><span className="hidden text-xs text-white/45 sm:inline">{t("ownerControls")}</span></div> : null}
+    {!canManage ? <><div className="absolute inset-0 z-[5]" aria-hidden="true"/><div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 bg-black/75 px-3 py-2 backdrop-blur"><button type="button" onClick={toggleViewerPlayback} className="inline-flex h-9 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold text-white hover:bg-white/20">{locallyPaused ? <Play size={16}/> : <Pause size={16}/>} {locallyPaused ? t("resume") : t("pause")}</button><span className="hidden text-xs text-white/45 sm:inline">{t("ownerControls")}</span></div></> : null}
   </section>;
 }
 

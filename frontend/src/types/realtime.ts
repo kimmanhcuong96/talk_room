@@ -9,6 +9,8 @@ export type RoomSummary = {
   secondaryLanguage: RoomLanguage | null;
   users: number;
   capacity: number;
+  canJoin: boolean;
+  suggestedGuestNumber: number;
   topic: RoomTopic | null;
   youtubeVideo: RoomYouTubeVideo | null;
   participants: RoomParticipantSummary[];

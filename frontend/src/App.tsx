@@ -230,7 +230,7 @@ export function App() {
       return;
     }
 
-    const suggestedNickname = `Talking User ${routeRoom ? routeRoom.users + 1 : 1}`;
+    const suggestedNickname = `Talking User ${routeRoom?.suggestedGuestNumber ?? 1}`;
     const cleanNickname = authenticatedNickname || resolveGuestNickname(nickname, suggestedNickname);
 
     if (!authenticatedNickname) {
@@ -409,7 +409,7 @@ export function App() {
         room={routeRoom}
         nickname={nickname}
         authenticatedNickname={authenticatedNickname}
-        suggestedNickname={`Talking User ${routeRoom.users + 1}`}
+        suggestedNickname={`Talking User ${routeRoom.suggestedGuestNumber}`}
         isConnected={isConnected}
         error={error ?? connectionError}
         language={language}

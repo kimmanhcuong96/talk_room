@@ -15,6 +15,7 @@ import {
   isUserCreatedRoomEmpty,
   isBlockedFromRoom,
   removeUser,
+  removeVirtualUsersFromRoom,
   updateRoomLanguages,
   updateRoomTopic,
   updateRoomYouTubeVideo,
@@ -30,6 +31,7 @@ import {
   findActiveGlobalBlock,
   reportReasons
 } from "../moderation/moderationRepository.js";
+import { rebalanceVirtualUsers } from "../virtualUsers/virtualUserService.js";
 
 const avatars = ["🐣", "🐼", "🐰", "🦊", "🐨", "🐥", "🐧", "🐸", "🦄", "🐙", "🐢", "🐹"];
 
@@ -193,6 +195,7 @@ function leaveCurrentRoom(io: AppServer, socket: AppSocket) {
   emitRoomTopicPermissions(io, previousRoomId);
   emitRoomYouTubePermissions(io, previousRoomId);
   scheduleEmptyRoomDeletion(io, previousRoomId);
+  rebalanceVirtualUsers(io);
 }
 
 export function evictGloballyBlockedUsers(
@@ -274,7 +277,7 @@ export function registerSocketHandlers(io: AppServer) {
         return;
       }
 
-      const targetRoom = getRoomSummary(roomId);
+      let targetRoom = getRoomSummary(roomId);
       if (!targetRoom) {
         socket.emit("join-error", "Room does not exist.");
         return;
@@ -296,6 +299,15 @@ export function registerSocketHandlers(io: AppServer) {
       if (roomBlock.blocked) {
         socket.emit("access-blocked", { scope: "room", expiresAt: roomBlock.expiresAt });
         return;
+      }
+
+      if (removeVirtualUsersFromRoom(roomId)) {
+        emitRoomList(io);
+        targetRoom = getRoomSummary(roomId);
+        if (!targetRoom) {
+          socket.emit("join-error", "Room does not exist.");
+          return;
+        }
       }
 
       const otherIdentitySockets = getOtherIdentitySockets(io, socket, identityKey);
@@ -367,6 +379,7 @@ export function registerSocketHandlers(io: AppServer) {
       emitRoomModerationPermissions(io, roomId);
       emitRoomTopicPermissions(io, roomId);
       emitRoomYouTubePermissions(io, roomId);
+      rebalanceVirtualUsers(io);
     });
 
     socket.on("update-room-languages", ({ roomId, primaryLanguage, primaryLanguageLevel, secondaryLanguage }) => {

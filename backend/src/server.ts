@@ -10,6 +10,7 @@ import { getRoomSummaries } from "./rooms/roomStore.js";
 import { registerSocketHandlers } from "./socket/registerSocketHandlers.js";
 import type { AppServer } from "./types/socket.js";
 import { webrtcRouter } from "./webrtc/webrtcRoutes.js";
+import { initializeVirtualUserService } from "./virtualUsers/virtualUserService.js";
 
 const app = express();
 
@@ -50,6 +51,9 @@ const io: AppServer = new Server(httpServer, {
 
 app.set("io", io);
 registerSocketHandlers(io);
+void initializeVirtualUserService(io).catch((error) => {
+  console.error("Unable to initialize virtual users. Run all database migrations.", error);
+});
 
 httpServer.listen(env.port, () => {
   console.log(`English Talk Rooms backend listening on port ${env.port}`);

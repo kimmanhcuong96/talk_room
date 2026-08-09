@@ -650,7 +650,7 @@ export function HomePage({
 
       <section className={`grid gap-3 ${densityGridClass[density]}`}>
         {filteredRooms.map((room) => {
-          const isFull = room.users >= room.capacity;
+          const isFull = !room.canJoin;
 
           return (
             <article key={room.id} className="rounded-lg border border-white/10 bg-panel p-4 shadow-xl shadow-black/15">

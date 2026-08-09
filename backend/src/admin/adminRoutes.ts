@@ -22,6 +22,8 @@ import {
 } from "../moderation/moderationRepository.js";
 import { evictGloballyBlockedUsers } from "../socket/registerSocketHandlers.js";
 import type { AppServer } from "../types/socket.js";
+import { getVirtualUserSettings, updateVirtualUserSettings } from "../virtualUsers/virtualUserRepository.js";
+import { applyVirtualUserSettings } from "../virtualUsers/virtualUserService.js";
 
 const userRoles = new Set<UserRole>(["unverified", "verified", "supporter"]);
 const adminRoles = new Set<AdminRole>(["owner", "admin"]);
@@ -75,6 +77,36 @@ adminRouter.patch("/users/:id/role", requireAdmin, async (request, response, nex
     }
     const user = await updateManagedUserRole(getRequestAdmin(request).id, requireUuid(request.params.id), role);
     response.json({ user });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/virtual-users", requireAdmin, async (_request, response, next) => {
+  try {
+    const settings = await getVirtualUserSettings();
+    if (!settings) throw new HttpError(500, "Virtual user settings are not initialized.");
+    response.json({ settings });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.patch("/virtual-users", requireAdmin, async (request, response, next) => {
+  try {
+    const enabled = request.body?.enabled;
+    const virtualUserCount = Number(request.body?.virtualUserCount);
+    const targetRoomCount = Number(request.body?.targetRoomCount);
+    if (typeof enabled !== "boolean"
+      || !Number.isInteger(virtualUserCount) || virtualUserCount < 1 || virtualUserCount > 72
+      || !Number.isInteger(targetRoomCount) || targetRoomCount < 1 || targetRoomCount > 18
+      || virtualUserCount < targetRoomCount || virtualUserCount > targetRoomCount * 4) {
+      throw new HttpError(400, "Virtual users must be distributed between 1 and 18 rooms, with 1 to 4 users per room.");
+    }
+    const settings = await updateVirtualUserSettings(getRequestAdmin(request).id, { enabled, virtualUserCount, targetRoomCount });
+    const io = request.app.get("io") as AppServer | undefined;
+    if (io) applyVirtualUserSettings(io, settings);
+    response.json({ settings });
   } catch (error) {
     next(error);
   }

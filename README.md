@@ -83,7 +83,7 @@ GET /auth/me
 Authorization: Bearer <application-jwt>
 ```
 
-Run the SQL files in `backend/migrations` in numeric order against the configured Postgres database before enabling login. Migration `002_add_user_role.sql` adds the extensible user roles and defaults existing accounts to `unverified`. Migration `004_create_moderation.sql` adds user reports and system-wide blocks; apply it to Neon before deploying the moderation-enabled backend.
+Run the SQL files in `backend/migrations` in numeric order against the configured Postgres database before enabling login. Migration `002_add_user_role.sql` adds the extensible user roles and defaults existing accounts to `unverified`. Migration `004_create_moderation.sql` adds user reports and system-wide blocks. Migration `005_create_virtual_user_settings.sql` stores the audited virtual-room configuration; apply both newer migrations to Neon before deploying the corresponding backend features.
 
 To promote an account after verification or supporter approval, update its role explicitly:
 

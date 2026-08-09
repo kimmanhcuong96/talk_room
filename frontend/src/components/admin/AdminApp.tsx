@@ -22,6 +22,7 @@ import { isLanguage, type Language } from "../../lib/i18n";
 import { adminPath, getAdminPageFromPath, homePath } from "../../lib/routes";
 import { ReportsPage } from "./ReportsPage";
 import { adminModerationCopy } from "../../lib/adminModerationI18n";
+import { VirtualUsersSettingsPanel } from "./VirtualUsersSettings";
 
 const LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
 
@@ -142,6 +143,7 @@ function UsersPage({ session, language, t }: { session: AdminSession; language: 
   return (
     <div className="grid gap-5">
       <a href={adminPath()} className="inline-flex w-fit items-center gap-2 text-sm text-white/60 hover:text-white"><ChevronLeft size={16} />{t("backToDashboard")}</a>
+      <VirtualUsersSettingsPanel token={session.token} language={language} />
       <form className="flex flex-col gap-3 rounded-lg border border-white/10 bg-panel p-4 sm:flex-row" onSubmit={(event) => { event.preventDefault(); setPage(1); setSearch(searchInput.trim()); }}>
         <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder={t("searchUsers")} className="h-10 min-w-0 flex-1 rounded-md border border-white/10 bg-field px-3 text-sm outline-none focus:border-mint" />
         <select value={role} onChange={(event) => { setRole(event.target.value); setPage(1); }} className="h-10 rounded-md border border-white/10 bg-field px-3 text-sm outline-none"><option value="">{t("allRoles")}</option>{userRoles.map((value) => <option key={value} value={value}>{userRoleLabel(value, t)}</option>)}</select>

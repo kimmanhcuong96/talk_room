@@ -36,6 +36,13 @@ export type ModerationReport = {
   reviewerEmail: string | null; reviewedAt: string | null; createdAt: string;
 };
 
+export type VirtualUserSettings = {
+  enabled: boolean;
+  virtualUserCount: number;
+  targetRoomCount: number;
+  updatedAt: string;
+};
+
 export type AdminSession = { token: string; admin: AdminProfile };
 export const ADMIN_TOKEN_STORAGE_KEY = "talking-room:admin-token";
 
@@ -140,4 +147,18 @@ export async function confirmModerationBlock(token: string, reportId: string) {
 export async function dismissModerationReport(token: string, reportId: string) {
   const response = await fetch(`${apiUrl}/admin/reports/${reportId}/dismiss`, { method: "POST", headers: authHeaders(token) });
   return parseResponse<{ reportId: string }>(response);
+}
+
+export async function getVirtualUserSettings(token: string) {
+  const response = await fetch(`${apiUrl}/admin/virtual-users`, { headers: authHeaders(token) });
+  return (await parseResponse<{ settings: VirtualUserSettings }>(response)).settings;
+}
+
+export async function saveVirtualUserSettings(token: string, settings: Pick<VirtualUserSettings, "enabled" | "virtualUserCount" | "targetRoomCount">) {
+  const response = await fetch(`${apiUrl}/admin/virtual-users`, {
+    method: "PATCH",
+    headers: authHeaders(token, true),
+    body: JSON.stringify(settings)
+  });
+  return (await parseResponse<{ settings: VirtualUserSettings }>(response)).settings;
 }

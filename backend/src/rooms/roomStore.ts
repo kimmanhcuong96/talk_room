@@ -36,8 +36,11 @@ type Room = {
   capacity: number;
   topic: RoomTopic | null;
   youtubeVideo: RoomYouTubeVideo | null;
+  virtualTopicBackup: RoomTopic | null;
+  virtualTopicActive: boolean;
   users: RoomUser[];
   messages: ChatMessage[];
+  virtualMessageIds: Set<string>;
   blockedUserIds: Set<string>;
   blockedIpHashes: Map<string, number>;
 };
@@ -46,9 +49,108 @@ const rooms = new Map<string, Room>(
   roomNames.map((name, index) => {
     const id = `room-${index + 1}`;
     const primaryLanguageLevel: RoomLanguageLevel = index === 0 ? "a1" : index === 1 ? "b1" : "any";
-    return [id, { id, name, primaryLanguage: "en", primaryLanguageLevel, secondaryLanguage: null, creatorUserId: null, source: "system", capacity: ROOM_CAPACITY, topic: null, youtubeVideo: null, users: [], messages: [], blockedUserIds: new Set(), blockedIpHashes: new Map() }];
+    return [id, { id, name, primaryLanguage: "en", primaryLanguageLevel, secondaryLanguage: null, creatorUserId: null, source: "system", capacity: ROOM_CAPACITY, topic: null, youtubeVideo: null, virtualTopicBackup: null, virtualTopicActive: false, users: [], messages: [], virtualMessageIds: new Set(), blockedUserIds: new Set(), blockedIpHashes: new Map() }];
   })
 );
+
+const virtualRoomTopics = [
+  "Quiet room — keep silence and focus on your own learning.",
+  "Listening practice room — listen carefully and learn at your own pace.",
+  "Self-study room — set a goal, stay focused, and study independently.",
+  "Silent reading room — read, reflect, and build your language skills.",
+  "Shadowing practice — listen and repeat quietly to improve pronunciation.",
+  "Vocabulary review room — revise useful words and phrases independently.",
+  "Focus room — a calm space for individual language practice.",
+  "No active conversation — use this room for quiet learning and reflection."
+] as const;
+
+const virtualNames = ["Alex", "Mia", "Sam", "Emma", "Leo", "Lina", "Noah", "Sofia", "Kai", "Anna", "Min", "Hana"] as const;
+const virtualAvatars = ["🐣", "🐼", "🐰", "🦊", "🐨", "🐥", "🐧", "🐸", "🦄", "🐙", "🐢", "🐹"] as const;
+
+function shuffle<T>(items: T[]) {
+  for (let index = items.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [items[index], items[swapIndex]] = [items[swapIndex]!, items[index]!];
+  }
+  return items;
+}
+
+function deactivateVirtualRoom(room: Room) {
+  const hadVirtualUsers = room.users.some((user) => user.isVirtual);
+  room.users = room.users.filter((user) => !user.isVirtual);
+  if (room.virtualTopicActive) {
+    room.topic = room.virtualTopicBackup;
+    room.virtualTopicBackup = null;
+    room.virtualTopicActive = false;
+  }
+  return hadVirtualUsers;
+}
+
+function activateVirtualTopic(room: Room, index: number) {
+  if (room.virtualTopicActive) return;
+  room.virtualTopicBackup = room.topic;
+  room.topic = {
+    description: virtualRoomTopics[index % virtualRoomTopics.length]!,
+    background: index % 3 === 0 ? "slate" : index % 3 === 1 ? "blue" : "mint",
+    font: "sans",
+    icon: "none"
+  };
+  room.virtualTopicActive = true;
+}
+
+export function removeVirtualUsersFromRoom(roomId: string) {
+  const room = rooms.get(roomId);
+  return room ? deactivateVirtualRoom(room) : false;
+}
+
+export function applyVirtualUserDistribution(settings: { enabled: boolean; virtualUserCount: number; targetRoomCount: number }) {
+  const systemRooms = [...rooms.values()].filter((room) => room.source === "system");
+  if (!settings.enabled) {
+    systemRooms.forEach(deactivateVirtualRoom);
+    return;
+  }
+
+  systemRooms.forEach((room) => {
+    if (room.users.some((user) => !user.isVirtual)) deactivateVirtualRoom(room);
+  });
+
+  const eligibleRooms = systemRooms.filter((room) => room.users.every((user) => user.isVirtual));
+  const desiredRoomCount = Math.min(settings.targetRoomCount, settings.virtualUserCount, eligibleRooms.length);
+  const activeRooms = eligibleRooms.filter((room) => room.virtualTopicActive);
+  const selectedRooms = activeRooms.slice(0, desiredRoomCount);
+  if (selectedRooms.length < desiredRoomCount) {
+    const candidates = shuffle(eligibleRooms.filter((room) => !room.virtualTopicActive));
+    selectedRooms.push(...candidates.slice(0, desiredRoomCount - selectedRooms.length));
+  }
+  const selectedIds = new Set(selectedRooms.map((room) => room.id));
+  systemRooms.filter((room) => room.virtualTopicActive && !selectedIds.has(room.id)).forEach(deactivateVirtualRoom);
+
+  selectedRooms.forEach((room, index) => {
+    room.users = room.users.filter((user) => !user.isVirtual);
+    activateVirtualTopic(room, index);
+  });
+
+  let remainingUsers = Math.min(settings.virtualUserCount, selectedRooms.reduce((sum, room) => sum + room.capacity, 0));
+  selectedRooms.forEach((room, index) => {
+    const remainingRooms = selectedRooms.length - index;
+    const count = Math.min(room.capacity, Math.max(1, Math.floor(remainingUsers / remainingRooms)));
+    for (let userIndex = 0; userIndex < count; userIndex += 1) {
+      const sequence = settings.virtualUserCount - remainingUsers + userIndex;
+      room.users.push({
+        socketId: `virtual-${randomUUID()}`,
+        nickname: `${virtualNames[sequence % virtualNames.length]} ${sequence + 1}`,
+        avatar: virtualAvatars[sequence % virtualAvatars.length]!,
+        role: "unverified",
+        micEnabled: false,
+        cameraEnabled: false,
+        screenSharing: false,
+        screenTrackId: null,
+        isVirtual: true
+      });
+    }
+    remainingUsers -= count;
+  });
+}
 
 function getYouTubeVideoSnapshot(room: Room): RoomYouTubeVideo | null {
   if (!room.youtubeVideo) return null;
@@ -62,7 +164,9 @@ function getYouTubeVideoSnapshot(room: Room): RoomYouTubeVideo | null {
 }
 
 export function getRoomSummaries(): RoomSummary[] {
-  return [...rooms.values()].map((room) => ({
+  return [...rooms.values()].map((room) => {
+    const realUserCount = room.users.filter((user) => !user.isVirtual).length;
+    return ({
     id: room.id,
     name: room.name,
     primaryLanguage: room.primaryLanguage,
@@ -70,15 +174,19 @@ export function getRoomSummaries(): RoomSummary[] {
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
     capacity: room.capacity,
+    canJoin: realUserCount < room.capacity,
+    suggestedGuestNumber: realUserCount + 1,
     topic: room.topic,
     youtubeVideo: getYouTubeVideoSnapshot(room),
     participants: room.users.map(({ nickname, avatar, role }) => ({ nickname, avatar, role }))
-  }));
+    });
+  });
 }
 
 export function getRoomSummary(roomId: string): RoomSummary | undefined {
   const room = rooms.get(roomId);
   if (!room) return undefined;
+  const realUserCount = room.users.filter((user) => !user.isVirtual).length;
 
   return {
     id: room.id,
@@ -88,6 +196,8 @@ export function getRoomSummary(roomId: string): RoomSummary | undefined {
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
     capacity: room.capacity,
+    canJoin: realUserCount < room.capacity,
+    suggestedGuestNumber: realUserCount + 1,
     topic: room.topic,
     youtubeVideo: getYouTubeVideoSnapshot(room),
     participants: room.users.map(({ nickname, avatar, role }) => ({ nickname, avatar, role }))
@@ -113,8 +223,11 @@ export function createRoom(
     capacity,
     topic: null,
     youtubeVideo: null,
+    virtualTopicBackup: null,
+    virtualTopicActive: false,
     users: [],
     messages: [],
+    virtualMessageIds: new Set(),
     blockedUserIds: new Set(),
     blockedIpHashes: new Map()
   };
@@ -128,6 +241,8 @@ export function createRoom(
     secondaryLanguage: room.secondaryLanguage,
     users: 0,
     capacity: room.capacity,
+    canJoin: true,
+    suggestedGuestNumber: 1,
     topic: room.topic,
     youtubeVideo: getYouTubeVideoSnapshot(room),
     participants: []
@@ -204,6 +319,7 @@ export function updateRoomLanguages(
 ): RoomSummary | undefined {
   const room = rooms.get(roomId);
   if (!room) return undefined;
+  const realUserCount = room.users.filter((user) => !user.isVirtual).length;
 
   room.primaryLanguage = primaryLanguage;
   room.primaryLanguageLevel = primaryLanguageLevel;
@@ -216,6 +332,8 @@ export function updateRoomLanguages(
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
     capacity: room.capacity,
+    canJoin: realUserCount < room.capacity,
+    suggestedGuestNumber: realUserCount + 1,
     topic: room.topic,
     youtubeVideo: getYouTubeVideoSnapshot(room),
     participants: room.users.map(({ nickname, avatar, role }) => ({ nickname, avatar, role }))
@@ -254,12 +372,45 @@ export function addRoomMessage(message: ChatMessage): ChatMessage | undefined {
   return message;
 }
 
+export function getVirtualChatRoom(roomId: string) {
+  const room = rooms.get(roomId);
+  if (!room || room.users.some((user) => !user.isVirtual)) return null;
+  const virtualUsers = room.users.filter((user) => user.isVirtual);
+  if (virtualUsers.length < 2) return null;
+  return { roomId: room.id, primaryLanguage: room.primaryLanguage, users: virtualUsers };
+}
+
+export function getVirtualChatRoomIds() {
+  return [...rooms.values()]
+    .filter((room) => room.users.length >= 2 && room.users.every((user) => user.isVirtual))
+    .map((room) => room.id);
+}
+
+export function addVirtualRoomMessage(message: ChatMessage): ChatMessage | undefined {
+  const room = rooms.get(message.roomId);
+  const senderIsActive = room?.users.some((user) => user.isVirtual && user.socketId === message.socketId);
+  if (!room || !senderIsActive || room.users.some((user) => !user.isVirtual)) return undefined;
+
+  room.messages.push(message);
+  room.virtualMessageIds.add(message.id);
+  while (room.virtualMessageIds.size > 60) {
+    const oldestId = room.virtualMessageIds.values().next().value as string | undefined;
+    if (!oldestId) break;
+    room.virtualMessageIds.delete(oldestId);
+    const messageIndex = room.messages.findIndex((item) => item.id === oldestId);
+    if (messageIndex >= 0) room.messages.splice(messageIndex, 1);
+  }
+  return message;
+}
+
 export function addUserToRoom(roomId: string, user: RoomUser): { ok: true; users: RoomUser[] } | { ok: false; reason: string } {
   const room = rooms.get(roomId);
 
   if (!room) {
     return { ok: false, reason: "Room does not exist." };
   }
+
+  if (!user.isVirtual) deactivateVirtualRoom(room);
 
   if (room.users.length >= room.capacity) {
     return { ok: false, reason: "Room is full." };

@@ -1,5 +1,5 @@
 import type { ChatMessage, RoomSummary, RoomTopic, RoomUser, RoomYouTubeVideo } from "../types/socket.js";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import type { RoomLanguage, RoomLanguageLevel } from "./roomLanguages.js";
 
 const ROOM_CAPACITY = 4;
@@ -64,7 +64,8 @@ const virtualRoomTopics = [
   "No active conversation — use this room for quiet learning and reflection."
 ] as const;
 
-const virtualNames = ["Alex", "Mia", "Sam", "Emma", "Leo", "Lina", "Noah", "Sofia", "Kai", "Anna", "Min", "Hana"] as const;
+const virtualFirstNames = ["Alex", "Mia", "Sam", "Emma", "Leo", "Lina", "Noah", "Sofia", "Kai", "Anna", "Min", "Hana"] as const;
+const virtualLastNames = ["Morgan", "Lee", "Taylor", "Kim", "Martin", "Chen", "Brown", "Garcia", "Wilson", "Nguyen", "Park", "Davis"] as const;
 const virtualAvatars = ["🐣", "🐼", "🐰", "🦊", "🐨", "🐥", "🐧", "🐸", "🦄", "🐙", "🐢", "🐹"] as const;
 
 function shuffle<T>(items: T[]) {
@@ -98,23 +99,44 @@ function activateVirtualTopic(room: Room, index: number) {
   room.virtualTopicActive = true;
 }
 
-export function removeVirtualUsersFromRoom(roomId: string) {
+function restoreVirtualTopicWhenEmpty(room: Room) {
+  if (room.users.some((user) => user.isVirtual) || !room.virtualTopicActive) return false;
+  room.topic = room.virtualTopicBackup;
+  room.virtualTopicBackup = null;
+  room.virtualTopicActive = false;
+  return true;
+}
+
+export function prepareVirtualUsersForRealJoin(roomId: string) {
   const room = rooms.get(roomId);
-  return room ? deactivateVirtualRoom(room) : false;
+  if (!room) return { removed: [] as RoomUser[], topicRestored: false };
+  const realUserCount = room.users.filter((user) => !user.isVirtual).length;
+  const virtualUsers = room.users.filter((user) => user.isVirtual);
+  const availableVirtualSlots = Math.max(0, room.capacity - realUserCount - 1);
+  const removeCount = Math.max(0, virtualUsers.length - availableVirtualSlots);
+  const removed = shuffle([...virtualUsers]).slice(0, removeCount);
+  const removedIds = new Set(removed.map((user) => user.socketId));
+  room.users = room.users.filter((user) => !removedIds.has(user.socketId));
+  return { removed, topicRestored: restoreVirtualTopicWhenEmpty(room) };
+}
+
+export function removeVirtualUserFromRoom(roomId: string, socketId: string) {
+  const room = rooms.get(roomId);
+  if (!room || !room.users.some((user) => !user.isVirtual)) return null;
+  const userIndex = room.users.findIndex((user) => user.isVirtual && user.socketId === socketId);
+  if (userIndex < 0) return null;
+  const [user] = room.users.splice(userIndex, 1);
+  return { user: user!, topicRestored: restoreVirtualTopicWhenEmpty(room) };
 }
 
 export function applyVirtualUserDistribution(settings: { enabled: boolean; virtualUserCount: number; targetRoomCount: number }) {
   const systemRooms = [...rooms.values()].filter((room) => room.source === "system");
   if (!settings.enabled) {
-    systemRooms.forEach(deactivateVirtualRoom);
+    systemRooms.filter((room) => room.users.every((user) => user.isVirtual)).forEach(deactivateVirtualRoom);
     return;
   }
 
-  systemRooms.forEach((room) => {
-    if (room.users.some((user) => !user.isVirtual)) deactivateVirtualRoom(room);
-  });
-
-  const eligibleRooms = systemRooms.filter((room) => room.users.every((user) => user.isVirtual));
+  const eligibleRooms = systemRooms.filter((room) => !room.users.some((user) => !user.isVirtual));
   const desiredRoomCount = Math.min(settings.targetRoomCount, settings.virtualUserCount, eligibleRooms.length);
   const activeRooms = eligibleRooms.filter((room) => room.virtualTopicActive);
   const selectedRooms = activeRooms.slice(0, desiredRoomCount);
@@ -123,7 +145,9 @@ export function applyVirtualUserDistribution(settings: { enabled: boolean; virtu
     selectedRooms.push(...candidates.slice(0, desiredRoomCount - selectedRooms.length));
   }
   const selectedIds = new Set(selectedRooms.map((room) => room.id));
-  systemRooms.filter((room) => room.virtualTopicActive && !selectedIds.has(room.id)).forEach(deactivateVirtualRoom);
+  systemRooms
+    .filter((room) => room.virtualTopicActive && !selectedIds.has(room.id) && room.users.every((user) => user.isVirtual))
+    .forEach(deactivateVirtualRoom);
 
   selectedRooms.forEach((room, index) => {
     room.users = room.users.filter((user) => !user.isVirtual);
@@ -137,8 +161,8 @@ export function applyVirtualUserDistribution(settings: { enabled: boolean; virtu
     for (let userIndex = 0; userIndex < count; userIndex += 1) {
       const sequence = settings.virtualUserCount - remainingUsers + userIndex;
       room.users.push({
-        socketId: `virtual-${randomUUID()}`,
-        nickname: `${virtualNames[sequence % virtualNames.length]} ${sequence + 1}`,
+        socketId: randomBytes(15).toString("base64url"),
+        nickname: `${virtualFirstNames[sequence % virtualFirstNames.length]} ${virtualLastNames[Math.floor(sequence / virtualFirstNames.length) % virtualLastNames.length]}`,
         avatar: virtualAvatars[sequence % virtualAvatars.length]!,
         role: "unverified",
         micEnabled: false,
@@ -257,7 +281,7 @@ export function canManageRoomLanguages(roomId: string, socketId: string, userId:
     return Boolean(userId && userId === room.creatorUserId);
   }
 
-  return room.users[0]?.socketId === socketId;
+  return room.users.find((user) => !user.isVirtual)?.socketId === socketId;
 }
 
 export function canBlockUsersInRoom(roomId: string, userId: string | undefined) {
@@ -357,6 +381,10 @@ export function getRoomUsers(roomId: string): RoomUser[] {
   return rooms.get(roomId)?.users ?? [];
 }
 
+export function getPublicRoomUsers(roomId: string) {
+  return getRoomUsers(roomId).map(({ isVirtual: _isVirtual, ...user }) => user);
+}
+
 export function getRoomMessages(roomId: string): ChatMessage[] {
   return rooms.get(roomId)?.messages ?? [];
 }
@@ -410,9 +438,8 @@ export function addUserToRoom(roomId: string, user: RoomUser): { ok: true; users
     return { ok: false, reason: "Room does not exist." };
   }
 
-  if (!user.isVirtual) deactivateVirtualRoom(room);
-
-  if (room.users.length >= room.capacity) {
+  const realUserCount = room.users.filter((candidate) => !candidate.isVirtual).length;
+  if (!user.isVirtual && realUserCount >= room.capacity) {
     return { ok: false, reason: "Room is full." };
   }
 

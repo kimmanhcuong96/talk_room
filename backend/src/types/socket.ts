@@ -14,6 +14,8 @@ export type RoomUser = {
   isVirtual?: boolean;
 };
 
+export type PublicRoomUser = Omit<RoomUser, "isVirtual">;
+
 export type RoomTopic = {
   description: string;
   background: "slate" | "mint" | "blue" | "coral" | "violet" | "amber";
@@ -90,7 +92,7 @@ export type ClientToServerEvents = {
 
 export type ServerToClientEvents = {
   "room-list": (rooms: RoomSummary[]) => void;
-  "room-users": (users: RoomUser[]) => void;
+  "room-users": (users: PublicRoomUser[]) => void;
   "chat-history": (messages: ChatMessage[]) => void;
   "room-full": () => void;
   "join-error": (message: string) => void;
@@ -112,7 +114,7 @@ export type ServerToClientEvents = {
   "access-blocked": (payload: { scope: "room" | "global"; expiresAt: string | null }) => void;
   "room-removed": (payload: { roomId: string }) => void;
   "camera-denied": () => void;
-  "user-joined": (user: RoomUser) => void;
+  "user-joined": (user: PublicRoomUser) => void;
   "user-left": (payload: { socketId: string }) => void;
   "user-media-status": (payload: { socketId: string; micEnabled: boolean; cameraEnabled: boolean; screenSharing: boolean; screenTrackId: string | null }) => void;
   "screen-share-denied": () => void;

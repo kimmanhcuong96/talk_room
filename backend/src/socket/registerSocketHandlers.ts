@@ -9,13 +9,14 @@ import {
   createRoom,
   deleteUserCreatedRoomIfEmpty,
   getRoomMessages,
+  getPublicRoomUsers,
   getRoomSummary,
   getRoomSummaries,
   getRoomUsers,
   isUserCreatedRoomEmpty,
   isBlockedFromRoom,
+  prepareVirtualUsersForRealJoin,
   removeUser,
-  removeVirtualUsersFromRoom,
   updateRoomLanguages,
   updateRoomTopic,
   updateRoomYouTubeVideo,
@@ -31,7 +32,7 @@ import {
   findActiveGlobalBlock,
   reportReasons
 } from "../moderation/moderationRepository.js";
-import { rebalanceVirtualUsers } from "../virtualUsers/virtualUserService.js";
+import { rebalanceVirtualUsers, scheduleVirtualUserDepartures } from "../virtualUsers/virtualUserService.js";
 
 const avatars = ["🐣", "🐼", "🐰", "🦊", "🐨", "🐥", "🐧", "🐸", "🦄", "🐙", "🐢", "🐹"];
 
@@ -181,7 +182,7 @@ function leaveCurrentRoom(io: AppServer, socket: AppSocket) {
 
   socket.leave(previousRoomId);
   socket.to(previousRoomId).emit("user-left", { socketId: socket.id });
-  socket.to(previousRoomId).emit("room-users", getRoomUsers(previousRoomId));
+  socket.to(previousRoomId).emit("room-users", getPublicRoomUsers(previousRoomId));
   socket.data.roomId = undefined;
   socket.data.nickname = undefined;
   socket.data.avatar = undefined;
@@ -277,7 +278,7 @@ export function registerSocketHandlers(io: AppServer) {
         return;
       }
 
-      let targetRoom = getRoomSummary(roomId);
+      const targetRoom = getRoomSummary(roomId);
       if (!targetRoom) {
         socket.emit("join-error", "Room does not exist.");
         return;
@@ -301,19 +302,10 @@ export function registerSocketHandlers(io: AppServer) {
         return;
       }
 
-      if (removeVirtualUsersFromRoom(roomId)) {
-        emitRoomList(io);
-        targetRoom = getRoomSummary(roomId);
-        if (!targetRoom) {
-          socket.emit("join-error", "Room does not exist.");
-          return;
-        }
-      }
-
       const otherIdentitySockets = getOtherIdentitySockets(io, socket, identityKey);
       const replacementInTargetRoom = otherIdentitySockets.some((candidate) => candidate.data.roomId === roomId);
       const alreadyInTargetRoom = socket.data.roomId === roomId;
-      if (targetRoom.users >= targetRoom.capacity && !replacementInTargetRoom && !alreadyInTargetRoom) {
+      if (!targetRoom.canJoin && !replacementInTargetRoom && !alreadyInTargetRoom) {
         socket.emit("room-full");
         return;
       }
@@ -330,13 +322,25 @@ export function registerSocketHandlers(io: AppServer) {
       }
 
       if (alreadyInTargetRoom) {
-        socket.emit("room-users", getRoomUsers(roomId));
+        socket.emit("room-users", getPublicRoomUsers(roomId));
         socket.emit("chat-history", getRoomMessages(roomId));
         emitRoomLanguagePermissions(io, roomId);
         emitRoomModerationPermissions(io, roomId);
         emitRoomTopicPermissions(io, roomId);
         emitRoomYouTubePermissions(io, roomId);
         return;
+      }
+
+      const preparedRoom = prepareVirtualUsersForRealJoin(roomId);
+      for (const removedUser of preparedRoom.removed) {
+        io.to(roomId).emit("user-left", { socketId: removedUser.socketId });
+      }
+      if (preparedRoom.removed.length > 0) {
+        io.to(roomId).emit("room-users", getPublicRoomUsers(roomId));
+        emitRoomList(io);
+      }
+      if (preparedRoom.topicRestored) {
+        io.to(roomId).emit("room-topic-updated", { roomId, topic: getRoomSummary(roomId)?.topic ?? null });
       }
 
       const result = addUserToRoom(roomId, {
@@ -366,12 +370,12 @@ export function registerSocketHandlers(io: AppServer) {
       socket.join(roomId);
 
       const currentUser = result.users.find((user) => user.socketId === socket.id);
-      socket.emit("room-users", result.users);
+      socket.emit("room-users", getPublicRoomUsers(roomId));
       socket.emit("chat-history", getRoomMessages(roomId));
 
       if (currentUser) {
         socket.to(roomId).emit("user-joined", currentUser);
-        socket.to(roomId).emit("room-users", result.users);
+        socket.to(roomId).emit("room-users", getPublicRoomUsers(roomId));
       }
 
       emitRoomList(io);
@@ -379,7 +383,7 @@ export function registerSocketHandlers(io: AppServer) {
       emitRoomModerationPermissions(io, roomId);
       emitRoomTopicPermissions(io, roomId);
       emitRoomYouTubePermissions(io, roomId);
-      rebalanceVirtualUsers(io);
+      scheduleVirtualUserDepartures(io, roomId);
     });
 
     socket.on("update-room-languages", ({ roomId, primaryLanguage, primaryLanguageLevel, secondaryLanguage }) => {
@@ -673,7 +677,7 @@ export function registerSocketHandlers(io: AppServer) {
           screenSharing: user.screenSharing,
           screenTrackId: user.screenTrackId
         });
-        io.to(roomId).emit("room-users", getRoomUsers(roomId));
+        io.to(roomId).emit("room-users", getPublicRoomUsers(roomId));
       }
     });
 

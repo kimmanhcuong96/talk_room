@@ -1,8 +1,11 @@
-import { randomUUID } from "node:crypto";
 import {
   addVirtualRoomMessage,
   applyVirtualUserDistribution,
+  getRoomSummary,
   getRoomSummaries,
+  getRoomUsers,
+  getPublicRoomUsers,
+  removeVirtualUserFromRoom,
   getVirtualChatRoom,
   getVirtualChatRoomIds
 } from "../rooms/roomStore.js";
@@ -15,6 +18,7 @@ const MAX_CHAT_DELAY_MS = 180_000;
 const chatTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const previousMessages = new Map<string, string>();
 const previousSenders = new Map<string, string>();
+const departureTimers = new Map<string, Set<ReturnType<typeof setTimeout>>>();
 
 let activeSettings: VirtualUserSettings = {
   enabled: false,
@@ -52,7 +56,7 @@ function scheduleNextVirtualMessage(io: AppServer, roomId: string) {
     const sender = senderPool[Math.floor(Math.random() * senderPool.length)]!;
     const text = getRandomVirtualChatMessage(room.primaryLanguage, previousMessages.get(roomId));
     const message = addVirtualRoomMessage({
-      id: `virtual-chat-${randomUUID()}`,
+      id: `${sender.socketId}-${Date.now()}`,
       roomId,
       socketId: sender.socketId,
       nickname: sender.nickname,
@@ -82,15 +86,68 @@ function syncVirtualChatSchedules(io: AppServer) {
   for (const roomId of eligibleRoomIds) scheduleNextVirtualMessage(io, roomId);
 }
 
+function cancelVirtualDepartures(roomId: string) {
+  const timers = departureTimers.get(roomId);
+  if (timers) timers.forEach((timer) => clearTimeout(timer));
+  departureTimers.delete(roomId);
+}
+
+function syncVirtualDepartureSchedules() {
+  for (const roomId of departureTimers.keys()) {
+    const users = getRoomUsers(roomId);
+    const hasRealUser = users.some((user) => !user.isVirtual);
+    const hasVirtualUser = users.some((user) => user.isVirtual);
+    if (!hasRealUser || !hasVirtualUser) cancelVirtualDepartures(roomId);
+  }
+}
+
+export function scheduleVirtualUserDepartures(io: AppServer, roomId: string) {
+  cancelVirtualDepartures(roomId);
+  const users = getRoomUsers(roomId);
+  if (!users.some((user) => !user.isVirtual)) return;
+  const virtualUsers = users.filter((user) => user.isVirtual);
+  if (virtualUsers.length === 0) return;
+
+  const timers = new Set<ReturnType<typeof setTimeout>>();
+  departureTimers.set(roomId, timers);
+  const segmentDuration = 30_000 / virtualUsers.length;
+
+  virtualUsers.forEach((user, index) => {
+    const delay = Math.max(1_000, Math.floor(index * segmentDuration + Math.random() * segmentDuration));
+    const timer = setTimeout(() => {
+      timers.delete(timer);
+      if (timers.size === 0) departureTimers.delete(roomId);
+
+      const result = removeVirtualUserFromRoom(roomId, user.socketId);
+      if (!result) return;
+      io.to(roomId).emit("user-left", { socketId: user.socketId });
+      io.to(roomId).emit("room-users", getPublicRoomUsers(roomId));
+      const summary = getRoomSummary(roomId);
+      if (result.topicRestored && summary) {
+        io.to(roomId).emit("room-topic-updated", { roomId, topic: summary.topic });
+      }
+      io.emit("room-list", getRoomSummaries());
+
+      if (!getRoomUsers(roomId).some((candidate) => candidate.isVirtual)) {
+        rebalanceVirtualUsers(io);
+      }
+    }, delay);
+    timer.unref();
+    timers.add(timer);
+  });
+}
+
 export function applyVirtualUserSettings(io: AppServer, settings: VirtualUserSettings) {
   activeSettings = settings;
   applyVirtualUserDistribution(settings);
+  syncVirtualDepartureSchedules();
   syncVirtualChatSchedules(io);
   io.emit("room-list", getRoomSummaries());
 }
 
 export function rebalanceVirtualUsers(io: AppServer) {
   applyVirtualUserDistribution(activeSettings);
+  syncVirtualDepartureSchedules();
   syncVirtualChatSchedules(io);
   io.emit("room-list", getRoomSummaries());
 }

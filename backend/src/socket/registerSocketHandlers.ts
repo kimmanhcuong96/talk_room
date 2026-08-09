@@ -33,7 +33,7 @@ import {
   reportReasons
 } from "../moderation/moderationRepository.js";
 import { rebalanceVirtualUsers, scheduleVirtualUserDepartures } from "../virtualUsers/virtualUserService.js";
-import { getYouTubeRecommendations } from "../youtube/youtubeRecommendationService.js";
+import { getYouTubeRecommendations, validateYouTubeVideoForEmbed, YouTubeServiceError } from "../youtube/youtubeRecommendationService.js";
 
 const avatars = ["🐣", "🐼", "🐰", "🦊", "🐨", "🐥", "🐧", "🐸", "🦄", "🐙", "🐢", "🐹"];
 
@@ -496,11 +496,11 @@ export function registerSocketHandlers(io: AppServer) {
         respond?.({ ok: true, videos });
       } catch (error) {
         console.error("Unable to load YouTube recommendations", error);
-        respond?.({ ok: false, error: "YOUTUBE_RECOMMENDATIONS_UNAVAILABLE" });
+        respond?.({ ok: false, error: error instanceof YouTubeServiceError ? error.code : "YOUTUBE_RECOMMENDATIONS_UNAVAILABLE" });
       }
     });
 
-    socket.on("share-room-youtube", ({ roomId, url }, respond) => {
+    socket.on("share-room-youtube", async ({ roomId, url }, respond) => {
       if (socket.data.roomId !== roomId || !canManageRoomTopic(roomId, socket.id, socket.data.userId)) {
         socket.emit("room-youtube-error", "ROOM_YOUTUBE_PERMISSION_DENIED");
         respond?.({ ok: false, error: "ROOM_YOUTUBE_PERMISSION_DENIED" });
@@ -511,6 +511,16 @@ export function registerSocketHandlers(io: AppServer) {
         socket.emit("room-youtube-error", "ROOM_YOUTUBE_URL_INVALID");
         respond?.({ ok: false, error: "ROOM_YOUTUBE_URL_INVALID" });
         return;
+      }
+      try {
+        await validateYouTubeVideoForEmbed(videoId);
+      } catch (error) {
+        if (error instanceof YouTubeServiceError && ["ROOM_YOUTUBE_VIDEO_UNAVAILABLE", "ROOM_YOUTUBE_EMBEDDING_DISABLED"].includes(error.code)) {
+          socket.emit("room-youtube-error", error.code);
+          respond?.({ ok: false, error: error.code });
+          return;
+        }
+        console.warn("Unable to validate YouTube video embeddability", error);
       }
       const video: RoomYouTubeVideo = { videoId, playback: "paused", positionSeconds: 0, updatedAt: Date.now() };
       if (updateRoomYouTubeVideo(roomId, video) === undefined) {

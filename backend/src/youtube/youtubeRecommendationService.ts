@@ -14,8 +14,18 @@ type SearchResponse = {
 };
 
 type VideoResponse = {
-  items?: Array<{ snippet?: { title?: string; tags?: string[] } }>;
+  items?: Array<{
+    snippet?: { title?: string; tags?: string[] };
+    status?: { embeddable?: boolean; privacyStatus?: string };
+  }>;
 };
+
+export class YouTubeServiceError extends Error {
+  constructor(readonly code: string) {
+    super(code);
+    this.name = "YouTubeServiceError";
+  }
+}
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const cache = new Map<string, { expiresAt: number; videos: YouTubeRecommendation[] }>();
@@ -25,23 +35,46 @@ const languageLabels: Record<RoomLanguage, string> = {
 };
 
 async function requestYouTube<T>(path: string, parameters: Record<string, string>) {
-  if (!env.youtubeDataApiKey) throw new Error("YOUTUBE_RECOMMENDATIONS_NOT_CONFIGURED");
+  if (!env.youtubeDataApiKey) throw new YouTubeServiceError("YOUTUBE_RECOMMENDATIONS_NOT_CONFIGURED");
   const url = new URL(`https://www.googleapis.com/youtube/v3/${path}`);
-  Object.entries(parameters).forEach(([key, value]) => url.searchParams.set(key, value));
+  Object.entries({ ...parameters, key: env.youtubeDataApiKey }).forEach(([key, value]) => url.searchParams.set(key, value));
   const response = await fetch(url, {
-    headers: { "X-Goog-Api-Key": env.youtubeDataApiKey },
     signal: AbortSignal.timeout(6_000)
   });
-  if (!response.ok) throw new Error("YOUTUBE_RECOMMENDATIONS_UNAVAILABLE");
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    const quotaExceeded = response.status === 403 && /quotaExceeded|dailyLimitExceeded/i.test(body);
+    const configurationError = [400, 403].includes(response.status) && /API_KEY_INVALID|accessNotConfigured|SERVICE_DISABLED|forbidden/i.test(body);
+    throw new YouTubeServiceError(
+      quotaExceeded
+        ? "YOUTUBE_RECOMMENDATIONS_QUOTA_EXCEEDED"
+        : configurationError
+          ? "YOUTUBE_RECOMMENDATIONS_NOT_CONFIGURED"
+          : "YOUTUBE_RECOMMENDATIONS_UNAVAILABLE"
+    );
+  }
   return response.json() as Promise<T>;
 }
 
 async function buildSearchQuery(roomName: string, language: RoomLanguage, currentVideoId: string | null) {
   if (!currentVideoId) return `${roomName} ${languageLabels[language]} language learning conversation`;
-  const metadata = await requestYouTube<VideoResponse>("videos", { part: "snippet", id: currentVideoId });
-  const snippet = metadata.items?.[0]?.snippet;
-  const keywords = [snippet?.title, ...(snippet?.tags?.slice(0, 3) ?? [])].filter(Boolean).join(" ");
-  return keywords || `${roomName} ${languageLabels[language]}`;
+  try {
+    const metadata = await requestYouTube<VideoResponse>("videos", { part: "snippet", id: currentVideoId });
+    const snippet = metadata.items?.[0]?.snippet;
+    const keywords = [snippet?.title, ...(snippet?.tags?.slice(0, 3) ?? [])].filter(Boolean).join(" ");
+    return keywords || `${roomName} ${languageLabels[language]}`;
+  } catch (error) {
+    if (error instanceof YouTubeServiceError && error.code !== "YOUTUBE_RECOMMENDATIONS_UNAVAILABLE") throw error;
+    return `${roomName} ${languageLabels[language]} language learning conversation`;
+  }
+}
+
+export async function validateYouTubeVideoForEmbed(videoId: string) {
+  if (!env.youtubeDataApiKey) return;
+  const result = await requestYouTube<VideoResponse>("videos", { part: "status", id: videoId });
+  const status = result.items?.[0]?.status;
+  if (!status || status.privacyStatus === "private") throw new YouTubeServiceError("ROOM_YOUTUBE_VIDEO_UNAVAILABLE");
+  if (status.embeddable === false) throw new YouTubeServiceError("ROOM_YOUTUBE_EMBEDDING_DISABLED");
 }
 
 export async function getYouTubeRecommendations(input: {

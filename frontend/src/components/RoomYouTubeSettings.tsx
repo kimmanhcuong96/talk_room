@@ -8,7 +8,7 @@ type YouTubeSettingsProps = {
   currentVideo: RoomYouTubeVideo | null;
   recommendations: YouTubeRecommendation[];
   recommendationsLoading: boolean;
-  recommendationsError: boolean;
+  recommendationsError: string | null;
   language: Language;
   error: string | null;
   saving: boolean;
@@ -71,7 +71,9 @@ export function YouTubeSettings({
                 <LoaderCircle size={18} className="animate-spin" />{t("loadingRecommendations")}
               </div>
             ) : recommendationsError ? (
-              <p className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/5 px-4 py-4 text-sm text-amber-100/70">{t("recommendationsUnavailable")}</p>
+              <p className="mt-3 rounded-lg border border-amber-300/20 bg-amber-300/5 px-4 py-4 text-sm text-amber-100/70">
+                {t(recommendationsError === "YOUTUBE_RECOMMENDATIONS_NOT_CONFIGURED" ? "recommendationsNotConfigured" : recommendationsError === "YOUTUBE_RECOMMENDATIONS_QUOTA_EXCEEDED" ? "recommendationsQuotaExceeded" : "recommendationsUnavailable")}
+              </p>
             ) : (
               <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
                 {recommendations.map((video) => {

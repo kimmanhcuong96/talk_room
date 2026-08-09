@@ -36,6 +36,14 @@ type RoomPageProps = {
   onLeave: () => void;
 };
 
+function getYouTubeErrorMessage(language: Language, error: string) {
+  if (error === "ROOM_YOUTUBE_PERMISSION_DENIED") return youtubeTranslate(language, "denied");
+  if (error === "ROOM_YOUTUBE_URL_INVALID") return youtubeTranslate(language, "invalid");
+  if (error === "ROOM_YOUTUBE_EMBEDDING_DISABLED") return youtubeTranslate(language, "embeddingDisabled");
+  if (error === "ROOM_YOUTUBE_VIDEO_UNAVAILABLE") return youtubeTranslate(language, "videoUnavailable");
+  return youtubeTranslate(language, "failed");
+}
+
 export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, connectionError, language, role, onLeave }: RoomPageProps) {
   const [chatOpen, setChatOpen] = useState(false);
   const [roomConnectionError, setRoomConnectionError] = useState<string | null>(null);
@@ -61,7 +69,7 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
   const [youtubeOnStage, setYoutubeOnStage] = useState(() => Boolean(room.youtubeVideo));
   const [youtubeRecommendations, setYoutubeRecommendations] = useState<YouTubeRecommendation[]>([]);
   const [youtubeRecommendationsLoading, setYoutubeRecommendationsLoading] = useState(false);
-  const [youtubeRecommendationsError, setYoutubeRecommendationsError] = useState(false);
+  const [youtubeRecommendationsError, setYoutubeRecommendationsError] = useState<string | null>(null);
   const canEditYoutube = canManageYoutube || canManageLanguages;
   const canUseCamera = hasPermission(role, "use_camera");
   const { stream, error, micEnabled, cameraEnabled, hasMicrophone, hasCamera, toggleMic, toggleCamera } = useLocalMedia(canUseCamera);
@@ -168,7 +176,7 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
     };
     const handleError = (message: string) => {
       setYoutubeSaving(false);
-      setYoutubeSettingsError(youtubeTranslate(language, message === "ROOM_YOUTUBE_PERMISSION_DENIED" ? "denied" : message === "ROOM_YOUTUBE_URL_INVALID" ? "invalid" : "failed"));
+      setYoutubeSettingsError(getYouTubeErrorMessage(language, message));
     };
     socket.on("room-youtube-permission", handlePermission);
     socket.on("room-youtube-updated", handleUpdated);
@@ -198,7 +206,7 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
   const openYoutubeSettings = useCallback(() => {
     setYoutubeSettingsError(null);
     setYoutubeRecommendations([]);
-    setYoutubeRecommendationsError(false);
+    setYoutubeRecommendationsError(null);
     setYoutubeRecommendationsLoading(true);
     setYoutubeSettingsOpen(true);
 
@@ -207,7 +215,7 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
       if (completed) return;
       completed = true;
       setYoutubeRecommendationsLoading(false);
-      setYoutubeRecommendationsError(true);
+      setYoutubeRecommendationsError("YOUTUBE_RECOMMENDATIONS_UNAVAILABLE");
     }, 8_000);
     socket.emit("request-room-youtube-recommendations", { roomId: room.id }, (result) => {
       if (completed) return;
@@ -215,11 +223,11 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
       window.clearTimeout(timeoutId);
       setYoutubeRecommendationsLoading(false);
       if (!result.ok) {
-        setYoutubeRecommendationsError(true);
+        setYoutubeRecommendationsError(result.error);
         return;
       }
       setYoutubeRecommendations(result.videos);
-      setYoutubeRecommendationsError(result.videos.length === 0);
+      setYoutubeRecommendationsError(result.videos.length === 0 ? "YOUTUBE_RECOMMENDATIONS_UNAVAILABLE" : null);
     });
   }, [room.id, socket]);
 
@@ -467,7 +475,7 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
               language={language}
               remotePeers={remotePeers}
               stageContent={youtubeOnStage && youtubeVideo
-                ? <YouTubeVideoStage video={youtubeVideo} canManage={canEditYoutube} language={language} onClose={() => setYoutubeOnStage(false)} onOwnerPlayback={handleOwnerYouTubePlayback} onViewerPlayback={handleViewerYouTubePlayback}/>
+                ? <YouTubeVideoStage key={youtubeVideo.videoId} video={youtubeVideo} canManage={canEditYoutube} language={language} onClose={() => setYoutubeOnStage(false)} onOwnerPlayback={handleOwnerYouTubePlayback} onViewerPlayback={handleViewerYouTubePlayback}/>
                 : currentTopic ? <RoomTopicSlide topic={currentTopic} language={language} fill/> : undefined}
             />
           </div>
@@ -531,7 +539,7 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
           onClose={() => { setYoutubeSettingsOpen(false); setYoutubeSettingsError(null); }}
           onShare={(url) => {
             setYoutubeSettingsError(null); setYoutubeSaving(true);
-            socket.emit("share-room-youtube", { roomId: room.id, url }, (result) => { if (!result.ok) { setYoutubeSaving(false); setYoutubeSettingsError(youtubeTranslate(language, result.error === "ROOM_YOUTUBE_PERMISSION_DENIED" ? "denied" : result.error === "ROOM_YOUTUBE_URL_INVALID" ? "invalid" : "failed")); } });
+            socket.emit("share-room-youtube", { roomId: room.id, url }, (result) => { if (!result.ok) { setYoutubeSaving(false); setYoutubeSettingsError(getYouTubeErrorMessage(language, result.error)); } });
           }}
           onRemove={() => {
             setYoutubeSettingsError(null); setYoutubeSaving(true);

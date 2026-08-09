@@ -1,4 +1,4 @@
-import { Pause, Play, Trash2, X, Youtube } from "lucide-react";
+import { ExternalLink, Pause, Play, Trash2, X, Youtube } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { Language } from "../lib/i18n";
 import { youtubeTranslate } from "../lib/youtubeI18n";
@@ -50,6 +50,7 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
   const applyingRoomStateUntil = useRef(0);
   const [ready, setReady] = useState(false);
   const [locallyPaused, setLocallyPaused] = useState(video.playback !== "playing");
+  const [playerError, setPlayerError] = useState<number | null>(null);
   const t = (key: Parameters<typeof youtubeTranslate>[1]) => youtubeTranslate(language, key);
   videoRef.current = video;
   onOwnerPlaybackRef.current = onOwnerPlayback;
@@ -65,9 +66,10 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
         videoId: video.videoId,
         width: "100%",
         height: "100%",
-        playerVars: { enablejsapi: 1, origin: window.location.origin, playsinline: 1, rel: 0, controls: canManage ? 1 : 0, disablekb: canManage ? 0 : 1 },
+        playerVars: { enablejsapi: 1, origin: window.location.origin, widget_referrer: window.location.href, hl: language, playsinline: 1, rel: 0, controls: canManage ? 1 : 0, disablekb: canManage ? 0 : 1 },
         events: {
           onReady: (event: { target: YouTubePlayer }) => {
+            setPlayerError(null);
             suppressEventsUntil.current = Date.now() + 1200;
             event.target.seekTo(effectivePosition(videoRef.current), true);
             if (videoRef.current.playback === "playing") event.target.playVideo(); else event.target.pauseVideo();
@@ -82,6 +84,10 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
               onViewerPlaybackRef.current(playback);
             }
             if (canManage && Date.now() >= suppressEventsUntil.current) onOwnerPlaybackRef.current(playback, event.target.getCurrentTime());
+          },
+          onError: (event: { data: number }) => {
+            console.warn(`[YouTube Player] video=${video.videoId} error=${event.data}`);
+            setPlayerError(event.data);
           }
         }
       });
@@ -127,7 +133,8 @@ export function YouTubeVideoStage({ video, canManage, language, onClose, onOwner
 
   return <section className="relative h-full min-h-[200px] w-full overflow-hidden rounded-lg border border-white/10 bg-black shadow-2xl shadow-black/30">
     <div ref={hostRef} className="h-full w-full"/>
-    <button type="button" onClick={onClose} title={t("hide")} aria-label={t("hide")} className="absolute right-2 top-2 z-10 grid h-9 w-9 place-items-center rounded-full bg-black/75 text-white shadow-lg hover:bg-black"><X size={18}/></button>
+    {playerError !== null ? <div className="absolute inset-0 z-20 grid place-items-center bg-black/90 px-5 text-center"><div><p className="text-sm font-medium text-white/80">{t(playerError === 101 || playerError === 150 ? "embeddingDisabled" : playerError === 2 || playerError === 100 ? "videoUnavailable" : "playerFailed")}</p><a href={`https://www.youtube.com/watch?v=${video.videoId}`} target="_blank" rel="noopener" className="mt-4 inline-flex h-10 items-center gap-2 rounded-md bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-500">{t("openYouTube")}<ExternalLink size={15}/></a></div></div> : null}
+    <button type="button" onClick={onClose} title={t("hide")} aria-label={t("hide")} className="absolute right-2 top-2 z-30 grid h-9 w-9 place-items-center rounded-full bg-black/75 text-white shadow-lg hover:bg-black"><X size={18}/></button>
     {!canManage ? <div className="absolute inset-x-0 bottom-0 z-10 flex items-center justify-between gap-3 bg-black/75 px-3 py-2 backdrop-blur"><button type="button" onClick={toggleViewerPlayback} className="inline-flex h-9 items-center gap-2 rounded-md bg-white/10 px-3 text-sm font-semibold text-white hover:bg-white/20">{locallyPaused ? <Play size={16}/> : <Pause size={16}/>} {locallyPaused ? t("resume") : t("pause")}</button><span className="hidden text-xs text-white/45 sm:inline">{t("ownerControls")}</span></div> : null}
   </section>;
 }

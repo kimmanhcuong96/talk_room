@@ -33,6 +33,12 @@ type Room = {
   secondaryLanguage: RoomLanguage | null;
   creatorUserId: string | null;
   source: "system" | "user";
+  defaults: {
+    primaryLanguage: RoomLanguage;
+    primaryLanguageLevel: RoomLanguageLevel;
+    secondaryLanguage: RoomLanguage | null;
+    topic: RoomTopic | null;
+  };
   capacity: number;
   topic: RoomTopic | null;
   youtubeVideo: RoomYouTubeVideo | null;
@@ -49,7 +55,7 @@ const rooms = new Map<string, Room>(
   roomNames.map((name, index) => {
     const id = `room-${index + 1}`;
     const primaryLanguageLevel: RoomLanguageLevel = index === 0 ? "a1" : index === 1 ? "b1" : "any";
-    return [id, { id, name, primaryLanguage: "en", primaryLanguageLevel, secondaryLanguage: null, creatorUserId: null, source: "system", capacity: ROOM_CAPACITY, topic: null, youtubeVideo: null, virtualTopicBackup: null, virtualTopicActive: false, users: [], messages: [], virtualMessageIds: new Set(), blockedUserIds: new Set(), blockedIpHashes: new Map() }];
+    return [id, { id, name, primaryLanguage: "en", primaryLanguageLevel, secondaryLanguage: null, creatorUserId: null, source: "system", defaults: { primaryLanguage: "en", primaryLanguageLevel, secondaryLanguage: null, topic: null }, capacity: ROOM_CAPACITY, topic: null, youtubeVideo: null, virtualTopicBackup: null, virtualTopicActive: false, users: [], messages: [], virtualMessageIds: new Set(), blockedUserIds: new Set(), blockedIpHashes: new Map() }];
   })
 );
 
@@ -244,6 +250,7 @@ export function createRoom(
     secondaryLanguage,
     creatorUserId,
     source: "user",
+    defaults: { primaryLanguage, primaryLanguageLevel, secondaryLanguage, topic: null },
     capacity,
     topic: null,
     youtubeVideo: null,
@@ -305,6 +312,23 @@ export function updateRoomYouTubeVideo(roomId: string, video: RoomYouTubeVideo |
   if (!room) return undefined;
   room.youtubeVideo = video;
   return video;
+}
+
+export function resetRoomSessionIfEmpty(roomId: string) {
+  const room = rooms.get(roomId);
+  if (!room || room.users.some((user) => !user.isVirtual)) return false;
+
+  room.primaryLanguage = room.defaults.primaryLanguage;
+  room.primaryLanguageLevel = room.defaults.primaryLanguageLevel;
+  room.secondaryLanguage = room.defaults.secondaryLanguage;
+  room.topic = room.defaults.topic;
+  room.youtubeVideo = null;
+  room.messages = [];
+  room.virtualMessageIds.clear();
+  room.users = [];
+  room.virtualTopicBackup = null;
+  room.virtualTopicActive = false;
+  return true;
 }
 
 export function blockUserFromRoom(roomId: string, targetUserId: string | undefined, targetIpHash: string) {

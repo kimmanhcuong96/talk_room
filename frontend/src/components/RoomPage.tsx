@@ -1,4 +1,4 @@
-import { Home, Languages, MessageSquare, Palette, ShieldAlert, Youtube } from "lucide-react";
+import { AlertTriangle, Home, Languages, MessageSquare, Palette, ShieldAlert, X, Youtube } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useChat } from "../hooks/useChat";
 import { useLocalMedia } from "../hooks/useLocalMedia";
@@ -48,6 +48,7 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
   const [chatOpen, setChatOpen] = useState(false);
   const [roomConnectionError, setRoomConnectionError] = useState<string | null>(null);
   const [mediaNotice, setMediaNotice] = useState<string | null>(null);
+  const [mediaDeviceToast, setMediaDeviceToast] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
   const [screenShareBlocked, setScreenShareBlocked] = useState(false);
   const [canManageLanguages, setCanManageLanguages] = useState(false);
@@ -72,7 +73,7 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
   const [youtubeRecommendationsError, setYoutubeRecommendationsError] = useState<string | null>(null);
   const canEditYoutube = canManageYoutube || canManageLanguages;
   const canUseCamera = hasPermission(role, "use_camera");
-  const { stream, error, micEnabled, cameraEnabled, hasMicrophone, hasCamera, toggleMic, toggleCamera } = useLocalMedia(canUseCamera);
+  const { stream, error: localMediaError, micEnabled, cameraEnabled, hasMicrophone, hasCamera, toggleMic, toggleCamera } = useLocalMedia(canUseCamera);
   const {
     stream: screenStream,
     errorKey: screenShareErrorKey,
@@ -371,6 +372,13 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
   }, [successNotice]);
 
   useEffect(() => {
+    if (!localMediaError) return;
+    setMediaDeviceToast(localMediaError.message);
+    const timeoutId = window.setTimeout(() => setMediaDeviceToast(null), 30_000);
+    return () => window.clearTimeout(timeoutId);
+  }, [localMediaError]);
+
+  useEffect(() => {
     if (!isConnected) {
       setRoomConnectionError(connectionError ?? t("roomConnectionLost"));
       return;
@@ -462,9 +470,9 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
         </header>
 
         <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-4">
-          {error || mediaNotice || successNotice ? (
-            <div className={`absolute inset-x-2 top-2 z-20 rounded-md border px-3 py-2 text-xs shadow-lg shadow-black/20 backdrop-blur sm:inset-x-4 sm:top-4 sm:text-sm ${error || mediaNotice ? "border-coral/40 bg-coral/20 text-coral" : "border-mint/40 bg-mint/20 text-mint"}`}>
-              {error ?? mediaNotice ?? successNotice}
+          {mediaNotice || successNotice ? (
+            <div className={`absolute inset-x-2 top-2 z-20 rounded-md border px-3 py-2 text-xs shadow-lg shadow-black/20 backdrop-blur sm:inset-x-4 sm:top-4 sm:text-sm ${mediaNotice ? "border-coral/40 bg-coral/20 text-coral" : "border-mint/40 bg-mint/20 text-mint"}`}>
+              {mediaNotice ?? successNotice}
             </div>
           ) : null}
           <div className="min-h-0 flex-1">
@@ -494,6 +502,16 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
           onLeave={onLeave}
         />
       </section>
+
+      {mediaDeviceToast ? (
+        <div role="alert" aria-live="polite" className="fixed right-3 top-16 z-50 flex w-[calc(100%-1.5rem)] max-w-sm items-start gap-3 rounded-lg border border-amber-300/30 bg-[#201a0d]/95 px-4 py-3 text-sm text-amber-100 shadow-2xl shadow-black/40 backdrop-blur sm:right-5 sm:top-20">
+          <AlertTriangle className="mt-0.5 shrink-0 text-amber-300" size={18}/>
+          <p className="min-w-0 flex-1 leading-5">{mediaDeviceToast}</p>
+          <button type="button" onClick={() => setMediaDeviceToast(null)} aria-label="Close" className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-amber-100/60 hover:bg-white/10 hover:text-amber-100">
+            <X size={16}/>
+          </button>
+        </div>
+      ) : null}
 
       <ChatPanel messages={messages} currentSocketId={socket.id} open={chatOpen} language={language} onClose={() => setChatOpen(false)} onSend={sendMessage} />
 

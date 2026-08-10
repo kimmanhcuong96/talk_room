@@ -17,6 +17,7 @@ import {
   isBlockedFromRoom,
   prepareVirtualUsersForRealJoin,
   removeUser,
+  resetRoomSessionIfEmpty,
   updateRoomLanguages,
   updateRoomTopic,
   updateRoomYouTubeVideo,
@@ -182,6 +183,7 @@ function leaveCurrentRoom(io: AppServer, socket: AppSocket) {
   }
 
   socket.leave(previousRoomId);
+  resetRoomSessionIfEmpty(previousRoomId);
   socket.to(previousRoomId).emit("user-left", { socketId: socket.id });
   socket.to(previousRoomId).emit("room-users", getPublicRoomUsers(previousRoomId));
   socket.data.roomId = undefined;
@@ -191,7 +193,6 @@ function leaveCurrentRoom(io: AppServer, socket: AppSocket) {
   socket.data.userId = undefined;
   socket.data.identityKey = undefined;
   clearWebRtcTransportLogs(socket.id);
-  emitRoomList(io);
   emitRoomLanguagePermissions(io, previousRoomId);
   emitRoomModerationPermissions(io, previousRoomId);
   emitRoomTopicPermissions(io, previousRoomId);

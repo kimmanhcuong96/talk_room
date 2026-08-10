@@ -61,7 +61,7 @@ async function requestLocalStream(allowCamera: boolean) {
 
 export function useLocalMedia(allowCamera = true) {
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string } | null>(null);
   const [micEnabled, setMicEnabled] = useState(false);
   const [cameraEnabled, setCameraEnabled] = useState(false);
   const [hasMicrophone, setHasMicrophone] = useState(false);
@@ -71,7 +71,7 @@ export function useLocalMedia(allowCamera = true) {
     setMicEnabled(false);
     setHasMicrophone(false);
     if (message) {
-      setError(message);
+      setError({ message });
     }
   }, []);
 
@@ -79,7 +79,7 @@ export function useLocalMedia(allowCamera = true) {
     setCameraEnabled(false);
     setHasCamera(false);
     if (message) {
-      setError(message);
+      setError({ message });
     }
   }, []);
 
@@ -112,11 +112,11 @@ export function useLocalMedia(allowCamera = true) {
         if (isMounted) {
           setHasMicrophone(false);
           setHasCamera(false);
-          setError(
-            hasMediaDeviceApi()
+          setError({
+            message: hasMediaDeviceApi()
               ? "No camera or microphone is available. You can still stay in the room with your avatar."
               : "Camera and microphone need HTTPS or localhost. You can still stay in the room with your avatar."
-          );
+          });
         }
       });
 

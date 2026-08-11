@@ -15,7 +15,6 @@ import {
   getRoomUsers,
   isUserCreatedRoomEmpty,
   isBlockedFromRoom,
-  prepareVirtualUsersForRealJoin,
   removeUser,
   resetRoomSessionIfEmpty,
   updateRoomLanguages,
@@ -33,7 +32,7 @@ import {
   findActiveGlobalBlock,
   reportReasons
 } from "../moderation/moderationRepository.js";
-import { rebalanceVirtualUsers, scheduleVirtualUserDepartures } from "../virtualUsers/virtualUserService.js";
+import { handleHumanChatMessage, reconcileVirtualUserForRoom } from "../virtualUsers/virtualUserService.js";
 import { getYouTubeRecommendations, validateYouTubeVideoForEmbed, YouTubeServiceError } from "../youtube/youtubeRecommendationService.js";
 
 const avatars = ["🐣", "🐼", "🐰", "🦊", "🐨", "🐥", "🐧", "🐸", "🦄", "🐙", "🐢", "🐹"];
@@ -71,6 +70,7 @@ function scheduleEmptyRoomDeletion(io: AppServer, roomId: string) {
 
 function emitRoomLanguagePermissions(io: AppServer, roomId: string) {
   for (const user of getRoomUsers(roomId)) {
+    if (user.senderType === "virtual_user") continue;
     const connectedSocket = io.sockets.sockets.get(user.socketId);
     io.to(user.socketId).emit("room-language-permission", {
       roomId,
@@ -81,6 +81,7 @@ function emitRoomLanguagePermissions(io: AppServer, roomId: string) {
 
 function emitRoomModerationPermissions(io: AppServer, roomId: string) {
   for (const user of getRoomUsers(roomId)) {
+    if (user.senderType === "virtual_user") continue;
     const connectedSocket = io.sockets.sockets.get(user.socketId);
     io.to(user.socketId).emit("room-moderation-permission", {
       roomId,
@@ -91,6 +92,7 @@ function emitRoomModerationPermissions(io: AppServer, roomId: string) {
 
 function emitRoomTopicPermissions(io: AppServer, roomId: string) {
   for (const user of getRoomUsers(roomId)) {
+    if (user.senderType === "virtual_user") continue;
     const connectedSocket = io.sockets.sockets.get(user.socketId);
     io.to(user.socketId).emit("room-topic-permission", {
       roomId,
@@ -101,6 +103,7 @@ function emitRoomTopicPermissions(io: AppServer, roomId: string) {
 
 function emitRoomYouTubePermissions(io: AppServer, roomId: string) {
   for (const user of getRoomUsers(roomId)) {
+    if (user.senderType === "virtual_user") continue;
     const connectedSocket = io.sockets.sockets.get(user.socketId);
     io.to(user.socketId).emit("room-youtube-permission", {
       roomId,
@@ -198,7 +201,8 @@ function leaveCurrentRoom(io: AppServer, socket: AppSocket) {
   emitRoomTopicPermissions(io, previousRoomId);
   emitRoomYouTubePermissions(io, previousRoomId);
   scheduleEmptyRoomDeletion(io, previousRoomId);
-  rebalanceVirtualUsers(io);
+  reconcileVirtualUserForRoom(io, previousRoomId);
+  emitRoomList(io);
 }
 
 export function evictGloballyBlockedUsers(
@@ -333,18 +337,6 @@ export function registerSocketHandlers(io: AppServer) {
         return;
       }
 
-      const preparedRoom = prepareVirtualUsersForRealJoin(roomId);
-      for (const removedUser of preparedRoom.removed) {
-        io.to(roomId).emit("user-left", { socketId: removedUser.socketId });
-      }
-      if (preparedRoom.removed.length > 0) {
-        io.to(roomId).emit("room-users", getPublicRoomUsers(roomId));
-        emitRoomList(io);
-      }
-      if (preparedRoom.topicRestored) {
-        io.to(roomId).emit("room-topic-updated", { roomId, topic: getRoomSummary(roomId)?.topic ?? null });
-      }
-
       const result = addUserToRoom(roomId, {
         socketId: socket.id,
         nickname: cleanNickname,
@@ -353,7 +345,8 @@ export function registerSocketHandlers(io: AppServer) {
         micEnabled: false,
         cameraEnabled: false,
         screenSharing: false,
-        screenTrackId: null
+        screenTrackId: null,
+        senderType: "human"
       });
 
       if (!result.ok) {
@@ -368,6 +361,7 @@ export function registerSocketHandlers(io: AppServer) {
       socket.data.role = role;
       socket.data.userId = authenticatedUser?.id;
       socket.data.identityKey = identityKey;
+      reconcileVirtualUserForRoom(io, roomId);
       cancelEmptyRoomDeletion(roomId);
       socket.join(roomId);
 
@@ -385,7 +379,6 @@ export function registerSocketHandlers(io: AppServer) {
       emitRoomModerationPermissions(io, roomId);
       emitRoomTopicPermissions(io, roomId);
       emitRoomYouTubePermissions(io, roomId);
-      scheduleVirtualUserDepartures(io, roomId);
     });
 
     socket.on("update-room-languages", ({ roomId, primaryLanguage, primaryLanguageLevel, secondaryLanguage }) => {
@@ -675,11 +668,14 @@ export function registerSocketHandlers(io: AppServer) {
         nickname,
         avatar,
         text: cleanText,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        senderId: socket.data.userId ?? socket.id,
+        senderType: "human"
       });
 
       if (message) {
         io.to(roomId).emit("receive-message", message);
+        handleHumanChatMessage(io, message);
       }
     });
 
@@ -717,14 +713,20 @@ export function registerSocketHandlers(io: AppServer) {
     });
 
     socket.on("offer", ({ to, description }) => {
+      const target = io.sockets.sockets.get(to);
+      if (!socket.data.roomId || target?.data.roomId !== socket.data.roomId) return;
       socket.to(to).emit("offer", { from: socket.id, description });
     });
 
     socket.on("answer", ({ to, description }) => {
+      const target = io.sockets.sockets.get(to);
+      if (!socket.data.roomId || target?.data.roomId !== socket.data.roomId) return;
       socket.to(to).emit("answer", { from: socket.id, description });
     });
 
     socket.on("ice-candidate", ({ to, candidate }) => {
+      const target = io.sockets.sockets.get(to);
+      if (!socket.data.roomId || target?.data.roomId !== socket.data.roomId) return;
       socket.to(to).emit("ice-candidate", { from: socket.id, candidate });
     });
 
@@ -733,7 +735,7 @@ export function registerSocketHandlers(io: AppServer) {
       const peerUser = roomId
         ? getRoomUsers(roomId).find((user) => user.socketId === payload?.peerId)
         : undefined;
-      if (!payload || typeof payload.peerId !== "string" || !roomId || !peerUser) {
+      if (!payload || typeof payload.peerId !== "string" || !roomId || !peerUser || peerUser.senderType === "virtual_user") {
         return;
       }
 

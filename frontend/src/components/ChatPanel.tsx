@@ -9,6 +9,7 @@ const quickEmojis = ["😀", "😂", "👍", "❤️", "👏", "🎉", "✋", "�
 
 type ChatPanelProps = {
   messages: ChatMessage[];
+  typingNames: string[];
   currentSocketId: string | undefined;
   open: boolean;
   language: Language;
@@ -16,7 +17,7 @@ type ChatPanelProps = {
   onSend: (text: string) => void;
 };
 
-export function ChatPanel({ messages, currentSocketId, open, language, onClose, onSend }: ChatPanelProps) {
+export function ChatPanel({ messages, typingNames, currentSocketId, open, language, onClose, onSend }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -92,11 +93,12 @@ export function ChatPanel({ messages, currentSocketId, open, language, onClose, 
         {messages.map((message) => {
           const isOwnMessage = message.socketId === currentSocketId;
           return (
-          <div key={message.id} className={`rounded-md border px-3 py-2 transition-colors ${isOwnMessage ? "border-mint/20 bg-mint/10" : "border-transparent bg-white/5"}`}>
+            <div key={message.id} className={`rounded-md border px-3 py-2 transition-colors ${isOwnMessage ? "border-mint/20 bg-mint/10" : "border-transparent bg-white/5"}`}>
             <div className="flex items-center justify-between gap-2 text-xs text-white/45">
               <span className="flex min-w-0 items-center gap-2">
                 <AvatarBadge avatar={message.avatar} size="sm" />
                 <span className="truncate font-medium text-white/70">{message.nickname}</span>
+                {message.senderType === "virtual_user" ? <span className="rounded-full bg-[#258ff4]/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-[#55aaff]">Virtual</span> : null}
               </span>
               <time>{formatTime(message.timestamp)}</time>
             </div>
@@ -104,6 +106,7 @@ export function ChatPanel({ messages, currentSocketId, open, language, onClose, 
           </div>
           );
         })}
+        {typingNames.length ? <p className="px-1 text-xs italic text-white/45">{typingNames.join(", ")} {typingNames.length === 1 ? "is" : "are"} typing…</p> : null}
       </div>
 
       <div className="border-t border-white/10 p-3">

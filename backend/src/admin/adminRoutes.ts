@@ -25,8 +25,8 @@ import {
 } from "../moderation/moderationRepository.js";
 import { evictGloballyBlockedUsers } from "../socket/registerSocketHandlers.js";
 import type { AppServer } from "../types/socket.js";
-import { getVirtualUserSettings, updateVirtualUserSettings } from "../virtualUsers/virtualUserRepository.js";
-import { applyVirtualUserSettings } from "../virtualUsers/virtualUserService.js";
+import { updateVirtualUserProfile } from "../virtualUsers/virtualUserRepository.js";
+import { applyVirtualUserProfile, getVirtualUsersForAdmin } from "../virtualUsers/virtualUserService.js";
 
 const userRoles = new Set<UserRole>(["unverified", "verified", "supporter"]);
 const adminRoles = new Set<AdminRole>(["owner", "admin"]);
@@ -37,6 +37,16 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}
 function requireUuid(value: string) {
   if (!uuidPattern.test(value)) throw new HttpError(400, "Invalid account identifier.");
   return value;
+}
+
+function isValidAvatarUrl(value: string | null) {
+  if (!value) return true;
+  try {
+    const url = new URL(value);
+    return (url.protocol === "https:" || url.protocol === "http:") && value.length <= 2_048;
+  } catch {
+    return false;
+  }
 }
 
 export const adminRouter = Router();
@@ -105,29 +115,45 @@ adminRouter.patch("/users/:id/role", requireAdmin, async (request, response, nex
 
 adminRouter.get("/virtual-users", requireAdmin, async (_request, response, next) => {
   try {
-    const settings = await getVirtualUserSettings();
-    if (!settings) throw new HttpError(500, "Virtual user settings are not initialized.");
-    response.json({ settings });
+    const virtualUsers = getVirtualUsersForAdmin();
+    if (virtualUsers.length !== 15) throw new HttpError(503, "Virtual Users are not initialized. Run all database migrations.");
+    response.json({ virtualUsers });
   } catch (error) {
     next(error);
   }
 });
 
-adminRouter.patch("/virtual-users", requireAdmin, async (request, response, next) => {
+adminRouter.patch("/virtual-users/:id", requireAdmin, async (request, response, next) => {
   try {
+    const name = typeof request.body?.name === "string" ? request.body.name.trim() : "";
+    const avatarInput = request.body?.avatarUrl == null ? "" : String(request.body.avatarUrl).trim();
+    const avatarUrl = avatarInput || null;
+    const englishLevel = typeof request.body?.englishLevel === "string" ? request.body.englishLevel.trim() : "";
+    const personality = typeof request.body?.personality === "string" ? request.body.personality.trim() : "";
+    const interestsAreStrings = Array.isArray(request.body?.interests)
+      && request.body.interests.every((value: unknown) => typeof value === "string");
+    const interests = interestsAreStrings
+      ? request.body.interests.map((value: string) => value.trim()).filter(Boolean)
+      : [];
+    const speakingStyle = typeof request.body?.speakingStyle === "string" ? request.body.speakingStyle.trim() : "";
+    const replyProbability = Number(request.body?.replyProbability);
     const enabled = request.body?.enabled;
-    const virtualUserCount = Number(request.body?.virtualUserCount);
-    const targetRoomCount = Number(request.body?.targetRoomCount);
-    if (typeof enabled !== "boolean"
-      || !Number.isInteger(virtualUserCount) || virtualUserCount < 1 || virtualUserCount > 72
-      || !Number.isInteger(targetRoomCount) || targetRoomCount < 1 || targetRoomCount > 18
-      || virtualUserCount < targetRoomCount || virtualUserCount > targetRoomCount * 4) {
-      throw new HttpError(400, "Virtual users must be distributed between 1 and 18 rooms, with 1 to 4 users per room.");
+    if (!name || name.length > 80 || !isValidAvatarUrl(avatarUrl)
+      || !englishLevel || englishLevel.length > 40 || !personality || personality.length > 1_000
+      || !interestsAreStrings || interests.length > 20 || interests.some((value: string) => value.length > 40)
+      || !speakingStyle || speakingStyle.length > 1_000
+      || !Number.isFinite(replyProbability) || replyProbability < 0 || replyProbability > 1
+      || typeof enabled !== "boolean") {
+      throw new HttpError(400, "Invalid virtual user profile.");
     }
-    const settings = await updateVirtualUserSettings(getRequestAdmin(request).id, { enabled, virtualUserCount, targetRoomCount });
+    const profile = await updateVirtualUserProfile(getRequestAdmin(request).id, request.params.id, {
+      name, avatarUrl, englishLevel, personality, interests, speakingStyle, replyProbability, enabled
+    });
+    if (!profile) throw new HttpError(404, "Virtual user not found.");
     const io = request.app.get("io") as AppServer | undefined;
-    if (io) applyVirtualUserSettings(io, settings);
-    response.json({ settings });
+    if (io) applyVirtualUserProfile(io, profile);
+    const runtime = getVirtualUsersForAdmin().find((item) => item.profile.id === profile.id)?.runtime;
+    response.json({ virtualUser: { profile, runtime } });
   } catch (error) {
     next(error);
   }

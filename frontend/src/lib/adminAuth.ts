@@ -36,12 +36,20 @@ export type ModerationReport = {
   reviewerEmail: string | null; reviewedAt: string | null; createdAt: string;
 };
 
-export type VirtualUserSettings = {
+export type VirtualUserProfile = {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  englishLevel: string;
+  personality: string;
+  interests: string[];
+  speakingStyle: string;
+  replyProbability: number;
   enabled: boolean;
-  virtualUserCount: number;
-  targetRoomCount: number;
   updatedAt: string;
 };
+export type VirtualUserRuntime = { botId: string; status: "AVAILABLE" | "ACTIVE"; roomId?: string };
+export type AdminVirtualUser = { profile: VirtualUserProfile; runtime: VirtualUserRuntime };
 
 export type AdminSession = { token: string; admin: AdminProfile };
 export type RefreshedAdminSession = AdminSession & { applicationToken: string };
@@ -179,16 +187,16 @@ export async function dismissModerationReport(token: string, reportId: string) {
   return parseResponse<{ reportId: string }>(response);
 }
 
-export async function getVirtualUserSettings(token: string) {
+export async function getVirtualUsers(token: string) {
   const response = await fetch(`${apiUrl}/admin/virtual-users`, { headers: authHeaders(token) });
-  return (await parseResponse<{ settings: VirtualUserSettings }>(response)).settings;
+  return (await parseResponse<{ virtualUsers: AdminVirtualUser[] }>(response)).virtualUsers;
 }
 
-export async function saveVirtualUserSettings(token: string, settings: Pick<VirtualUserSettings, "enabled" | "virtualUserCount" | "targetRoomCount">) {
-  const response = await fetch(`${apiUrl}/admin/virtual-users`, {
+export async function saveVirtualUserProfile(token: string, profile: VirtualUserProfile) {
+  const response = await fetch(`${apiUrl}/admin/virtual-users/${profile.id}`, {
     method: "PATCH",
     headers: authHeaders(token, true),
-    body: JSON.stringify(settings)
+    body: JSON.stringify(profile)
   });
-  return (await parseResponse<{ settings: VirtualUserSettings }>(response)).settings;
+  return (await parseResponse<{ virtualUser: AdminVirtualUser }>(response)).virtualUser;
 }

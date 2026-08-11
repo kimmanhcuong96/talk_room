@@ -305,6 +305,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
               nickname: knownUser?.nickname ?? "Guest",
               avatar: knownUser?.avatar ?? "🐣",
               role: knownUser?.role ?? "unverified",
+              senderType: knownUser?.senderType ?? "human",
               micEnabled: knownUser?.micEnabled ?? true,
               cameraEnabled: knownUser?.cameraEnabled ?? true,
               screenSharing: knownUser?.screenSharing ?? false,
@@ -352,7 +353,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
   useEffect(() => {
     setRemotePeers((current) =>
       users
-        .filter((user) => user.socketId !== socket.id)
+        .filter((user) => user.socketId !== socket.id && user.senderType !== "virtual_user")
         .map((user) => {
           const existingPeer = current.find((peer) => peer.socketId === user.socketId);
           return { ...user, stream: existingPeer?.stream ?? null };
@@ -372,6 +373,8 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
         }
         return [...current, user];
       });
+
+      if (user.senderType === "virtual_user") return;
 
       const connection = await ensurePeerConnection(user.socketId);
       if (!connection) {

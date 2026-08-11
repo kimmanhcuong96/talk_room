@@ -1,59 +1,71 @@
 import type { QueryResultRow } from "pg";
 import { writeAudit } from "../admin/adminRepository.js";
 import { getPool } from "../db/pool.js";
+import { VIRTUAL_USER_IDS, type VirtualUserProfile } from "./virtualUserTypes.js";
 
-export type VirtualUserSettings = {
+type ProfileRow = QueryResultRow & {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  english_level: string;
+  personality: string;
+  interests: string[];
+  speaking_style: string;
+  reply_probability: string | number;
   enabled: boolean;
-  virtualUserCount: number;
-  targetRoomCount: number;
-  updatedAt: string;
-};
-
-type SettingsRow = QueryResultRow & {
-  enabled: boolean;
-  virtual_user_count: number;
-  target_room_count: number;
   updated_at: Date;
 };
 
-function toSettings(row: SettingsRow): VirtualUserSettings {
+function toProfile(row: ProfileRow): VirtualUserProfile {
   return {
+    id: row.id,
+    name: row.name,
+    avatarUrl: row.avatar_url,
+    englishLevel: row.english_level,
+    personality: row.personality,
+    interests: row.interests,
+    speakingStyle: row.speaking_style,
+    replyProbability: Number(row.reply_probability),
     enabled: row.enabled,
-    virtualUserCount: row.virtual_user_count,
-    targetRoomCount: row.target_room_count,
     updatedAt: row.updated_at.toISOString()
   };
 }
 
-export async function getVirtualUserSettings() {
-  const result = await getPool().query<SettingsRow>(
-    `SELECT enabled, virtual_user_count, target_room_count, updated_at
-     FROM virtual_user_settings WHERE id = 1`
+export async function listVirtualUserProfiles() {
+  const result = await getPool().query<ProfileRow>(
+    `SELECT id, name, avatar_url, english_level, personality, interests, speaking_style,
+       reply_probability, enabled, updated_at
+     FROM virtual_user_profiles ORDER BY id`
   );
-  return result.rows[0] ? toSettings(result.rows[0]) : null;
+  return result.rows.map(toProfile);
 }
 
-export async function updateVirtualUserSettings(
-  actorAdminId: string,
-  input: Pick<VirtualUserSettings, "enabled" | "virtualUserCount" | "targetRoomCount">
-) {
+export type VirtualUserProfileUpdate = Pick<VirtualUserProfile,
+  "name" | "avatarUrl" | "englishLevel" | "personality" | "interests" | "speakingStyle" | "replyProbability" | "enabled"
+>;
+
+export async function updateVirtualUserProfile(actorAdminId: string, id: string, input: VirtualUserProfileUpdate) {
+  if (!VIRTUAL_USER_IDS.includes(id)) return null;
   const client = await getPool().connect();
   try {
     await client.query("BEGIN");
-    const result = await client.query<SettingsRow>(
-      `INSERT INTO virtual_user_settings (id, enabled, virtual_user_count, target_room_count, updated_by, updated_at)
-       VALUES (1, $1, $2, $3, $4, NOW())
-       ON CONFLICT (id) DO UPDATE SET enabled = EXCLUDED.enabled,
-         virtual_user_count = EXCLUDED.virtual_user_count,
-         target_room_count = EXCLUDED.target_room_count,
-         updated_by = EXCLUDED.updated_by,
-         updated_at = NOW()
-       RETURNING enabled, virtual_user_count, target_room_count, updated_at`,
-      [input.enabled, input.virtualUserCount, input.targetRoomCount, actorAdminId]
+    const result = await client.query<ProfileRow>(
+      `UPDATE virtual_user_profiles SET name = $2, avatar_url = $3, english_level = $4,
+         personality = $5, interests = $6, speaking_style = $7, reply_probability = $8,
+         enabled = $9, updated_by = $10, updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, name, avatar_url, english_level, personality, interests, speaking_style,
+         reply_probability, enabled, updated_at`,
+      [id, input.name, input.avatarUrl, input.englishLevel, input.personality, input.interests,
+        input.speakingStyle, input.replyProbability, input.enabled, actorAdminId]
     );
-    await writeAudit(client, actorAdminId, "virtual_users.settings_updated", {}, input);
+    if (!result.rows[0]) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+    await writeAudit(client, actorAdminId, "virtual_users.profile_updated", {}, { botId: id, ...input });
     await client.query("COMMIT");
-    return toSettings(result.rows[0]!);
+    return toProfile(result.rows[0]);
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

@@ -20,6 +20,8 @@ export const env = {
   adminJwtSecret: process.env.ADMIN_JWT_SECRET?.trim() || required("JWT_SECRET"),
   adminJwtExpiresIn: process.env.ADMIN_JWT_EXPIRES_IN ?? "8h",
   youtubeDataApiKey: process.env.YOUTUBE_DATA_API_KEY?.trim() ?? "",
+  ollamaBaseUrl: process.env.OLLAMA_BASE_URL?.trim() || "http://127.0.0.1:11434",
+  ollamaModel: process.env.OLLAMA_MODEL?.trim() ?? "",
   cloudflareTurnKeyId: process.env.CLOUDFLARE_TURN_KEY_ID?.trim() ?? "",
   cloudflareTurnApiToken: process.env.CLOUDFLARE_TURN_API_TOKEN?.trim() ?? "",
   cloudflareTurnTtlSeconds: Number(process.env.CLOUDFLARE_TURN_TTL_SECONDS ?? 86400),

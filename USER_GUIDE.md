@@ -107,6 +107,10 @@ There are two admin roles:
 
 Admins and owners can open the user management page to search users and update regular user roles: `unverified`, `verified`, or `supporter`.
 
+Admins and owners can open `/admin/virtual-users` to view all 15 fixed chat identities, see whether each bot is available or active, and edit its name, avatar, English level, personality, interests, speaking style, reply probability, and enabled status. Bot IDs cannot be changed, added, or deleted.
+
+An enabled Virtual User may join a room when you are the only human participant. It chats through the normal room chat and leaves as soon as a second human joins. Virtual Users are chat-only and never connect to your microphone, camera, or WebRTC media.
+
 Only owners can open the admin management page. Owners can invite admin users, update admin roles, and suspend admin accounts. The system protects the final active owner from being removed or demoted.
 
 ## 8. Privacy and Contact Pages

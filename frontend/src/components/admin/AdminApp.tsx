@@ -1,4 +1,4 @@
-import { ArrowLeft, ChevronLeft, ChevronRight, Flag, LoaderCircle, LogOut, ShieldCheck, UserCog, Users } from "lucide-react";
+import { ArrowLeft, Bot, ChevronLeft, ChevronRight, Flag, LoaderCircle, LogOut, ShieldCheck, UserCog, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
   clearAdminToken,
@@ -26,7 +26,7 @@ import { isLanguage, type Language } from "../../lib/i18n";
 import { adminPath, getAdminPageFromPath, homePath } from "../../lib/routes";
 import { ReportsPage } from "./ReportsPage";
 import { adminModerationCopy } from "../../lib/adminModerationI18n";
-import { VirtualUsersSettingsPanel } from "./VirtualUsersSettings";
+import { VirtualUsersPage } from "./VirtualUsersSettings";
 
 const LANGUAGE_STORAGE_KEY = "me2talk:language";
 const LEGACY_LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
@@ -93,13 +93,14 @@ function Dashboard({ session, t }: { session: AdminSession; t: Translator }) {
   const moderation = adminModerationCopy(getAdminLanguage());
   const cards = [
     { page: "users" as const, icon: Users, title: t("userManagement"), description: t("userManagementDescription"), allowed: true },
+    { page: "virtual-users" as const, icon: Bot, title: "Virtual Users", description: "Manage the 15 fixed chat bot profiles and view their live room status.", allowed: true },
     { page: "reports" as const, icon: Flag, title: moderation.title, description: moderation.description, allowed: true },
     { page: "admins" as const, icon: UserCog, title: t("adminManagement"), description: t("adminManagementDescription"), allowed: session.admin.role === "owner" }
   ];
   return (
     <div>
       <p className="mb-6 text-white/60">{t("dashboardDescription")}</p>
-      <div className="grid gap-5 md:grid-cols-3">
+      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {cards.map((card) => {
           const Icon = card.icon;
           const content = <><div className="flex items-start justify-between"><span className="grid h-12 w-12 place-items-center rounded-lg bg-[#258ff4]/15 text-[#55aaff]"><Icon size={24} /></span>{!card.allowed ? <span className="rounded-full bg-[#ffd84d]/15 px-3 py-1 text-xs font-semibold text-[#ffd84d]">{t("ownerOnly")}</span> : null}</div><h2 className="mt-5 text-xl font-semibold">{card.title}</h2><p className="mt-2 leading-6 text-white/60">{card.description}</p><span className="mt-6 inline-flex items-center gap-2 font-semibold text-mint">{card.allowed ? t("manage") : t("accessDenied")}</span></>;
@@ -151,7 +152,6 @@ function UsersPage({ session, language, t }: { session: AdminSession; language: 
   return (
     <div className="grid gap-5">
       <a href={adminPath()} className="inline-flex w-fit items-center gap-2 text-sm text-white/60 hover:text-white"><ChevronLeft size={16} />{t("backToDashboard")}</a>
-      <VirtualUsersSettingsPanel token={session.token} language={language} />
       <form className="flex flex-col gap-3 rounded-lg border border-white/10 bg-panel p-4 sm:flex-row" onSubmit={(event) => { event.preventDefault(); setPage(1); setSearch(searchInput.trim()); }}>
         <input value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder={t("searchUsers")} className="h-10 min-w-0 flex-1 rounded-md border border-white/10 bg-field px-3 text-sm outline-none focus:border-mint" />
         <select value={role} onChange={(event) => { setRole(event.target.value); setPage(1); }} className="h-10 rounded-md border border-white/10 bg-field px-3 text-sm outline-none"><option value="">{t("allRoles")}</option>{userRoles.map((value) => <option key={value} value={value}>{userRoleLabel(value, t)}</option>)}</select>
@@ -299,10 +299,11 @@ export function AdminApp() {
   if (!session) return <main className="grid min-h-screen place-items-center bg-ink text-white"><LoaderCircle size={28} className="animate-spin text-mint" /></main>;
 
   const signOut = () => { clearAdminToken(); setSession(null); };
-  const pageTitle = page === "users" ? t("userManagement") : page === "admins" ? t("adminManagement") : page === "reports" ? adminModerationCopy(language).title : t("adminArea");
+  const pageTitle = page === "users" ? t("userManagement") : page === "virtual-users" ? "Virtual Users" : page === "admins" ? t("adminManagement") : page === "reports" ? adminModerationCopy(language).title : t("adminArea");
   let content: ReactNode = <Dashboard session={session} t={t} />;
   if (page === "users") content = <UsersPage session={session} language={language} t={t} />;
   if (page === "admins") content = <AdminsPage session={session} language={language} t={t} />;
   if (page === "reports") content = <ReportsPage session={session} language={language} backLabel={t("backToDashboard")} previousLabel={t("previous")} nextLabel={t("next")} loadingLabel={t("loading")} pageLabel={(current, pages) => t("pageOf", { page: current, pages })} />;
+  if (page === "virtual-users") content = <VirtualUsersPage token={session.token} language={language} />;
   return <AdminLayout session={session} title={pageTitle} t={t} onSignOut={signOut}>{content}</AdminLayout>;
 }

@@ -37,7 +37,7 @@ export type YouTubeRecommendation = {
   thumbnailUrl: string;
 };
 
-export type RoomParticipantSummary = Pick<RoomUser, "nickname" | "avatar" | "role">;
+export type RoomParticipantSummary = Pick<RoomUser, "nickname" | "avatar" | "role" | "senderType">;
 
 export type RoomUser = {
   socketId: string;
@@ -48,6 +48,8 @@ export type RoomUser = {
   cameraEnabled: boolean;
   screenSharing: boolean;
   screenTrackId: string | null;
+  senderType: "human" | "virtual_user";
+  virtualUserId?: string;
 };
 
 export type ChatMessage = {
@@ -58,6 +60,8 @@ export type ChatMessage = {
   avatar: string;
   text: string;
   timestamp: number;
+  senderId: string;
+  senderType: "human" | "virtual_user";
 };
 
 export type ReportReason = "harassment" | "hate_speech" | "sexual_content" | "spam" | "impersonation" | "other";
@@ -126,6 +130,7 @@ export type ServerToClientEvents = {
   "user-media-status": (payload: { socketId: string; micEnabled: boolean; cameraEnabled: boolean; screenSharing: boolean; screenTrackId: string | null }) => void;
   "screen-share-denied": () => void;
   "receive-message": (message: ChatMessage) => void;
+  typing: (payload: { senderId: string; nickname: string; active: boolean }) => void;
   offer: (payload: { from: string; description: RTCSessionDescriptionInit }) => void;
   answer: (payload: { from: string; description: RTCSessionDescriptionInit }) => void;
   "ice-candidate": (payload: { from: string; candidate: RTCIceCandidateInit | null }) => void;

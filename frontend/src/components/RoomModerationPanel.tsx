@@ -17,7 +17,7 @@ export function RoomModerationPanel(props: {
   const [details, setDetails] = useState("");
   const t = (key: Parameters<typeof moderationTranslate>[1]) => moderationTranslate(props.language, key);
   if (!props.open) return null;
-  const participants = props.users.filter((user) => user.socketId !== props.currentSocketId);
+  const participants = props.users.filter((user) => user.socketId !== props.currentSocketId && user.senderType !== "virtual_user");
 
   return <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm" onMouseDown={props.onClose}>
     <aside className="h-full w-full max-w-md overflow-y-auto border-l border-white/10 bg-panel p-5 shadow-2xl" onMouseDown={(event) => event.stopPropagation()}>

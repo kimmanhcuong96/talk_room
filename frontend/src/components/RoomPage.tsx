@@ -95,7 +95,7 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
     ]);
   }, [isScreenSharing, screenStream, stream]);
   const { users, remotePeers } = useWebRTC(socket, presentationStream);
-  const { messages, sendMessage } = useChat(socket, true);
+  const { messages, typingNames, sendMessage } = useChat(socket, true);
   const serverLocalUser = users.find((user) => user.socketId === socket.id);
   const screenShareOwner = users.find((user) => user.screenSharing);
   const screenTrackId = isScreenSharing ? screenStream?.getVideoTracks()[0]?.id ?? null : null;
@@ -513,7 +513,7 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
         </div>
       ) : null}
 
-      <ChatPanel messages={messages} currentSocketId={socket.id} open={chatOpen} language={language} onClose={() => setChatOpen(false)} onSend={sendMessage} />
+      <ChatPanel messages={messages} typingNames={typingNames} currentSocketId={socket.id} open={chatOpen} language={language} onClose={() => setChatOpen(false)} onSend={sendMessage} />
 
       <RoomModerationPanel
         users={users}

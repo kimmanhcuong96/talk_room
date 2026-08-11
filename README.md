@@ -36,6 +36,8 @@ Backend:
 - `ADMIN_JWT_SECRET`: separate long random secret for admin sessions; falls back to `JWT_SECRET`
 - `ADMIN_JWT_EXPIRES_IN`: optional admin JWT lifetime, defaults to `8h`
 - `YOUTUBE_DATA_API_KEY`: optional server-side YouTube Data API v3 key used to load the 10 recommendations in Manage YouTube; manual URL sharing remains available when omitted
+- `OLLAMA_BASE_URL`: optional local Ollama endpoint, defaults to `http://127.0.0.1:11434`
+- `OLLAMA_MODEL`: optional Ollama model name. When omitted or unavailable, Virtual Users continue with the built-in rule fallback at no API cost
 - `CLOUDFLARE_TURN_KEY_ID`: optional Cloudflare Realtime TURN key ID
 - `CLOUDFLARE_TURN_API_TOKEN`: optional Cloudflare API token for generating short-lived TURN credentials
 - `CLOUDFLARE_TURN_TTL_SECONDS`: optional TURN credential lifetime, defaults to `86400`
@@ -84,7 +86,7 @@ GET /auth/me
 Authorization: Bearer <application-jwt>
 ```
 
-Run the SQL files in `backend/migrations` in numeric order against the configured Postgres database before enabling login. Migration `002_add_user_role.sql` adds the extensible user roles and defaults existing accounts to `unverified`. Migration `004_create_moderation.sql` adds user reports and system-wide blocks. Migration `005_create_virtual_user_settings.sql` stores the audited virtual-room configuration; apply both newer migrations to Neon before deploying the corresponding backend features.
+Run the SQL files in `backend/migrations` in numeric order against the configured Postgres database before enabling login. Migration `002_add_user_role.sql` adds the extensible user roles and defaults existing accounts to `unverified`. Migration `004_create_moderation.sql` adds user reports and system-wide blocks. Migration `006_create_virtual_user_profiles.sql` creates and seeds the 15 fixed Virtual User chat profiles; migration `007_remove_legacy_virtual_user_settings.sql` removes the retired fake-occupancy settings table.
 
 To promote an account after verification or supporter approval, update its role explicitly:
 
@@ -103,7 +105,11 @@ After running `backend/migrations/003_create_admin_users.sql`, bootstrap the fir
 npm run admin:bootstrap -w backend -- --email owner@example.com
 ```
 
-The owner first signs in from the main site with that exact Google email, then opens `/admin`. The normal Google login response provisions a separate admin session only when the email belongs to an eligible `admin_users` row. Admin and application tokens rotate while the signed-in application session remains valid, including when `/admin` is reopened, focused, or kept open; suspended accounts cannot refresh. Owners can invite and manage other admin accounts from `/admin/admins`; both owners and admins can update app-user roles from `/admin/users` and review reports from `/admin/reports`. Removing an admin performs a soft suspension, and the final active owner cannot be demoted or suspended. Configure a separate `ADMIN_JWT_SECRET` in production; individual admin tokens default to 8 hours but are renewed through the active application session.
+The owner first signs in from the main site with that exact Google email, then opens `/admin`. The normal Google login response provisions a separate admin session only when the email belongs to an eligible `admin_users` row. Admin and application tokens rotate while the signed-in application session remains valid, including when `/admin` is reopened, focused, or kept open; suspended accounts cannot refresh. Owners can invite and manage other admin accounts from `/admin/admins`; both owners and admins can update app-user roles from `/admin/users`, review reports from `/admin/reports`, and edit the 15 fixed chat bot profiles at `/admin/virtual-users`. Removing an admin performs a soft suspension, and the final active owner cannot be demoted or suspended. Configure a separate `ADMIN_JWT_SECRET` in production; individual admin tokens default to 8 hours but are renewed through the active application session.
+
+## Virtual User chat
+
+When a room has exactly one human participant, an available enabled Virtual User joins as a chat-only participant. It leaves immediately when a second human arrives or the room becomes empty. Virtual Users never publish media tracks and are excluded from WebRTC signaling. Simple greetings and reactions use local rules; contextual messages can use one shared local Ollama provider. If Ollama is not configured or fails, the rule fallback keeps chat operational without a paid API.
 
 ## Deployment
 

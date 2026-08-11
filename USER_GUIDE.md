@@ -1,6 +1,6 @@
-# Talking Room - For Me Talk User Guide
+# me2talk - Me to talk User Guide
 
-Talking Room - For Me Talk is a lightweight voice, video, and chat application for language practice, personal conversations, and real-time connection. It is designed around small rooms, simple access, and clear role-based permissions so the product can grow safely over time.
+me2talk - Me to talk is a lightweight voice, video, and chat application for language practice, personal conversations, and real-time connection. It is designed around small rooms, simple access, and clear role-based permissions so the product can grow safely over time.
 
 ## 1. Getting Started
 
@@ -117,7 +117,7 @@ The app includes public information pages:
 - Contact Us;
 - About Us.
 
-For contact, use: `kimmanhcuong96@gmail.com`.
+For contact, use: `me2talk.support@gmail.com`.
 
 ## 9. Troubleshooting
 
@@ -135,4 +135,3 @@ If your camera does not turn on, check whether:
 - another application is not already using the camera.
 
 If you are redirected away from `/admin`, your admin session may be missing, expired, suspended, or your email may not be listed as an admin account.
-

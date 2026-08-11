@@ -19,51 +19,51 @@ type SeoCopy = {
 
 const seoCopies: Record<Language, SeoCopy> = {
   en: {
-    homeTitle: "Talking Room | 4MeTalk & For Me Talk Language Practice",
-    homeDescription: "Join Talking Room, also known as 4MeTalk and For Me Talk, to practice languages, share your thoughts, and connect through live voice rooms.",
-    privacyTitle: "Privacy Policy | Talking Room",
-    privacyDescription: "Learn how Talking Room handles account, room, chat, audio, and video data while you use 4MeTalk and For Me Talk.",
-    contactTitle: "Contact Us | Talking Room",
-    contactDescription: "Contact the Talking Room team for support, feedback, feature ideas, room reports, or partnership enquiries.",
-    aboutTitle: "About Talking Room | 4MeTalk & For Me Talk",
-    aboutDescription: "Discover Talking Room, a welcoming space for language practice, meaningful conversations, and genuine connection.",
-    roomTitle: "Conversation Room | Talking Room",
+    homeTitle: "me2talk | Me to talk Language Practice",
+    homeDescription: "Join me2talk, pronounced Me to talk, to practice languages, share your thoughts, and connect through live voice rooms.",
+    privacyTitle: "Privacy Policy | me2talk",
+    privacyDescription: "Learn how me2talk handles account, room, chat, audio, and video data while you use Me to talk.",
+    contactTitle: "Contact Us | me2talk",
+    contactDescription: "Contact the me2talk team for support, feedback, feature ideas, room reports, or partnership enquiries.",
+    aboutTitle: "About me2talk | Me to talk",
+    aboutDescription: "Discover me2talk, a welcoming space for language practice, meaningful conversations, and genuine connection.",
+    roomTitle: "Conversation Room | me2talk",
     roomDescription: "Join a live Talking Room conversation to practice speaking, listen, chat, and connect with other language learners."
   },
   vi: {
-    homeTitle: "Talking Room | 4MeTalk & For Me Talk luyện tập ngôn ngữ",
-    homeDescription: "Tham gia Talking Room, còn được biết đến với tên 4MeTalk và For Me Talk, để luyện ngôn ngữ, tâm sự và kết nối qua các phòng trò chuyện trực tiếp.",
-    privacyTitle: "Chính sách riêng tư | Talking Room",
-    privacyDescription: "Tìm hiểu cách Talking Room xử lý dữ liệu tài khoản, phòng, trò chuyện, âm thanh và video khi bạn sử dụng 4MeTalk và For Me Talk.",
-    contactTitle: "Liên hệ | Talking Room",
-    contactDescription: "Liên hệ đội ngũ Talking Room để được hỗ trợ, góp ý tính năng, báo cáo vấn đề trong phòng hoặc trao đổi hợp tác.",
-    aboutTitle: "Về Talking Room | 4MeTalk & For Me Talk",
-    aboutDescription: "Khám phá Talking Room, không gian thân thiện để luyện tập ngôn ngữ, trò chuyện chân thành và tạo nên những kết nối ý nghĩa.",
-    roomTitle: "Phòng trò chuyện | Talking Room",
+    homeTitle: "me2talk | Me to talk luyện tập ngôn ngữ",
+    homeDescription: "Tham gia me2talk, đọc là Me to talk, để luyện ngôn ngữ, tâm sự và kết nối qua các phòng trò chuyện trực tiếp.",
+    privacyTitle: "Chính sách riêng tư | me2talk",
+    privacyDescription: "Tìm hiểu cách me2talk xử lý dữ liệu tài khoản, phòng, trò chuyện, âm thanh và video khi bạn sử dụng Me to talk.",
+    contactTitle: "Liên hệ | me2talk",
+    contactDescription: "Liên hệ đội ngũ me2talk để được hỗ trợ, góp ý tính năng, báo cáo vấn đề trong phòng hoặc trao đổi hợp tác.",
+    aboutTitle: "Về me2talk | Me to talk",
+    aboutDescription: "Khám phá me2talk, không gian thân thiện để luyện tập ngôn ngữ, trò chuyện chân thành và tạo nên những kết nối ý nghĩa.",
+    roomTitle: "Phòng trò chuyện | me2talk",
     roomDescription: "Tham gia phòng Talking Room trực tiếp để luyện nói, lắng nghe, nhắn tin và kết nối với những người học ngôn ngữ khác."
   },
   zh: {
-    homeTitle: "Talking Room | 4MeTalk 与 For Me Talk 语言练习",
-    homeDescription: "加入 Talking Room（也称为 4MeTalk 和 For Me Talk），通过实时语音房练习语言、分享心情并结识新朋友。",
-    privacyTitle: "隐私政策 | Talking Room",
-    privacyDescription: "了解使用 4MeTalk 和 For Me Talk 时，Talking Room 如何处理账户、房间、聊天、音频和视频数据。",
-    contactTitle: "联系我们 | Talking Room",
-    contactDescription: "联系 Talking Room 团队，获取支持、提出功能建议、报告房间问题或洽谈合作。",
-    aboutTitle: "关于 Talking Room | 4MeTalk 与 For Me Talk",
-    aboutDescription: "了解 Talking Room：一个用于语言练习、真诚交流和建立有意义联系的友好空间。",
-    roomTitle: "在线会话房 | Talking Room",
+    homeTitle: "me2talk | Me to talk 语言练习",
+    homeDescription: "加入 me2talk（读作 Me to talk），通过实时语音房练习语言、分享心情并结识新朋友。",
+    privacyTitle: "隐私政策 | me2talk",
+    privacyDescription: "了解使用 Me to talk 时，me2talk 如何处理账户、房间、聊天、音频和视频数据。",
+    contactTitle: "联系我们 | me2talk",
+    contactDescription: "联系 me2talk 团队，获取支持、提出功能建议、报告房间问题或洽谈合作。",
+    aboutTitle: "关于 me2talk | Me to talk",
+    aboutDescription: "了解 me2talk：一个用于语言练习、真诚交流和建立有意义联系的友好空间。",
+    roomTitle: "在线会话房 | me2talk",
     roomDescription: "加入 Talking Room 实时会话，练习口语、倾听、聊天并与其他语言学习者建立联系。"
   },
   ja: {
-    homeTitle: "Talking Room | 4MeTalk・For Me Talk 語学練習",
-    homeDescription: "Talking Room（4MeTalk、For Me Talk）に参加して、ライブ音声ルームで語学を練習し、気持ちを共有し、人とつながりましょう。",
-    privacyTitle: "プライバシーポリシー | Talking Room",
-    privacyDescription: "4MeTalk と For Me Talk の利用時に、Talking Room がアカウント、ルーム、チャット、音声、映像データを扱う方法をご案内します。",
-    contactTitle: "お問い合わせ | Talking Room",
-    contactDescription: "サポート、機能提案、ルーム内の問題報告、提携のご相談は Talking Room チームへお問い合わせください。",
-    aboutTitle: "Talking Room について | 4MeTalk・For Me Talk",
-    aboutDescription: "Talking Room は、語学練習、心の通う会話、有意義なつながりのための親しみやすい空間です。",
-    roomTitle: "会話ルーム | Talking Room",
+    homeTitle: "me2talk | Me to talk 語学練習",
+    homeDescription: "me2talk（Me to talk）に参加して、ライブ音声ルームで語学を練習し、気持ちを共有し、人とつながりましょう。",
+    privacyTitle: "プライバシーポリシー | me2talk",
+    privacyDescription: "Me to talk の利用時に、me2talk がアカウント、ルーム、チャット、音声、映像データを扱う方法をご案内します。",
+    contactTitle: "お問い合わせ | me2talk",
+    contactDescription: "サポート、機能提案、ルーム内の問題報告、提携のご相談は me2talk チームへお問い合わせください。",
+    aboutTitle: "me2talk について | Me to talk",
+    aboutDescription: "me2talk は、語学練習、心の通う会話、有意義なつながりのための親しみやすい空間です。",
+    roomTitle: "会話ルーム | me2talk",
     roomDescription: "Talking Room のライブ会話に参加して、スピーキング、リスニング、チャットを楽しみ、語学学習者とつながりましょう。"
   }
 };
@@ -97,7 +97,7 @@ export function Seo({ language, page, roomName }: { language: Language; page: Se
           : page === "about"
             ? copy.aboutTitle
             : roomName
-              ? `${roomName} | Talking Room`
+              ? `${roomName} | me2talk`
               : copy.roomTitle;
     const description = page === "home"
       ? copy.homeDescription
@@ -134,27 +134,27 @@ export function Seo({ language, page, roomName }: { language: Language; page: Se
     }
     canonical.href = canonicalUrl;
 
-    const existingStructuredData = document.getElementById("talking-room-structured-data");
+    const existingStructuredData = document.getElementById("me2talk-structured-data");
     existingStructuredData?.remove();
     if (page === "home") {
       const structuredData = document.createElement("script");
-      structuredData.id = "talking-room-structured-data";
+      structuredData.id = "me2talk-structured-data";
       structuredData.type = "application/ld+json";
       structuredData.text = JSON.stringify({
         "@context": "https://schema.org",
         "@graph": [
           {
             "@type": "WebSite",
-            name: "Talking Room",
-            alternateName: ["4MeTalk", "For Me Talk"],
+            name: "me2talk",
+            alternateName: ["Me to talk"],
             url: siteOrigin,
             description: copy.homeDescription,
             inLanguage: ["en", "vi", "zh-CN", "ja"]
           },
           {
             "@type": "WebApplication",
-            name: "Talking Room",
-            alternateName: ["4MeTalk", "For Me Talk"],
+            name: "me2talk",
+            alternateName: ["Me to talk"],
             applicationCategory: "CommunicationApplication",
             operatingSystem: "Web",
             url: siteOrigin,
@@ -163,7 +163,7 @@ export function Seo({ language, page, roomName }: { language: Language; page: Se
           },
           {
             "@type": "ItemList",
-            name: "Talking Room pages",
+            name: "me2talk pages",
             itemListElement: [
               { "@type": "SiteNavigationElement", position: 1, name: "About Us", url: new URL(infoPagePath("about"), siteOrigin).toString() },
               { "@type": "SiteNavigationElement", position: 2, name: "Privacy Policy", url: new URL(infoPagePath("privacy"), siteOrigin).toString() },
@@ -176,7 +176,7 @@ export function Seo({ language, page, roomName }: { language: Language; page: Se
     }
 
     return () => {
-      document.getElementById("talking-room-structured-data")?.remove();
+      document.getElementById("me2talk-structured-data")?.remove();
     };
   }, [language, page, roomName]);
 

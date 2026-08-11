@@ -45,7 +45,8 @@ export type VirtualUserSettings = {
 
 export type AdminSession = { token: string; admin: AdminProfile };
 export type RefreshedAdminSession = AdminSession & { applicationToken: string };
-export const ADMIN_TOKEN_STORAGE_KEY = "talking-room:admin-token";
+export const ADMIN_TOKEN_STORAGE_KEY = "me2talk:admin-token";
+const LEGACY_ADMIN_TOKEN_STORAGE_KEY = "talking-room:admin-token";
 
 const apiUrl = (import.meta.env.VITE_API_URL ?? import.meta.env.VITE_SOCKET_URL ?? "http://localhost:4000").replace(/\/$/, "");
 
@@ -67,15 +68,24 @@ function authHeaders(token: string, json = false) {
 }
 
 export function readAdminToken() {
-  return localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY);
+  const storedToken = localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY);
+  if (storedToken) return storedToken;
+
+  const legacyToken = localStorage.getItem(LEGACY_ADMIN_TOKEN_STORAGE_KEY);
+  if (legacyToken) {
+    localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, legacyToken);
+  }
+  return legacyToken;
 }
 
 export function storeAdminToken(token: string) {
   localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token);
+  localStorage.removeItem(LEGACY_ADMIN_TOKEN_STORAGE_KEY);
 }
 
 export function removeAdminToken() {
   localStorage.removeItem(ADMIN_TOKEN_STORAGE_KEY);
+  localStorage.removeItem(LEGACY_ADMIN_TOKEN_STORAGE_KEY);
 }
 
 export function clearAdminToken() {

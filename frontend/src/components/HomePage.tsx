@@ -180,7 +180,7 @@ export function HomePage({
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-mint">Talking room - For me talk</p>
+          <p className="text-sm font-medium uppercase tracking-wide text-mint">me2talk - Me to talk</p>
           <h1 className="mt-2 text-4xl font-semibold text-white sm:text-5xl">{t("title")}</h1>
           <p className={`mt-3 flex items-center gap-2 text-sm ${isConnected ? "text-mint" : "text-coral"}`}>
             <span

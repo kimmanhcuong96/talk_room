@@ -1,4 +1,4 @@
-const GENERATED_NICKNAME_PATTERN = /^Talking User \d+$/;
+const GENERATED_NICKNAME_PATTERN = /^(?:me2talk|Talking) User \d+$/;
 
 export function isGeneratedNickname(nickname: string) {
   return GENERATED_NICKNAME_PATTERN.test(nickname.trim());

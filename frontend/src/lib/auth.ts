@@ -1,7 +1,9 @@
 import { clearAdminToken, removeAdminToken, storeAdminToken, type AdminSession } from "./adminAuth";
 
-export const AUTH_TOKEN_STORAGE_KEY = "english-talk-rooms:auth-token";
-export const AUTH_USER_STORAGE_KEY = "english-talk-rooms:auth-user";
+export const AUTH_TOKEN_STORAGE_KEY = "me2talk:auth-token";
+export const AUTH_USER_STORAGE_KEY = "me2talk:auth-user";
+const LEGACY_AUTH_TOKEN_STORAGE_KEY = "english-talk-rooms:auth-token";
+const LEGACY_AUTH_USER_STORAGE_KEY = "english-talk-rooms:auth-user";
 
 export type UserRole = "unverified" | "verified" | "supporter";
 
@@ -31,17 +33,29 @@ export class AuthRequestError extends Error {
 
 const apiUrl = (import.meta.env.VITE_API_URL ?? import.meta.env.VITE_SOCKET_URL ?? "http://localhost:4000").replace(/\/$/, "");
 
+function readMigratedLocalStorage(primaryKey: string, legacyKey: string) {
+  const storedValue = localStorage.getItem(primaryKey);
+  if (storedValue !== null) return storedValue;
+
+  const legacyValue = localStorage.getItem(legacyKey);
+  if (legacyValue !== null) {
+    localStorage.setItem(primaryKey, legacyValue);
+  }
+  return legacyValue;
+}
+
 export function readStoredToken() {
-  return localStorage.getItem(AUTH_TOKEN_STORAGE_KEY);
+  return readMigratedLocalStorage(AUTH_TOKEN_STORAGE_KEY, LEGACY_AUTH_TOKEN_STORAGE_KEY);
 }
 
 export function storeApplicationToken(token: string) {
   localStorage.setItem(AUTH_TOKEN_STORAGE_KEY, token);
+  localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
 }
 
 export function readStoredSession(): AuthSession | null {
   const token = readStoredToken();
-  const storedUser = localStorage.getItem(AUTH_USER_STORAGE_KEY);
+  const storedUser = readMigratedLocalStorage(AUTH_USER_STORAGE_KEY, LEGACY_AUTH_USER_STORAGE_KEY);
   if (!token || !storedUser) return null;
 
   try {
@@ -61,6 +75,7 @@ export function isInvalidAuthSessionError(error: unknown) {
 export function storeSession(session: AuthSession) {
   storeApplicationToken(session.token);
   localStorage.setItem(AUTH_USER_STORAGE_KEY, JSON.stringify(session.user));
+  localStorage.removeItem(LEGACY_AUTH_USER_STORAGE_KEY);
   if (session.adminSession) storeAdminToken(session.adminSession.token);
   else if (session.adminSession === null) removeAdminToken();
 }
@@ -68,6 +83,8 @@ export function storeSession(session: AuthSession) {
 export function clearStoredSession() {
   localStorage.removeItem(AUTH_TOKEN_STORAGE_KEY);
   localStorage.removeItem(AUTH_USER_STORAGE_KEY);
+  localStorage.removeItem(LEGACY_AUTH_TOKEN_STORAGE_KEY);
+  localStorage.removeItem(LEGACY_AUTH_USER_STORAGE_KEY);
   clearAdminToken();
   window.google?.accounts.id.disableAutoSelect();
 }

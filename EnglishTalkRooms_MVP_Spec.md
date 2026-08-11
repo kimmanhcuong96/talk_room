@@ -1,4 +1,4 @@
-# English Talk Rooms MVP Specification
+# me2talk MVP Specification
 
 ## Goal
 

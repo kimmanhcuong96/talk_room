@@ -9,7 +9,7 @@ type InfoPageProps = {
   onBack: () => void;
 };
 
-const email = "kimmanhcuong96@gmail.com";
+const email = "me2talk.support@gmail.com";
 
 function PrivacyContent({ copy }: { copy: NonNullable<InfoPageCopy["privacy"]> }) {
   return (

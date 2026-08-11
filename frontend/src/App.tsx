@@ -14,8 +14,21 @@ import type { RoomLanguage, RoomLanguageLevel } from "./lib/roomLanguages";
 import { getOrCreateGuestId } from "./lib/guestIdentity";
 import { moderationTranslate } from "./lib/moderationI18n";
 
-const NICKNAME_STORAGE_KEY = "english-talk-rooms:nickname";
-const LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
+const NICKNAME_STORAGE_KEY = "me2talk:nickname";
+const LANGUAGE_STORAGE_KEY = "me2talk:language";
+const LEGACY_NICKNAME_STORAGE_KEY = "english-talk-rooms:nickname";
+const LEGACY_LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
+
+function readMigratedLocalStorage(primaryKey: string, legacyKey: string) {
+  const storedValue = localStorage.getItem(primaryKey);
+  if (storedValue !== null) return storedValue;
+
+  const legacyValue = localStorage.getItem(legacyKey);
+  if (legacyValue !== null) {
+    localStorage.setItem(primaryKey, legacyValue);
+  }
+  return legacyValue;
+}
 
 function detectDefaultLanguage(): Language {
   const localeValues = [navigator.language, ...Array.from(navigator.languages ?? [])].filter(Boolean);
@@ -46,9 +59,9 @@ export function App() {
   const { socket, isConnected, connectionError } = useSocket();
   const rooms = useRooms(socket);
   const [guestId] = useState(getOrCreateGuestId);
-  const [nickname, setNickname] = useState(() => localStorage.getItem(NICKNAME_STORAGE_KEY) ?? "");
+  const [nickname, setNickname] = useState(() => readMigratedLocalStorage(NICKNAME_STORAGE_KEY, LEGACY_NICKNAME_STORAGE_KEY) ?? "");
   const [language, setLanguage] = useState<Language>(() => {
-    const storedLanguage = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    const storedLanguage = readMigratedLocalStorage(LANGUAGE_STORAGE_KEY, LEGACY_LANGUAGE_STORAGE_KEY);
     if (isLanguage(storedLanguage)) {
       return storedLanguage;
     }
@@ -219,6 +232,7 @@ export function App() {
     if (!authenticatedNickname && (!nickname.trim() || isGeneratedNickname(nickname))) {
       setNickname("");
       localStorage.removeItem(NICKNAME_STORAGE_KEY);
+      localStorage.removeItem(LEGACY_NICKNAME_STORAGE_KEY);
     }
     setRouteRoomId(roomId);
     setRouteInfoPage(null);

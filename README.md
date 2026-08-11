@@ -1,4 +1,4 @@
-# English Talk Rooms
+# me2talk
 
 Lightweight English speaking practice rooms built with React, Vite, TypeScript, Express, Socket.IO, and WebRTC mesh.
 

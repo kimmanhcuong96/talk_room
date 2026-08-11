@@ -56,5 +56,5 @@ void initializeVirtualUserService(io).catch((error) => {
 });
 
 httpServer.listen(env.port, () => {
-  console.log(`English Talk Rooms backend listening on port ${env.port}`);
+  console.log(`me2talk backend listening on port ${env.port}`);
 });

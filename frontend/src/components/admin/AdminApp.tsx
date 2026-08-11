@@ -28,10 +28,14 @@ import { ReportsPage } from "./ReportsPage";
 import { adminModerationCopy } from "../../lib/adminModerationI18n";
 import { VirtualUsersSettingsPanel } from "./VirtualUsersSettings";
 
-const LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
+const LANGUAGE_STORAGE_KEY = "me2talk:language";
+const LEGACY_LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
 
 function getAdminLanguage(): Language {
-  const value = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+  const value = localStorage.getItem(LANGUAGE_STORAGE_KEY) ?? localStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY);
+  if (value) {
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, value);
+  }
   return isLanguage(value) ? value : "en";
 }
 

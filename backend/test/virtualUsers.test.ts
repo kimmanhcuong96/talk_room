@@ -4,6 +4,7 @@ import { BotPool } from "../src/virtualUsers/botPool.js";
 import { ConversationStore } from "../src/virtualUsers/conversationStore.js";
 import { HybridResponseEngine } from "../src/virtualUsers/hybridResponseEngine.js";
 import { RuleEngine } from "../src/virtualUsers/ruleEngine.js";
+import { estimateEnglishFallbackVariants } from "../src/virtualUsers/commonEnglishPhraseBank.js";
 import { buildOllamaMessages } from "../src/virtualUsers/llmProvider.js";
 import { validateBotResponse } from "../src/virtualUsers/responseValidator.js";
 import { VIRTUAL_USER_IDS, type ConversationContext, type LLMProvider, type VirtualUserProfile } from "../src/virtualUsers/virtualUserTypes.js";
@@ -82,6 +83,7 @@ test("complex routing falls back when the LLM is unavailable", async () => {
   const response = await engine.respond(makeProfile("bot-01"), makeContext(), "What do you think about learning English?");
   assert.ok(response);
   assert.ok(response.length <= 300);
+  assert.doesNotMatch(response, /^(?:That's a good question|Tell me a little more|That sounds interesting)/i);
 });
 
 test("LLM messages inject profile, topic, summary, user facts, recent context, and current message", () => {
@@ -99,7 +101,30 @@ test("LLM messages inject profile, topic, summary, user facts, recent context, a
   assert.match(content, /planning a trip/);
   assert.match(content, /Vietnam/);
   assert.match(content, /I want to visit Japan/);
+  assert.match(content, /Reply directly to the latest user message/);
+  assert.match(content, /Avoid bland phrases/);
+  assert.match(content, /Reply in the same language/);
   assert.equal(messages.at(-1)?.content, "What should I see in Tokyo?");
+});
+
+test("common English fallback bank provides at least one hundred thousand variants", () => {
+  assert.ok(estimateEnglishFallbackVariants() >= 100_000);
+});
+
+test("rule fallback uses profile and message intent instead of bland filler", () => {
+  const profile = { ...makeProfile("bot-01"), name: "Emma", interests: ["travel", "movies"] };
+  const engine = new RuleEngine();
+  const response = engine.fallback("Do you like music?", makeContext(), profile);
+  assert.ok(response);
+  assert.doesNotMatch(response, /\b(?:That's interesting|Tell me more|Good question|What do you think)\b/i);
+  assert.match(response, /\b(?:travel|movies|like|opinions|Depends)\b/i);
+});
+
+test("rule fallback answers Vietnamese messages in Vietnamese", () => {
+  const engine = new RuleEngine();
+  const response = engine.fallback("mình không hiểu bot đang trả lời gì", makeContext(), makeProfile("bot-01"));
+  assert.match(response, /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i);
+  assert.doesNotMatch(response, /\b(?:Try saying it in English|write that idea in English|keep it in English)\b/i);
 });
 
 test("response validation rejects empty, oversized, duplicate, malformed, assistant, and bot-identifying output", () => {

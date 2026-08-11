@@ -17,10 +17,10 @@ export class HybridResponseEngine {
     if (decision.route === "RULE" && decision.response) return validateBotResponse(decision.response, context, profile);
     try {
       const response = await this.llm.generateResponse(profile, context, message);
-      return validateBotResponse(response, context, profile) ?? this.rules.fallback(message);
+      return validateBotResponse(response, context, profile) ?? this.rules.fallback(message, context, profile);
     } catch (error) {
       console.warn(`[VirtualUser] LLM unavailable for ${profile.id}; using rules.`, error instanceof Error ? error.message : error);
-      return this.rules.fallback(message);
+      return this.rules.fallback(message, context, profile);
     }
   }
 }

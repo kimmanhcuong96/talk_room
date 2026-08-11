@@ -14,17 +14,21 @@ import { env } from "../config/env.js";
 import { BotPool } from "./botPool.js";
 import { HybridResponseEngine } from "./hybridResponseEngine.js";
 import { OllamaProvider, UnavailableLLMProvider } from "./llmProvider.js";
+import { getVoicePromptResponse } from "./ruleEngine.js";
 import { listVirtualUserProfiles } from "./virtualUserRepository.js";
 import { VIRTUAL_USER_IDS, type VirtualUserProfile } from "./virtualUserTypes.js";
 import { ConversationStore } from "./conversationStore.js";
 
 const BATCH_DELAY_MS = 650;
 const RESPONSE_COOLDOWN_MS = 1_200;
+const VOICE_PROMPT_COOLDOWN_MS = 45_000;
 const pool = new BotPool();
 const conversations = new ConversationStore();
 const pendingMessages = new Map<string, { messages: ChatMessage[]; timer: ReturnType<typeof setTimeout> }>();
 const processingRooms = new Set<string>();
 const roomGenerations = new Map<string, number>();
+const lastVoicePromptAt = new Map<string, number>();
+const voicePromptCounts = new Map<string, number>();
 const llmProvider = env.ollamaModel
   ? new OllamaProvider(env.ollamaBaseUrl, env.ollamaModel)
   : new UnavailableLLMProvider();
@@ -45,6 +49,19 @@ function emitPresence(io: AppServer, roomId: string, event: "joined" | "left", s
   io.emit("room-list", getRoomSummaries());
 }
 
+function getVoicePromptKey(roomId: string, botId: string, humanSocketId: string) {
+  return `${roomId}:${botId}:${humanSocketId}`;
+}
+
+function clearVoicePromptStateForRoom(roomId: string) {
+  for (const key of lastVoicePromptAt.keys()) {
+    if (key.startsWith(`${roomId}:`)) lastVoicePromptAt.delete(key);
+  }
+  for (const key of voicePromptCounts.keys()) {
+    if (key.startsWith(`${roomId}:`)) voicePromptCounts.delete(key);
+  }
+}
+
 export function releaseVirtualUser(io: AppServer, roomId: string) {
   const profile = pool.releaseRoom(roomId);
   const roomBot = getRoomVirtualUser(roomId);
@@ -57,6 +74,7 @@ export function releaseVirtualUser(io: AppServer, roomId: string) {
   pendingMessages.delete(roomId);
   if (profile) io.to(roomId).emit("typing", { senderId: profile.id, nickname: profile.name, active: false });
   conversations.destroy(roomId, botId);
+  clearVoicePromptStateForRoom(roomId);
   const removed = removeVirtualUserByBotId(roomId, botId);
   if (removed) emitPresence(io, roomId, "left", removed.socketId);
 }
@@ -171,6 +189,39 @@ export function handleHumanChatMessage(io: AppServer, message: ChatMessage) {
   pendingMessages.set(message.roomId, { messages, timer });
 }
 
+export function handleHumanVoiceAttempt(io: AppServer, roomId: string, humanSocketId: string) {
+  if (getRoomHumanCount(roomId) !== 1) return;
+  const roomBot = getRoomVirtualUser(roomId);
+  if (!roomBot?.virtualUserId) return;
+  const profile = pool.getProfile(roomBot.virtualUserId);
+  if (!profile?.enabled) return;
+
+  const now = Date.now();
+  const promptKey = getVoicePromptKey(roomId, profile.id, humanSocketId);
+  if ((voicePromptCounts.get(promptKey) ?? 0) >= 3) return;
+  if (now - (lastVoicePromptAt.get(promptKey) ?? 0) < VOICE_PROMPT_COOLDOWN_MS) return;
+  lastVoicePromptAt.set(promptKey, now);
+  voicePromptCounts.set(promptKey, (voicePromptCounts.get(promptKey) ?? 0) + 1);
+
+  const context = conversations.get(roomId, profile.id);
+  const response = getVoicePromptResponse();
+  const message: ChatMessage = {
+    id: `${profile.id}-voice-${now}`,
+    roomId,
+    socketId: `virtual:${profile.id}`,
+    senderId: profile.id,
+    senderType: "virtual_user",
+    nickname: profile.name,
+    avatar: profile.avatarUrl?.trim() || "🤖",
+    text: response,
+    timestamp: now
+  };
+  if (addRoomMessage(message)) {
+    conversations.remember(context, message);
+    io.to(roomId).emit("receive-message", message);
+  }
+}
+
 export function getVirtualUsersForAdmin() {
   return pool.list();
 }
@@ -196,4 +247,4 @@ export async function initializeVirtualUserService(io: AppServer) {
   for (const room of getRoomSummaries()) reconcileVirtualUserForRoom(io, room.id);
 }
 
-export const virtualUserInternals = { pool, conversations, processingRooms, roomGenerations, pendingMessages };
+export const virtualUserInternals = { pool, conversations, processingRooms, roomGenerations, pendingMessages, lastVoicePromptAt, voicePromptCounts };

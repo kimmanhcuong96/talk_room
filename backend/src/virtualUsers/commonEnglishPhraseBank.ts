@@ -1,4 +1,5 @@
 import type { VirtualUserProfile } from "./virtualUserTypes.js";
+import { buildCommonEnglishSituationResponse } from "./commonEnglishSituations.js";
 
 const openers = [
   "I get that",
@@ -156,6 +157,19 @@ const followUps = [
   "What would be enough for today?"
 ] as const;
 
+const softeners = [
+  "If you want,",
+  "No pressure, but",
+  "I am curious,",
+  "Just to understand you better,",
+  "Maybe start here:",
+  "One small question:",
+  "A simple way to check is this:",
+  "Before we overthink it,",
+  "If we keep it honest,",
+  "The useful question is,"
+] as const;
+
 const opinionFrames = [
   "I lean slightly yes, but only if the situation feels right.",
   "I am not fully convinced, but I see why it matters.",
@@ -237,7 +251,7 @@ function topicFrom(message: string) {
 }
 
 export function estimateEnglishFallbackVariants() {
-  return (openers.length * concreteReactions.length * followUps.length)
+  return (openers.length * concreteReactions.length * softeners.length * followUps.length)
     + opinionFrames.length
     + englishPractice.length
     + moods.length
@@ -250,6 +264,8 @@ export function buildCommonEnglishFallback(message: string, profile: VirtualUser
   const topic = topicFrom(message);
   const primaryInterest = profile.interests[0] ?? "that";
   const interests = profile.interests.length ? profile.interests.join(", ") : "everyday life";
+  const situationResponse = buildCommonEnglishSituationResponse(message);
+  if (situationResponse) return situationResponse;
 
   if (/\b(?:how are you|how's it going|how are u)\b/i.test(message)) {
     return pick([
@@ -296,6 +312,6 @@ export function buildCommonEnglishFallback(message: string, profile: VirtualUser
   }
 
   return Math.random() < 0.65
-    ? `${pick(openers)}. ${pick(concreteReactions)}. ${pick(followUps)}`
+    ? `${pick(openers)}. ${pick(concreteReactions)}. ${pick(softeners)} ${pick(followUps)}`
     : pick(quickReplies);
 }

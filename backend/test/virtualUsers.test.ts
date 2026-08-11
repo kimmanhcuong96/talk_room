@@ -3,12 +3,13 @@ import test from "node:test";
 import { BotPool } from "../src/virtualUsers/botPool.js";
 import { ConversationStore } from "../src/virtualUsers/conversationStore.js";
 import { HybridResponseEngine } from "../src/virtualUsers/hybridResponseEngine.js";
-import { RuleEngine } from "../src/virtualUsers/ruleEngine.js";
+import { RuleEngine, voicePromptResponses } from "../src/virtualUsers/ruleEngine.js";
 import { estimateEnglishFallbackVariants } from "../src/virtualUsers/commonEnglishPhraseBank.js";
+import { buildCommonEnglishSituationResponse, estimateCommonEnglishSituationCount, estimateCommonEnglishSituationInputs } from "../src/virtualUsers/commonEnglishSituations.js";
 import { buildOllamaMessages } from "../src/virtualUsers/llmProvider.js";
 import { validateBotResponse } from "../src/virtualUsers/responseValidator.js";
 import { VIRTUAL_USER_IDS, type ConversationContext, type LLMProvider, type VirtualUserProfile } from "../src/virtualUsers/virtualUserTypes.js";
-import { addUserToRoom, getRoomHumanCount, getRoomVirtualUser, removeUser } from "../src/rooms/roomStore.js";
+import { addUserToRoom, createRoom, getRoomHumanCount, getRoomMessages, getRoomVirtualUser, removeUser } from "../src/rooms/roomStore.js";
 
 const makeProfile = (id: string, enabled = true): VirtualUserProfile => ({
   id, name: id, avatarUrl: null, englishLevel: "B1", personality: "Friendly",
@@ -103,12 +104,36 @@ test("LLM messages inject profile, topic, summary, user facts, recent context, a
   assert.match(content, /I want to visit Japan/);
   assert.match(content, /Reply directly to the latest user message/);
   assert.match(content, /Avoid bland phrases/);
-  assert.match(content, /Reply in the same language/);
+  assert.match(content, /Use English only/);
   assert.equal(messages.at(-1)?.content, "What should I see in Tokyo?");
 });
 
-test("common English fallback bank provides at least one hundred thousand variants", () => {
-  assert.ok(estimateEnglishFallbackVariants() >= 100_000);
+test("common English fallback bank provides at least one million variants", () => {
+  assert.ok(estimateEnglishFallbackVariants() >= 1_000_000);
+});
+
+test("common English situations cover one hundred situations and at least five thousand input patterns", () => {
+  assert.equal(estimateCommonEnglishSituationCount(), 100);
+  assert.ok(estimateCommonEnglishSituationInputs() >= 5_000);
+});
+
+test("common English situations answer and ask relevant follow-up questions", () => {
+  const samples = [
+    "I am stressed about my deadline",
+    "I want to practice English speaking",
+    "I am hungry and want street food",
+    "I don't understand this word"
+  ];
+  for (const sample of samples) {
+    const response = buildCommonEnglishSituationResponse(sample);
+    assert.ok(response);
+    assert.match(response, /\?/);
+    assert.ok(response.length <= 300);
+  }
+});
+
+test("voice prompt bank provides at least fifteen variants", () => {
+  assert.ok(voicePromptResponses.length >= 15);
 });
 
 test("rule fallback uses profile and message intent instead of bland filler", () => {
@@ -117,14 +142,15 @@ test("rule fallback uses profile and message intent instead of bland filler", ()
   const response = engine.fallback("Do you like music?", makeContext(), profile);
   assert.ok(response);
   assert.doesNotMatch(response, /\b(?:That's interesting|Tell me more|Good question|What do you think)\b/i);
-  assert.match(response, /\b(?:travel|movies|like|opinions|Depends)\b/i);
+  assert.match(response, /\?/);
+  assert.match(response, /\b(?:music|song|mood|lyrics)\b/i);
 });
 
-test("rule fallback answers Vietnamese messages in Vietnamese", () => {
+test("rule fallback answers non-English messages in English with an uncertainty note", () => {
   const engine = new RuleEngine();
   const response = engine.fallback("mình không hiểu bot đang trả lời gì", makeContext(), makeProfile("bot-01"));
-  assert.match(response, /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i);
-  assert.doesNotMatch(response, /\b(?:Try saying it in English|write that idea in English|keep it in English)\b/i);
+  assert.match(response, /\b(?:don't understand|not sure I understand|only follow English|write it in English|use English|send it in English|switch to English|English would work better|try it in English)\b/i);
+  assert.doesNotMatch(response, /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i);
 });
 
 test("response validation rejects empty, oversized, duplicate, malformed, assistant, and bot-identifying output", () => {
@@ -217,6 +243,38 @@ test("rapid human messages are batched into one pending interaction", async () =
   releaseVirtualUser(io, "room-15");
   assert.equal(virtualUserInternals.pendingMessages.has("room-15"), false);
   removeUser("human-batch");
+});
+
+test("voice attempts in a bot room get a text-only bot prompt", async () => {
+  process.env.DATABASE_URL ||= "postgres://test:test@localhost:5432/test";
+  process.env.GOOGLE_CLIENT_ID ||= "test.apps.googleusercontent.com";
+  process.env.JWT_SECRET ||= "test-secret-that-is-long-enough";
+  const { handleHumanVoiceAttempt, reconcileVirtualUserForRoom, releaseVirtualUser, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
+  virtualUserInternals.pool.replaceProfiles([makeProfile("bot-01")]);
+  const room = createRoom("Voice Test", "en", "any", null, "00000000-0000-0000-0000-000000000000", 4);
+  const events: unknown[] = [];
+  const io = { to: () => ({ emit: (...args: unknown[]) => events.push(args) }), emit: (...args: unknown[]) => events.push(args) } as never;
+  const human = { socketId: "human-voice", nickname: "Human", avatar: "🙂", role: "unverified" as const, micEnabled: false, cameraEnabled: false, screenSharing: false, screenTrackId: null, senderType: "human" as const };
+  assert.equal(addUserToRoom(room.id, human).ok, true);
+  reconcileVirtualUserForRoom(io, room.id);
+  const botId = getRoomVirtualUser(room.id)?.virtualUserId;
+  assert.ok(botId);
+  const promptKey = `${room.id}:${botId}:human-voice`;
+  handleHumanVoiceAttempt(io, room.id, "human-voice");
+  const botMessage = getRoomMessages(room.id).find((message) => message.senderType === "virtual_user" && message.id.includes("voice"));
+  assert.ok(botMessage);
+  assert.match(botMessage.text, /\b(?:mic|camera|voice|hear|text|chat)\b/i);
+  assert.match(botMessage.text, /\b(?:type|text|chat|message)\b/i);
+  virtualUserInternals.lastVoicePromptAt.set(promptKey, 0);
+  handleHumanVoiceAttempt(io, room.id, "human-voice");
+  virtualUserInternals.lastVoicePromptAt.set(promptKey, 0);
+  handleHumanVoiceAttempt(io, room.id, "human-voice");
+  virtualUserInternals.lastVoicePromptAt.set(promptKey, 0);
+  handleHumanVoiceAttempt(io, room.id, "human-voice");
+  assert.equal(getRoomMessages(room.id).filter((message) => message.senderType === "virtual_user" && message.id.includes("voice")).length, 3);
+  assert.equal(virtualUserInternals.voicePromptCounts.get(promptKey), 3);
+  releaseVirtualUser(io, room.id);
+  removeUser("human-voice");
 });
 
 test("disabling an active bot releases it, while active profile edits are applied safely", async () => {

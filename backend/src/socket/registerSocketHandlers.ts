@@ -32,7 +32,7 @@ import {
   findActiveGlobalBlock,
   reportReasons
 } from "../moderation/moderationRepository.js";
-import { handleHumanChatMessage, reconcileVirtualUserForRoom } from "../virtualUsers/virtualUserService.js";
+import { handleHumanChatMessage, handleHumanVoiceAttempt, reconcileVirtualUserForRoom } from "../virtualUsers/virtualUserService.js";
 import { getYouTubeRecommendations, validateYouTubeVideoForEmbed, YouTubeServiceError } from "../youtube/youtubeRecommendationService.js";
 
 const avatars = ["🐣", "🐼", "🐰", "🦊", "🐨", "🐥", "🐧", "🐸", "🦄", "🐙", "🐢", "🐹"];
@@ -709,6 +709,9 @@ export function registerSocketHandlers(io: AppServer) {
           screenTrackId: user.screenTrackId
         });
         io.to(roomId).emit("room-users", getPublicRoomUsers(roomId));
+        if (user.micEnabled || user.cameraEnabled) {
+          handleHumanVoiceAttempt(io, roomId, socket.id);
+        }
       }
     });
 

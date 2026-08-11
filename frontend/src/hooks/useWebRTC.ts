@@ -353,7 +353,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
   useEffect(() => {
     setRemotePeers((current) =>
       users
-        .filter((user) => user.socketId !== socket.id && user.senderType !== "virtual_user")
+        .filter((user) => user.socketId !== socket.id)
         .map((user) => {
           const existingPeer = current.find((peer) => peer.socketId === user.socketId);
           return { ...user, stream: existingPeer?.stream ?? null };

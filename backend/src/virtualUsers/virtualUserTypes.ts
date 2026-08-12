@@ -51,6 +51,11 @@ export type LLMGeneration = {
   usage: LLMUsage;
 };
 
+export type VirtualUserResponse = {
+  text: string;
+  source: "rule" | "llm";
+};
+
 export interface LLMProvider {
   readonly available?: boolean;
   generateResponse(profile: VirtualUserProfile, context: ConversationContext, message: string): Promise<LLMGeneration>;

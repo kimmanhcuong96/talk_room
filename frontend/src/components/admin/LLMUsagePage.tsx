@@ -1,6 +1,6 @@
 import { Bot, BrainCircuit, ChevronLeft, Cpu, LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { getLLMUsage, type LLMUsageBreakdownItem, type LLMUsageSummary, type LLMUsageTotals } from "../../lib/adminAuth";
+import { getLLMUsage, type AdminLLMUsageResponse, type LLMUsageBreakdownItem, type LLMUsageTotals } from "../../lib/adminAuth";
 import { adminPath } from "../../lib/routes";
 
 function number(value: number) {
@@ -44,7 +44,7 @@ function BreakdownTable({ title, icon: Icon, items }: { title: string; icon: typ
 }
 
 export function LLMUsagePage({ token }: { token: string }) {
-  const [usage, setUsage] = useState<LLMUsageSummary | null>(null);
+  const [usage, setUsage] = useState<AdminLLMUsageResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,15 +67,19 @@ export function LLMUsagePage({ token }: { token: string }) {
           <div><h2 className="text-xl font-semibold">LLM Usage</h2><p className="text-sm text-white/55">Monitor Virtual User LLM requests and token usage.</p></div>
         </div>
       </section>
-      <section className="grid gap-4 md:grid-cols-4">
-        <TotalsCard label="Today" totals={usage?.periods.today ?? { requests: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0 }} />
-        <TotalsCard label="This week" totals={usage?.periods.week ?? { requests: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0 }} />
-        <TotalsCard label="This month" totals={usage?.periods.month ?? { requests: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0 }} />
-        <TotalsCard label="This year" totals={usage?.periods.year ?? { requests: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0 }} />
+      <section className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-lg border border-mint/20 bg-mint/10 p-4"><p className="text-xs uppercase tracking-wide text-white/55">Total rule-based answers</p><p className="mt-2 text-2xl font-semibold text-mint">{number(usage?.responses.total.rule ?? 0)}</p></div>
+        <div className="rounded-lg border border-violet/20 bg-violet/10 p-4"><p className="text-xs uppercase tracking-wide text-white/55">Total LLM answers</p><p className="mt-2 text-2xl font-semibold text-violet-200">{number(usage?.responses.total.llm ?? 0)}</p></div>
       </section>
-      <BreakdownTable title="By Virtual User" icon={Bot} items={usage?.byVirtualUser ?? []} />
-      <BreakdownTable title="By Model" icon={Cpu} items={usage?.byModel ?? []} />
-      <BreakdownTable title="By Provider" icon={BrainCircuit} items={usage?.byProvider ?? []} />
+      <section className="grid gap-4 md:grid-cols-4">
+        <TotalsCard label="Today" totals={usage?.llm.periods.today ?? { requests: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0 }} />
+        <TotalsCard label="This week" totals={usage?.llm.periods.week ?? { requests: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0 }} />
+        <TotalsCard label="This month" totals={usage?.llm.periods.month ?? { requests: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0 }} />
+        <TotalsCard label="This year" totals={usage?.llm.periods.year ?? { requests: 0, inputTokens: 0, outputTokens: 0, totalTokens: 0 }} />
+      </section>
+      <BreakdownTable title="By Virtual User" icon={Bot} items={usage?.llm.byVirtualUser ?? []} />
+      <BreakdownTable title="By Model" icon={Cpu} items={usage?.llm.byModel ?? []} />
+      <BreakdownTable title="By Provider" icon={BrainCircuit} items={usage?.llm.byProvider ?? []} />
     </div>
   );
 }

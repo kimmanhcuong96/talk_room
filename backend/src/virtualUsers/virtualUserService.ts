@@ -19,6 +19,7 @@ import { listVirtualUserProfiles } from "./virtualUserRepository.js";
 import { VIRTUAL_USER_IDS, type VirtualUserProfile } from "./virtualUserTypes.js";
 import { ConversationStore } from "./conversationStore.js";
 import { llmUsageCoordinator } from "../usage/llmUsage.js";
+import { recordVirtualUserResponse } from "../usage/responseUsage.js";
 
 const BATCH_DELAY_MS = 650;
 const RESPONSE_COOLDOWN_MS = 1_200;
@@ -182,9 +183,9 @@ async function flushMessages(io: AppServer, roomId: string) {
     if (!isActiveConversation()) return;
 
     io.to(roomId).emit("typing", { senderId: profile.id, nickname: profile.name, active: true });
-    const response = await responseEngine.respond(profile, responseContext, combined, decision);
+    const response = await responseEngine.respondDetailed(profile, responseContext, combined, decision);
     if (!response || !isActiveConversation()) return;
-    await new Promise((resolve) => setTimeout(resolve, typingDelay(response)));
+    await new Promise((resolve) => setTimeout(resolve, typingDelay(response.text)));
     if (!isActiveConversation()) return;
 
     const message: ChatMessage = {
@@ -195,12 +196,15 @@ async function flushMessages(io: AppServer, roomId: string) {
       senderType: "virtual_user",
       nickname: profile.name,
       avatar: profile.avatarUrl?.trim() || "🤖",
-      text: response,
+      text: response.text,
       timestamp: Date.now()
     };
     if (addRoomMessage(message)) {
       conversations.remember(context, message);
       io.to(roomId).emit("receive-message", message);
+      void recordVirtualUserResponse(profile.id, roomId, response.source).catch((error) => {
+        console.warn(`[VirtualUser] Unable to record ${response.source} response.`, error instanceof Error ? error.message : error);
+      });
     }
   } catch (error) {
     console.error(`[VirtualUser] Unable to process chat in ${roomId}.`, error);
@@ -259,6 +263,9 @@ export function handleHumanVoiceAttempt(io: AppServer, roomId: string, humanSock
   if (addRoomMessage(message)) {
     conversations.remember(context, message);
     io.to(roomId).emit("receive-message", message);
+    void recordVirtualUserResponse(profile.id, roomId, "rule").catch((error) => {
+      console.warn("[VirtualUser] Unable to record rule voice response.", error instanceof Error ? error.message : error);
+    });
   }
 }
 

@@ -60,6 +60,12 @@ export type LLMUsageSummary = {
   byModel: LLMUsageBreakdownItem[];
   byVirtualUser: LLMUsageBreakdownItem[];
 };
+export type ResponseUsageCounts = { rule: number; llm: number };
+export type ResponseUsageSummary = {
+  total: ResponseUsageCounts;
+  periods: { today: ResponseUsageCounts; week: ResponseUsageCounts; month: ResponseUsageCounts; year: ResponseUsageCounts };
+};
+export type AdminLLMUsageResponse = { llm: LLMUsageSummary; responses: ResponseUsageSummary };
 
 export type AdminSession = { token: string; admin: AdminProfile };
 export type RefreshedAdminSession = AdminSession & { applicationToken: string };
@@ -223,5 +229,5 @@ export async function getWebRtcUsage(token: string) {
 
 export async function getLLMUsage(token: string) {
   const response = await fetch(`${apiUrl}/admin/llm-usage`, { headers: authHeaders(token) });
-  return parseResponse<LLMUsageSummary>(response);
+  return parseResponse<AdminLLMUsageResponse>(response);
 }

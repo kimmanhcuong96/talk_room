@@ -1,6 +1,6 @@
 import { RuleEngine } from "./ruleEngine.js";
 import { validateBotResponse } from "./responseValidator.js";
-import type { ConversationContext, LLMProvider, LLMUsageCoordinator, RouteDecision, VirtualUserProfile } from "./virtualUserTypes.js";
+import type { ConversationContext, LLMProvider, LLMUsageCoordinator, RouteDecision, VirtualUserProfile, VirtualUserResponse } from "./virtualUserTypes.js";
 
 const directGeneration: LLMUsageCoordinator = {
   generate: (_virtualUserId, _roomId, _maxTokens, generation) => generation()
@@ -22,9 +22,17 @@ export class HybridResponseEngine {
   }
 
   async respond(profile: VirtualUserProfile, context: ConversationContext, message: string, decision = this.decide(profile, context, message)) {
+    const detailed = await this.respondDetailed(profile, context, message, decision);
+    return detailed?.text ?? null;
+  }
+
+  async respondDetailed(profile: VirtualUserProfile, context: ConversationContext, message: string, decision = this.decide(profile, context, message)): Promise<VirtualUserResponse | null> {
     if (decision.route === "IGNORE") return null;
-    if (decision.route === "RULE" && decision.response) return validateBotResponse(decision.response, context, profile);
-    if (this.llm.available === false) return this.rules.fallback(message, context, profile);
+    if (decision.route === "RULE" && decision.response) {
+      const text = validateBotResponse(decision.response, context, profile);
+      return text ? { text, source: "rule" } : null;
+    }
+    if (this.llm.available === false) return { text: this.rules.fallback(message, context, profile), source: "rule" };
     try {
       const response = await this.usage.generate(
         profile.id,
@@ -32,13 +40,13 @@ export class HybridResponseEngine {
         this.maxTokens,
         () => this.llm.generateResponse(profile, context, message)
       );
-      if (!response) return this.rules.fallback(message, context, profile);
+      if (!response) return { text: this.rules.fallback(message, context, profile), source: "rule" };
       const validated = validateBotResponse(response.text, context, profile);
-      if (validated) return validated;
-      return this.rules.fallback(message, context, profile);
+      if (validated) return { text: validated, source: "llm" };
+      return { text: this.rules.fallback(message, context, profile), source: "rule" };
     } catch (error) {
       console.warn(`[VirtualUser] LLM unavailable for ${profile.id}; using rules.`, error instanceof Error ? error.message : error);
-      return this.rules.fallback(message, context, profile);
+      return { text: this.rules.fallback(message, context, profile), source: "rule" };
     }
   }
 }

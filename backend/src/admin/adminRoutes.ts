@@ -30,6 +30,7 @@ import { applyVirtualUserProfile, getVirtualUsersForAdmin } from "../virtualUser
 import { listUserRoomTime } from "../usage/userRoomTime.js";
 import { getWebRtcUsageSummary } from "../usage/webrtcUsage.js";
 import { getLLMUsageSummary } from "../usage/llmUsage.js";
+import { getResponseUsageSummary } from "../usage/responseUsage.js";
 
 const userRoles = new Set<UserRole>(["unverified", "verified", "supporter"]);
 const adminRoles = new Set<AdminRole>(["owner", "admin"]);
@@ -116,7 +117,7 @@ adminRouter.get("/webrtc-usage", requireAdmin, async (_request, response, next) 
 });
 
 adminRouter.get("/llm-usage", requireAdmin, async (_request, response, next) => {
-  try { response.json(await getLLMUsageSummary()); } catch (error) { next(error); }
+  try { response.json({ llm: await getLLMUsageSummary(), responses: await getResponseUsageSummary() }); } catch (error) { next(error); }
 });
 
 adminRouter.patch("/users/:id/role", requireAdmin, async (request, response, next) => {

@@ -56,7 +56,9 @@ VITE_GOOGLE_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
 VITE_SITE_URL=http://localhost:5173
 ```
 
-Run every SQL file in `backend/migrations` against Neon in numeric order. The latest migration, `009_create_llm_usage.sql`, creates LLM usage records for Virtual User chat monitoring. Do this before starting the backend with a production database.
+Run every SQL file in `backend/migrations` against Neon in numeric order. The latest migrations, `009_create_llm_usage.sql` and `010_create_virtual_user_response_usage.sql`, create LLM usage plus rule/LLM response records for Virtual User chat monitoring. Do this before starting the backend with a production database.
+
+To enable Cloudflare Workers AI chat locally, copy `.env.example` to `.env`, fill in `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_AI_API_TOKEN`, then set `LLM_PROVIDER=cloudflare` and `LLM_MODEL=@cf/meta/llama-3.1-8b-instruct-fast`. Apply migration 009 before starting the backend. The key must stay in the backend `.env`; do not add it to `frontend/.env.local` or commit it.
 
 Start both workspaces:
 
@@ -152,7 +154,7 @@ Recommended production layout:
 3. Set frontend `VITE_API_URL` and `VITE_SOCKET_URL` to the deployed backend URL.
 4. Set backend `CLIENT_ORIGIN` to the exact deployed frontend origin(s).
 5. Configure Google OAuth authorized origins/redirect settings for the production domain.
-6. Apply all migrations, including `009_create_llm_usage.sql`, before enabling sign-in and analytics.
+6. Apply all migrations, including `009_create_llm_usage.sql` and `010_create_virtual_user_response_usage.sql`, before enabling sign-in and analytics.
 
 For Cloudflare Pages, build the frontend workspace with `npm run build -w frontend` and publish `frontend/dist`. For Render, build the backend with `npm run build -w backend` and start it with `npm run start -w backend`.
 

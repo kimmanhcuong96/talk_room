@@ -38,6 +38,29 @@ export type RouteDecision = {
   response?: string;
 };
 
+export type LLMUsage = {
+  provider: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+};
+
+export type LLMGeneration = {
+  text: string;
+  usage: LLMUsage;
+};
+
 export interface LLMProvider {
-  generateResponse(profile: VirtualUserProfile, context: ConversationContext, message: string): Promise<string>;
+  readonly available?: boolean;
+  generateResponse(profile: VirtualUserProfile, context: ConversationContext, message: string): Promise<LLMGeneration>;
+}
+
+export interface LLMUsageCoordinator {
+  generate(
+    virtualUserId: string,
+    roomId: string,
+    maxTokens: number | null,
+    generation: () => Promise<LLMGeneration>
+  ): Promise<LLMGeneration | null>;
 }

@@ -6,6 +6,15 @@ function required(name: string): string {
   return value;
 }
 
+function optionalNonNegativeInteger(name: string): number | null {
+  const raw = process.env[name]?.trim();
+  if (!raw) return null;
+  if (!/^\d+$/.test(raw)) throw new Error(`${name} must be a non-negative integer.`);
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value)) throw new Error(`${name} is too large.`);
+  return value;
+}
+
 export const env = {
   port: Number(process.env.PORT ?? 4000),
   clientOrigins: (process.env.CLIENT_ORIGIN ?? "http://localhost:5173,http://127.0.0.1:5173")
@@ -20,8 +29,12 @@ export const env = {
   adminJwtSecret: process.env.ADMIN_JWT_SECRET?.trim() || required("JWT_SECRET"),
   adminJwtExpiresIn: process.env.ADMIN_JWT_EXPIRES_IN ?? "8h",
   youtubeDataApiKey: process.env.YOUTUBE_DATA_API_KEY?.trim() ?? "",
+  llmProvider: process.env.LLM_PROVIDER?.trim().toLowerCase() ?? "",
+  llmModel: process.env.LLM_MODEL?.trim() ?? "",
+  llmMaxTokens: optionalNonNegativeInteger("LLM_MAX_TOKENS"),
   ollamaBaseUrl: process.env.OLLAMA_BASE_URL?.trim() || "http://127.0.0.1:11434",
   ollamaModel: process.env.OLLAMA_MODEL?.trim() ?? "",
+  cloudflareAiApiToken: process.env.CLOUDFLARE_AI_API_TOKEN?.trim() ?? "",
   cloudflareTurnKeyId: process.env.CLOUDFLARE_TURN_KEY_ID?.trim() ?? "",
   cloudflareTurnApiToken: process.env.CLOUDFLARE_TURN_API_TOKEN?.trim() ?? "",
   cloudflareTurnTtlSeconds: Number(process.env.CLOUDFLARE_TURN_TTL_SECONDS ?? 86400),

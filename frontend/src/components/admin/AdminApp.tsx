@@ -1,4 +1,4 @@
-import { ArrowLeft, BarChart3, Bot, ChevronLeft, ChevronRight, Flag, LoaderCircle, LogOut, ShieldCheck, UserCog, Users } from "lucide-react";
+import { ArrowLeft, BarChart3, Bot, BrainCircuit, ChevronLeft, ChevronRight, Flag, LoaderCircle, LogOut, ShieldCheck, UserCog, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import {
   clearAdminToken,
@@ -28,6 +28,7 @@ import { ReportsPage } from "./ReportsPage";
 import { adminModerationCopy } from "../../lib/adminModerationI18n";
 import { VirtualUsersPage } from "./VirtualUsersSettings";
 import { UsageAnalyticsPage } from "./UsageAnalyticsPage";
+import { LLMUsagePage } from "./LLMUsagePage";
 
 const LANGUAGE_STORAGE_KEY = "me2talk:language";
 const LEGACY_LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
@@ -95,6 +96,7 @@ function Dashboard({ session, t }: { session: AdminSession; t: Translator }) {
   const cards = [
     { page: "users" as const, icon: Users, title: t("userManagement"), description: t("userManagementDescription"), allowed: true },
     { page: "virtual-users" as const, icon: Bot, title: "Virtual Users", description: "Manage the 15 fixed chat bot profiles and view their live room status.", allowed: true },
+    { page: "llm-usage" as const, icon: BrainCircuit, title: "LLM Usage", description: "Monitor Virtual User LLM requests, token usage, providers, and models.", allowed: true },
     { page: "reports" as const, icon: Flag, title: moderation.title, description: moderation.description, allowed: true },
     { page: "analytics" as const, icon: BarChart3, title: "Usage analytics", description: "Monitor cumulative room time and daily STUN/TURN usage.", allowed: true },
     { page: "admins" as const, icon: UserCog, title: t("adminManagement"), description: t("adminManagementDescription"), allowed: session.admin.role === "owner" }
@@ -301,12 +303,13 @@ export function AdminApp() {
   if (!session) return <main className="grid min-h-screen place-items-center bg-ink text-white"><LoaderCircle size={28} className="animate-spin text-mint" /></main>;
 
   const signOut = () => { clearAdminToken(); setSession(null); };
-  const pageTitle = page === "users" ? t("userManagement") : page === "virtual-users" ? "Virtual Users" : page === "admins" ? t("adminManagement") : page === "reports" ? adminModerationCopy(language).title : page === "analytics" ? "Usage analytics" : t("adminArea");
+  const pageTitle = page === "users" ? t("userManagement") : page === "virtual-users" ? "Virtual Users" : page === "llm-usage" ? "LLM Usage" : page === "admins" ? t("adminManagement") : page === "reports" ? adminModerationCopy(language).title : page === "analytics" ? "Usage analytics" : t("adminArea");
   let content: ReactNode = <Dashboard session={session} t={t} />;
   if (page === "users") content = <UsersPage session={session} language={language} t={t} />;
   if (page === "admins") content = <AdminsPage session={session} language={language} t={t} />;
   if (page === "reports") content = <ReportsPage session={session} language={language} backLabel={t("backToDashboard")} previousLabel={t("previous")} nextLabel={t("next")} loadingLabel={t("loading")} pageLabel={(current, pages) => t("pageOf", { page: current, pages })} />;
   if (page === "virtual-users") content = <VirtualUsersPage token={session.token} language={language} />;
+  if (page === "llm-usage") content = <LLMUsagePage token={session.token} />;
   if (page === "analytics") content = <UsageAnalyticsPage token={session.token} />;
   return <AdminLayout session={session} title={pageTitle} t={t} onSignOut={signOut}>{content}</AdminLayout>;
 }

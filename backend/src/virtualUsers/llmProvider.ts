@@ -1,4 +1,16 @@
-import type { ConversationContext, LLMProvider, VirtualUserProfile } from "./virtualUserTypes.js";
+import type { ConversationContext, LLMGeneration, LLMProvider, VirtualUserProfile } from "./virtualUserTypes.js";
+
+function estimateTokens(text: string) {
+  return Math.max(1, Math.ceil(text.length / 4));
+}
+
+function estimateMessageTokens(messages: Array<{ content: string }>) {
+  return messages.reduce((total, message) => total + estimateTokens(message.content), 0);
+}
+
+function usageToken(value: unknown, fallback: number) {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.ceil(value) : fallback;
+}
 
 export function buildSystemPrompt(profile: VirtualUserProfile) {
   return `You are ${profile.name}, a natural English conversation partner.
@@ -23,7 +35,7 @@ Rules:
 - Use emojis rarely.`;
 }
 
-export function buildOllamaMessages(profile: VirtualUserProfile, context: ConversationContext, message: string) {
+export function buildLLMMessages(profile: VirtualUserProfile, context: ConversationContext, message: string) {
   const recent = context.recentMessages.slice(-10).map((item) => ({
     role: item.senderType === "virtual_user" ? "assistant" : "user",
     content: item.text
@@ -38,33 +50,110 @@ export function buildOllamaMessages(profile: VirtualUserProfile, context: Conver
   ];
 }
 
+// Kept as an alias for compatibility with existing imports.
+export const buildOllamaMessages = buildLLMMessages;
+
 export class OllamaProvider implements LLMProvider {
+  readonly provider = "ollama";
+
   constructor(
     private readonly baseUrl: string,
     private readonly model: string,
     private readonly timeoutMs = 8_000
   ) {}
 
-  async generateResponse(profile: VirtualUserProfile, context: ConversationContext, message: string) {
+  async generateResponse(profile: VirtualUserProfile, context: ConversationContext, message: string): Promise<LLMGeneration> {
     if (!this.model) throw new Error("OLLAMA_MODEL is not configured.");
+    const messages = buildLLMMessages(profile, context, message);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     timeout.unref();
     try {
       const response = await fetch(`${this.baseUrl.replace(/\/$/, "")}/api/chat`, {
-        method: "POST",
+          method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
           model: this.model,
           stream: false,
-          messages: buildOllamaMessages(profile, context, message),
+          messages,
           options: { temperature: 0.75, num_predict: 120 }
         })
       });
       if (!response.ok) throw new Error(`Ollama returned ${response.status}.`);
-      const body = await response.json() as { message?: { content?: string } };
-      return body.message?.content?.trim() ?? "";
+      const body = await response.json() as {
+        message?: { content?: string };
+        prompt_eval_count?: number;
+        eval_count?: number;
+      };
+      const text = body.message?.content?.trim() ?? "";
+      const inputTokens = usageToken(body.prompt_eval_count, estimateMessageTokens(messages));
+      const outputTokens = usageToken(body.eval_count, estimateTokens(text));
+      return { text, usage: { provider: this.provider, model: this.model, inputTokens, outputTokens, totalTokens: inputTokens + outputTokens } };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+}
+
+export class CloudflareWorkersAIProvider implements LLMProvider {
+  readonly provider = "cloudflare";
+
+  constructor(
+    private readonly accountId: string,
+    private readonly apiToken: string,
+    private readonly model: string,
+    private readonly timeoutMs = 8_000
+  ) {}
+
+  async generateResponse(profile: VirtualUserProfile, context: ConversationContext, message: string): Promise<LLMGeneration> {
+    if (!this.accountId) throw new Error("CLOUDFLARE_ACCOUNT_ID is not configured.");
+    if (!this.apiToken) throw new Error("CLOUDFLARE_AI_API_TOKEN is not configured.");
+    if (!this.model) throw new Error("LLM_MODEL is not configured.");
+    const messages = buildLLMMessages(profile, context, message);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    timeout.unref();
+    try {
+      const response = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(this.accountId)}/ai/run/${this.model.replace(/^\/+/, "")}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${this.apiToken}`,
+            "Content-Type": "application/json"
+          },
+          signal: controller.signal,
+          body: JSON.stringify({ messages, temperature: 0.7, max_tokens: 120 })
+        }
+      );
+      const body = await response.json() as {
+        success?: boolean;
+        errors?: Array<{ message?: string }>;
+        result?: {
+          response?: string;
+          usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; input_tokens?: number; output_tokens?: number };
+        };
+      };
+      if (!response.ok) {
+        const detail = body.errors?.map((error) => error.message).filter(Boolean).join("; ");
+        throw new Error(`Cloudflare Workers AI returned ${response.status}${detail ? `: ${detail}` : "."}`);
+      }
+      if (body.success === false) throw new Error(body.errors?.map((error) => error.message).filter(Boolean).join("; ") || "Cloudflare Workers AI request failed.");
+      const text = body.result?.response?.trim() ?? "";
+      const usage = body.result?.usage;
+      const inputTokens = usageToken(usage?.prompt_tokens ?? usage?.input_tokens, estimateMessageTokens(messages));
+      const outputTokens = usageToken(usage?.completion_tokens ?? usage?.output_tokens, estimateTokens(text));
+      return {
+        text,
+        usage: {
+          provider: this.provider,
+          model: this.model,
+          inputTokens,
+          outputTokens,
+          totalTokens: usageToken(usage?.total_tokens, inputTokens + outputTokens)
+        }
+      };
     } finally {
       clearTimeout(timeout);
     }
@@ -72,7 +161,9 @@ export class OllamaProvider implements LLMProvider {
 }
 
 export class UnavailableLLMProvider implements LLMProvider {
-  async generateResponse(): Promise<string> {
+  readonly available = false;
+
+  async generateResponse(): Promise<LLMGeneration> {
     throw new Error("No LLM provider is configured.");
   }
 }

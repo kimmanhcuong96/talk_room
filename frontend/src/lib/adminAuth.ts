@@ -52,6 +52,14 @@ export type VirtualUserRuntime = { botId: string; status: "AVAILABLE" | "ACTIVE"
 export type AdminVirtualUser = { profile: VirtualUserProfile; runtime: VirtualUserRuntime };
 export type RoomTimeItem = { userId: string; displayName: string; email: string; avatarUrl: string | null; totalSeconds: number };
 export type WebRtcUsage = { daily: Record<string, number>; weekly: Record<string, number>; monthly: Record<string, number>; yearly: Record<string, number>; series: Array<{ date: string; transport: "stun" | "turn"; seconds: number }> };
+export type LLMUsageTotals = { requests: number; inputTokens: number; outputTokens: number; totalTokens: number };
+export type LLMUsageBreakdownItem = { key: string; label: string; requests: number; inputTokens: number; outputTokens: number; totalTokens: number };
+export type LLMUsageSummary = {
+  periods: { today: LLMUsageTotals; week: LLMUsageTotals; month: LLMUsageTotals; year: LLMUsageTotals };
+  byProvider: LLMUsageBreakdownItem[];
+  byModel: LLMUsageBreakdownItem[];
+  byVirtualUser: LLMUsageBreakdownItem[];
+};
 
 export type AdminSession = { token: string; admin: AdminProfile };
 export type RefreshedAdminSession = AdminSession & { applicationToken: string };
@@ -211,4 +219,9 @@ export async function getRoomTime(token: string) {
 export async function getWebRtcUsage(token: string) {
   const response = await fetch(`${apiUrl}/admin/webrtc-usage`, { headers: authHeaders(token) });
   return parseResponse<WebRtcUsage>(response);
+}
+
+export async function getLLMUsage(token: string) {
+  const response = await fetch(`${apiUrl}/admin/llm-usage`, { headers: authHeaders(token) });
+  return parseResponse<LLMUsageSummary>(response);
 }

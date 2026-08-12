@@ -6,9 +6,9 @@ import { HybridResponseEngine } from "../src/virtualUsers/hybridResponseEngine.j
 import { RuleEngine, voicePromptResponses } from "../src/virtualUsers/ruleEngine.js";
 import { estimateEnglishFallbackVariants } from "../src/virtualUsers/commonEnglishPhraseBank.js";
 import { buildCommonEnglishSituationResponse, estimateCommonEnglishSituationCount, estimateCommonEnglishSituationInputs } from "../src/virtualUsers/commonEnglishSituations.js";
-import { buildOllamaMessages } from "../src/virtualUsers/llmProvider.js";
+import { buildLLMMessages, CloudflareWorkersAIProvider } from "../src/virtualUsers/llmProvider.js";
 import { validateBotResponse } from "../src/virtualUsers/responseValidator.js";
-import { VIRTUAL_USER_IDS, type ConversationContext, type LLMProvider, type VirtualUserProfile } from "../src/virtualUsers/virtualUserTypes.js";
+import { VIRTUAL_USER_IDS, type ConversationContext, type LLMProvider, type LLMUsageCoordinator, type VirtualUserProfile } from "../src/virtualUsers/virtualUserTypes.js";
 import { addUserToRoom, createRoom, getRoomHumanCount, getRoomMessages, getRoomVirtualUser, removeUser } from "../src/rooms/roomStore.js";
 
 const makeProfile = (id: string, enabled = true): VirtualUserProfile => ({
@@ -59,7 +59,7 @@ test("a pool with 15 identities cannot satisfy a sixteenth room", () => {
 
 test("rule routing answers simple messages without calling the LLM", async () => {
   let llmCalls = 0;
-  const provider: LLMProvider = { async generateResponse() { llmCalls += 1; return "unused"; } };
+  const provider: LLMProvider = { async generateResponse() { llmCalls += 1; return { text: "unused", usage: { provider: "test", model: "test", inputTokens: 1, outputTokens: 1, totalTokens: 2 } }; } };
   const engine = new HybridResponseEngine(provider, new RuleEngine());
   const response = await engine.respond(makeProfile("bot-01"), makeContext(), "Hello");
   assert.ok(response);
@@ -68,7 +68,7 @@ test("rule routing answers simple messages without calling the LLM", async () =>
 
 test("an uncertain rule decision is escalated to the LLM", async () => {
   let llmCalls = 0;
-  const provider: LLMProvider = { async generateResponse() { llmCalls += 1; return "Contextual response"; } };
+  const provider: LLMProvider = { async generateResponse() { llmCalls += 1; return { text: "Contextual response", usage: { provider: "test", model: "test", inputTokens: 1, outputTokens: 1, totalTokens: 2 } }; } };
   class UncertainRules extends RuleEngine {
     override route() { return { route: "RULE" as const, confidence: 0.4, response: "uncertain" }; }
   }
@@ -87,6 +87,37 @@ test("complex routing falls back when the LLM is unavailable", async () => {
   assert.doesNotMatch(response, /^(?:That's a good question|Tell me a little more|That sounds interesting)/i);
 });
 
+test("token budget coordinator can stop a request before the provider is called", async () => {
+  let llmCalls = 0;
+  const provider: LLMProvider = { async generateResponse() { llmCalls += 1; throw new Error("must not run"); } };
+  const usage: LLMUsageCoordinator = { async generate() { return null; } };
+  const engine = new HybridResponseEngine(provider, new RuleEngine(), usage, 0);
+  const response = await engine.respond(makeProfile("bot-01"), makeContext(), "What do you enjoy about travel?");
+  assert.ok(response);
+  assert.equal(llmCalls, 0);
+});
+
+test("completed LLM usage is tracked even when response validation rejects the text", async () => {
+  let trackedTokens = 0;
+  const provider: LLMProvider = {
+    async generateResponse() {
+      return { text: "As an AI assistant, I can help.", usage: { provider: "test", model: "small", inputTokens: 7, outputTokens: 3, totalTokens: 10 } };
+    }
+  };
+  const usage: LLMUsageCoordinator = {
+    async generate(_botId, _roomId, _limit, generation) {
+      const result = await generation();
+      trackedTokens += result.usage.totalTokens;
+      return result;
+    }
+  };
+  const engine = new HybridResponseEngine(provider, new RuleEngine(), usage);
+  const response = await engine.respond(makeProfile("bot-01"), makeContext(), "What do you enjoy about travel?");
+  assert.ok(response);
+  assert.equal(trackedTokens, 10);
+  assert.notEqual(response, "As an AI assistant, I can help.");
+});
+
 test("LLM messages inject profile, topic, summary, user facts, recent context, and current message", () => {
   const profile = { ...makeProfile("bot-01"), name: "Emma", personality: "Curious", speakingStyle: "Short and casual" };
   const context = makeContext();
@@ -94,7 +125,7 @@ test("LLM messages inject profile, topic, summary, user facts, recent context, a
   context.summary = "The user is planning a trip.";
   context.userFacts = { location: "Vietnam" };
   context.recentMessages = [makeMessage("room-a", "I want to visit Japan.")];
-  const messages = buildOllamaMessages(profile, context, "What should I see in Tokyo?");
+  const messages = buildLLMMessages(profile, context, "What should I see in Tokyo?");
   const content = messages.map((message) => message.content).join("\n");
   assert.match(content, /Emma/);
   assert.match(content, /Curious/);
@@ -106,6 +137,30 @@ test("LLM messages inject profile, topic, summary, user facts, recent context, a
   assert.match(content, /Avoid bland phrases/);
   assert.match(content, /Use English only/);
   assert.equal(messages.at(-1)?.content, "What should I see in Tokyo?");
+});
+
+test("Cloudflare provider sends chat context and uses returned token counts", async () => {
+  const originalFetch = globalThis.fetch;
+  let requestedUrl = "";
+  let requestBody: { messages?: Array<{ content: string }>; max_tokens?: number } = {};
+  globalThis.fetch = (async (input, init) => {
+    requestedUrl = String(input);
+    requestBody = JSON.parse(String(init?.body));
+    return new Response(JSON.stringify({
+      success: true,
+      result: { response: "I loved Kyoto in spring.", usage: { prompt_tokens: 21, completion_tokens: 7, total_tokens: 28 } }
+    }), { status: 200, headers: { "Content-Type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    const provider = new CloudflareWorkersAIProvider("account-id", "secret-token", "@cf/meta/llama-3.1-8b-instruct-fast");
+    const result = await provider.generateResponse(makeProfile("bot-01"), makeContext(), "Where did you travel?");
+    assert.match(requestedUrl, /accounts\/account-id\/ai\/run\/@cf\/meta\/llama-3\.1-8b-instruct-fast$/);
+    assert.equal(requestBody.max_tokens, 120);
+    assert.equal(requestBody.messages?.at(-1)?.content, "Where did you travel?");
+    assert.deepEqual(result.usage, { provider: "cloudflare", model: "@cf/meta/llama-3.1-8b-instruct-fast", inputTokens: 21, outputTokens: 7, totalTokens: 28 });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("common English fallback bank provides at least one million variants", () => {
@@ -149,7 +204,7 @@ test("rule fallback uses profile and message intent instead of bland filler", ()
 test("rule fallback answers non-English messages in English with an uncertainty note", () => {
   const engine = new RuleEngine();
   const response = engine.fallback("mình không hiểu bot đang trả lời gì", makeContext(), makeProfile("bot-01"));
-  assert.match(response, /\b(?:don't understand|not sure I understand|only follow English|write it in English|use English|send it in English|switch to English|English would work better|try it in English)\b/i);
+  assert.match(response, /\b(?:don't understand|not sure I understand|only follow English|write it in English|write that in English|use English|send it in English|switch to English|English would work better|try it in English)\b/i);
   assert.doesNotMatch(response, /[ăâđêôơưáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i);
 });
 
@@ -243,6 +298,26 @@ test("rapid human messages are batched into one pending interaction", async () =
   releaseVirtualUser(io, "room-15");
   assert.equal(virtualUserInternals.pendingMessages.has("room-15"), false);
   removeUser("human-batch");
+});
+
+test("the same human message id cannot trigger duplicate bot processing", async () => {
+  process.env.DATABASE_URL ||= "postgres://test:test@localhost:5432/test";
+  process.env.GOOGLE_CLIENT_ID ||= "test.apps.googleusercontent.com";
+  process.env.JWT_SECRET ||= "test-secret-that-is-long-enough";
+  const { handleHumanChatMessage, reconcileVirtualUserForRoom, releaseVirtualUser, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
+  virtualUserInternals.pool.replaceProfiles([makeProfile("bot-01")]);
+  const io = { to: () => ({ emit: () => undefined }), emit: () => undefined } as never;
+  const human = { socketId: "human-dedup", nickname: "Human", avatar: "🙂", role: "unverified" as const, micEnabled: false, cameraEnabled: false, screenSharing: false, screenTrackId: null, senderType: "human" as const };
+  const room = createRoom("Dedupe Test", "en", "any", null, "00000000-0000-0000-0000-000000000000", 4);
+  assert.equal(addUserToRoom(room.id, human).ok, true);
+  reconcileVirtualUserForRoom(io, room.id);
+  const message = makeMessage(room.id, "Could we talk about movies?", 1);
+  handleHumanChatMessage(io, message);
+  handleHumanChatMessage(io, message);
+  assert.equal(virtualUserInternals.pendingMessages.get(room.id)?.messages.length, 1);
+  releaseVirtualUser(io, room.id);
+  assert.equal(virtualUserInternals.processedHumanMessages.has(room.id), false);
+  removeUser("human-dedup");
 });
 
 test("voice attempts in a bot room get a text-only bot prompt", async () => {

@@ -13,15 +13,18 @@ import type { AppServer, ChatMessage } from "../types/socket.js";
 import { env } from "../config/env.js";
 import { BotPool } from "./botPool.js";
 import { HybridResponseEngine } from "./hybridResponseEngine.js";
-import { OllamaProvider, UnavailableLLMProvider } from "./llmProvider.js";
+import { CloudflareWorkersAIProvider, OllamaProvider, UnavailableLLMProvider } from "./llmProvider.js";
 import { getVoicePromptResponse } from "./ruleEngine.js";
 import { listVirtualUserProfiles } from "./virtualUserRepository.js";
 import { VIRTUAL_USER_IDS, type VirtualUserProfile } from "./virtualUserTypes.js";
 import { ConversationStore } from "./conversationStore.js";
+import { llmUsageCoordinator } from "../usage/llmUsage.js";
 
 const BATCH_DELAY_MS = 650;
 const RESPONSE_COOLDOWN_MS = 1_200;
 const VOICE_PROMPT_COOLDOWN_MS = 45_000;
+const PROCESSED_MESSAGE_TTL_MS = 5 * 60_000;
+const MAX_PROCESSED_MESSAGES_PER_ROOM = 200;
 const pool = new BotPool();
 const conversations = new ConversationStore();
 const pendingMessages = new Map<string, { messages: ChatMessage[]; timer: ReturnType<typeof setTimeout> }>();
@@ -29,10 +32,28 @@ const processingRooms = new Set<string>();
 const roomGenerations = new Map<string, number>();
 const lastVoicePromptAt = new Map<string, number>();
 const voicePromptCounts = new Map<string, number>();
-const llmProvider = env.ollamaModel
-  ? new OllamaProvider(env.ollamaBaseUrl, env.ollamaModel)
-  : new UnavailableLLMProvider();
-const responseEngine = new HybridResponseEngine(llmProvider);
+const processedHumanMessages = new Map<string, Map<string, number>>();
+
+function createLLMProvider() {
+  if (env.llmProvider === "cloudflare") {
+    if (!env.cloudflareAccountId || !env.cloudflareAiApiToken || !env.llmModel) {
+      throw new Error("LLM_PROVIDER=cloudflare requires CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_AI_API_TOKEN, and LLM_MODEL.");
+    }
+    return new CloudflareWorkersAIProvider(env.cloudflareAccountId, env.cloudflareAiApiToken, env.llmModel);
+  }
+  if (env.llmProvider === "ollama") {
+    if (!env.llmModel) throw new Error("LLM_PROVIDER=ollama requires LLM_MODEL.");
+    return new OllamaProvider(env.ollamaBaseUrl, env.llmModel);
+  }
+  if (!env.llmProvider && env.ollamaModel) {
+    return new OllamaProvider(env.ollamaBaseUrl, env.ollamaModel);
+  }
+  if (!env.llmProvider) return new UnavailableLLMProvider();
+  throw new Error(`Unsupported LLM_PROVIDER: ${env.llmProvider}`);
+}
+
+const llmProvider = createLLMProvider();
+const responseEngine = new HybridResponseEngine(llmProvider, undefined, llmUsageCoordinator, env.llmMaxTokens);
 
 export function getTypingDelayRange(text: string): readonly [number, number] {
   return text.length < 45 ? [500, 1_200] : text.length < 140 ? [1_000, 2_500] : [1_500, 3_500];
@@ -62,6 +83,23 @@ function clearVoicePromptStateForRoom(roomId: string) {
   }
 }
 
+function rememberHumanMessage(message: ChatMessage) {
+  const now = Date.now();
+  const roomMessages = processedHumanMessages.get(message.roomId) ?? new Map<string, number>();
+  for (const [id, seenAt] of roomMessages) {
+    if (now - seenAt > PROCESSED_MESSAGE_TTL_MS) roomMessages.delete(id);
+  }
+  if (roomMessages.has(message.id)) return false;
+  roomMessages.set(message.id, now);
+  while (roomMessages.size > MAX_PROCESSED_MESSAGES_PER_ROOM) {
+    const oldest = roomMessages.keys().next().value as string | undefined;
+    if (!oldest) break;
+    roomMessages.delete(oldest);
+  }
+  processedHumanMessages.set(message.roomId, roomMessages);
+  return true;
+}
+
 export function releaseVirtualUser(io: AppServer, roomId: string) {
   const profile = pool.releaseRoom(roomId);
   const roomBot = getRoomVirtualUser(roomId);
@@ -75,6 +113,7 @@ export function releaseVirtualUser(io: AppServer, roomId: string) {
   if (profile) io.to(roomId).emit("typing", { senderId: profile.id, nickname: profile.name, active: false });
   conversations.destroy(roomId, botId);
   clearVoicePromptStateForRoom(roomId);
+  processedHumanMessages.delete(roomId);
   const removed = removeVirtualUserByBotId(roomId, botId);
   if (removed) emitPresence(io, roomId, "left", removed.socketId);
 }
@@ -177,6 +216,7 @@ export function handleHumanChatMessage(io: AppServer, message: ChatMessage) {
   if (message.senderType !== "human") return;
   const bot = getRoomVirtualUser(message.roomId);
   if (!bot?.virtualUserId || getRoomHumanCount(message.roomId) !== 1) return;
+  if (!rememberHumanMessage(message)) return;
   const current = pendingMessages.get(message.roomId);
   if (current) {
     clearTimeout(current.timer);
@@ -247,4 +287,4 @@ export async function initializeVirtualUserService(io: AppServer) {
   for (const room of getRoomSummaries()) reconcileVirtualUserForRoom(io, room.id);
 }
 
-export const virtualUserInternals = { pool, conversations, processingRooms, roomGenerations, pendingMessages, lastVoicePromptAt, voicePromptCounts };
+export const virtualUserInternals = { pool, conversations, processingRooms, roomGenerations, pendingMessages, lastVoicePromptAt, voicePromptCounts, processedHumanMessages };

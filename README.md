@@ -164,6 +164,6 @@ For Cloudflare Pages, build the frontend workspace with `npm run build -w fronte
 - `GET /rooms`
 - `POST /auth/google`, `GET /auth/me`
 - `GET /webrtc/ice-config`, `GET /webrtc/turn-usage`
-- Admin-protected: `/admin/users`, `/admin/admins`, `/admin/reports`, `/admin/virtual-users`, `/admin/room-time`, `/admin/webrtc-usage`, `/admin/llm-usage`
+- Admin-protected: `/admin/users`, `/admin/admins`, `/admin/reports`, `/admin/virtual-users`, `/admin/webrtc-usage`, `/admin/llm-usage`
 
 Audio/video media is peer-to-peer whenever possible. The server handles presence, chat, authorization, signaling, usage accounting, and moderation; it does not persist media or chat history.

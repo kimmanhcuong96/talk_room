@@ -28,6 +28,7 @@ type ManagedUserRow = QueryResultRow & {
   role: UserRole;
   created_at: Date;
   last_login: Date;
+  total_seconds: string | number;
 };
 
 const adminColumns = "id, google_id, email, display_name, avatar_url, role, status, invited_by, created_at, activated_at, last_login";
@@ -57,6 +58,7 @@ function toManagedUser(row: ManagedUserRow) {
     role: row.role,
     createdAt: row.created_at.toISOString(),
     lastLogin: row.last_login.toISOString()
+    ,totalRoomSeconds: Number(row.total_seconds ?? 0)
   };
 }
 
@@ -162,8 +164,9 @@ export async function listManagedUsers(options: { page: number; limit: number; s
   const countResult = await getPool().query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM users ${where}`, params);
   params.push(options.limit, offset);
   const rows = await getPool().query<ManagedUserRow>(
-    `SELECT id, email, display_name, avatar_url, role, created_at, last_login
-     FROM users ${where}
+    `SELECT u.id, u.email, u.display_name, u.avatar_url, u.role, u.created_at, u.last_login,
+            COALESCE(t.total_seconds, 0)::bigint AS total_seconds
+     FROM users u LEFT JOIN user_room_time_totals t ON t.user_id = u.id ${where.replace(/\b(email|display_name|role)\b/g, "u.$1")}
      ORDER BY created_at DESC
      LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params
@@ -182,7 +185,8 @@ export async function updateManagedUserRole(actorAdminId: string, userId: string
     }
     const updated = await client.query<ManagedUserRow>(
       `UPDATE users SET role = $2 WHERE id = $1
-       RETURNING id, email, display_name, avatar_url, role, created_at, last_login`,
+       RETURNING id, email, display_name, avatar_url, role, created_at, last_login,
+         COALESCE((SELECT total_seconds FROM user_room_time_totals WHERE user_id = users.id), 0)::bigint AS total_seconds`,
       [userId, role]
     );
     await writeAudit(client, actorAdminId, "user.role_updated", { userId }, { from: current.rows[0].role, to: role });

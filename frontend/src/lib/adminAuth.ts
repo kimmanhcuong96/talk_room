@@ -25,6 +25,7 @@ export type ManagedUser = {
   role: UserRole;
   createdAt: string;
   lastLogin: string;
+  totalRoomSeconds: number;
 };
 
 export type ReportStatus = "pending" | "blocked" | "dismissed";
@@ -50,7 +51,6 @@ export type VirtualUserProfile = {
 };
 export type VirtualUserRuntime = { botId: string; status: "AVAILABLE" | "ACTIVE"; roomId?: string };
 export type AdminVirtualUser = { profile: VirtualUserProfile; runtime: VirtualUserRuntime };
-export type RoomTimeItem = { userId: string; displayName: string; email: string; avatarUrl: string | null; totalSeconds: number };
 export type WebRtcUsage = { daily: Record<string, number>; weekly: Record<string, number>; monthly: Record<string, number>; yearly: Record<string, number>; series: Array<{ date: string; transport: "stun" | "turn"; seconds: number }> };
 export type TurnUsageStatus = { configured: boolean; checkedAt: string | null; egressBytes: number | null; egressMb: number | null; egressGb: number | null; limitGb: number; turnAllowed: boolean };
 export type LLMUsageTotals = { requests: number; inputTokens: number; outputTokens: number; totalTokens: number };
@@ -216,11 +216,6 @@ export async function saveVirtualUserProfile(token: string, profile: VirtualUser
     body: JSON.stringify(profile)
   });
   return (await parseResponse<{ virtualUser: AdminVirtualUser }>(response)).virtualUser;
-}
-
-export async function getRoomTime(token: string) {
-  const response = await fetch(`${apiUrl}/admin/room-time?limit=100`, { headers: authHeaders(token) });
-  return parseResponse<{ items: RoomTimeItem[]; total: number }>(response);
 }
 
 export async function getWebRtcUsage(token: string) {

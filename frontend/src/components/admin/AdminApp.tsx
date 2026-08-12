@@ -48,6 +48,13 @@ function formatDate(value: string | null, language: Language) {
   return new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
+function formatRoomDuration(seconds: number) {
+  if (seconds < 60) return `${seconds}s`;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return hours ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
+
 type Translator = (key: AdminTranslationKey, values?: Record<string, string | number>) => string;
 
 function localizeAdminError(error: unknown, t: Translator) {
@@ -167,11 +174,11 @@ function UsersPage({ session, language, t }: { session: AdminSession; language: 
       <ErrorNotice error={error} />
       <div className="overflow-x-auto rounded-lg border border-white/10 bg-panel">
         <table className="w-full min-w-[850px] text-left text-sm">
-          <thead className="border-b border-white/10 bg-white/[0.03] text-xs uppercase tracking-wide text-white/45"><tr><th className="px-4 py-3">{t("account")}</th><th className="px-4 py-3">{t("role")}</th><th className="px-4 py-3">{t("createdAt")}</th><th className="px-4 py-3">{t("lastLogin")}</th></tr></thead>
+          <thead className="border-b border-white/10 bg-white/[0.03] text-xs uppercase tracking-wide text-white/45"><tr><th className="px-4 py-3">{t("account")}</th><th className="px-4 py-3">{t("role")}</th><th className="px-4 py-3">{adminAnalyticsCopy(language).totalRoomTime}</th><th className="px-4 py-3">{t("createdAt")}</th><th className="px-4 py-3">{t("lastLogin")}</th></tr></thead>
           <tbody className="divide-y divide-white/8">
-            {loading ? <tr><td colSpan={4} className="px-4 py-10 text-center text-white/50"><LoaderCircle className="mr-2 inline animate-spin" size={17} />{t("loading")}</td></tr> : null}
-            {!loading && users.length === 0 ? <tr><td colSpan={4} className="px-4 py-10 text-center text-white/50">{t("noUsers")}</td></tr> : null}
-            {!loading && users.map((user) => <tr key={user.id} className="hover:bg-white/[0.025]"><td className="px-4 py-3"><div className="font-medium">{user.displayName}</div><div className="mt-1 text-xs text-white/45">{user.email}</div></td><td className="px-4 py-3"><select value={user.role} onChange={(event) => void updateRole(user, event.target.value as UserRole)} className="h-9 rounded-md border border-white/10 bg-field px-2 outline-none focus:border-mint">{userRoles.map((value) => <option key={value} value={value}>{userRoleLabel(value, t)}</option>)}</select></td><td className="px-4 py-3 text-white/60">{formatDate(user.createdAt, language)}</td><td className="px-4 py-3 text-white/60">{formatDate(user.lastLogin, language)}</td></tr>)}
+            {loading ? <tr><td colSpan={5} className="px-4 py-10 text-center text-white/50"><LoaderCircle className="mr-2 inline animate-spin" size={17} />{t("loading")}</td></tr> : null}
+            {!loading && users.length === 0 ? <tr><td colSpan={5} className="px-4 py-10 text-center text-white/50">{t("noUsers")}</td></tr> : null}
+            {!loading && users.map((user) => <tr key={user.id} className="hover:bg-white/[0.025]"><td className="px-4 py-3"><div className="font-medium">{user.displayName}</div><div className="mt-1 text-xs text-white/45">{user.email}</div></td><td className="px-4 py-3"><select value={user.role} onChange={(event) => void updateRole(user, event.target.value as UserRole)} className="h-9 rounded-md border border-white/10 bg-field px-2 outline-none focus:border-mint">{userRoles.map((value) => <option key={value} value={value}>{userRoleLabel(value, t)}</option>)}</select></td><td className="px-4 py-3 font-semibold text-mint">{formatRoomDuration(user.totalRoomSeconds)}</td><td className="px-4 py-3 text-white/60">{formatDate(user.createdAt, language)}</td><td className="px-4 py-3 text-white/60">{formatDate(user.lastLogin, language)}</td></tr>)}
           </tbody>
         </table>
       </div>

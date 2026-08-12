@@ -253,7 +253,7 @@ The 15 fixed Virtual User identities are stored in `virtual_user_profiles`. An o
 
 The `/admin` application contains an authenticated Usage Analytics section:
 
-- `/admin/room-time` returns cumulative room time per authenticated user.
+- `/admin/users` returns each user's cumulative room time together with their role and account details.
 - `/admin/webrtc-usage` returns STUN/TURN totals for daily, weekly, monthly, and yearly periods and a daily history series.
 - Both endpoints require an active `owner` or `admin` session.
 

@@ -14,12 +14,12 @@ function stripBasePath(pathname: string) {
 }
 
 export type InfoPage = "privacy" | "contact" | "about";
-export type AdminPage = "dashboard" | "users" | "admins" | "reports" | "virtual-users";
+export type AdminPage = "dashboard" | "users" | "admins" | "reports" | "virtual-users" | "analytics";
 
 export function getAdminPageFromPath(pathname = window.location.pathname): AdminPage | null {
   const path = stripBasePath(pathname);
   if (/^\/admin\/?$/.test(path)) return "dashboard";
-  const match = path.match(/^\/admin\/(users|admins|reports|virtual-users)\/?$/);
+  const match = path.match(/^\/admin\/(users|admins|reports|virtual-users|analytics)\/?$/);
   return (match?.[1] as AdminPage | undefined) ?? null;
 }
 
@@ -38,7 +38,7 @@ export function isKnownClientPath(pathname = window.location.pathname) {
   return /^\/?$/.test(path)
     || /^\/room\/[^/]+\/?$/.test(path)
     || /^\/(privacy|contact|about)\/?$/.test(path)
-    || /^\/admin(?:\/(users|admins|reports|virtual-users))?\/?$/.test(path);
+    || /^\/admin(?:\/(users|admins|reports|virtual-users|analytics))?\/?$/.test(path);
 }
 
 export function homePath() {

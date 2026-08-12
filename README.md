@@ -1,139 +1,150 @@
 # me2talk
 
-Lightweight English speaking practice rooms built with React, Vite, TypeScript, Express, Socket.IO, and WebRTC mesh.
+Me2talk (Me to talk) is a realtime language-practice application built around small **Talking Room** sessions. Users can practice languages, chat, connect by audio/video, and use room topics or shared YouTube content.
 
 ## Features
 
-- 20 predefined rooms, maximum 4 users per room
-- No database, authentication, OAuth, or persistence
-- WebRTC peer-to-peer audio/video
-- Socket.IO signaling and realtime chat
-- Mic/camera toggles, active speaker highlight, responsive chat panel
-- User-created rooms are removed after remaining empty for 60 seconds; predefined rooms persist
+- 18 predefined Talking Rooms, up to 4 participants per room.
+- Custom rooms for verified users; supporters can also enable camera access.
+- Primary and optional secondary language tags, native-language labels, and CEFR-style level selection.
+- Search and language-tag filtering on the home page, including room counts.
+- Google Sign-In with `unverified`, `verified`, and `supporter` user roles.
+- One active room per user. Joining a new room automatically leaves the previous room.
+- Guest identity and nickname persistence through local storage.
+- Realtime chat, WebRTC mesh audio/video, active-speaker layout, and responsive UI.
+- Room topics with configurable text, color, font, and optional icon.
+- Room-owner YouTube sharing and playback controls.
+- Room-level block/report moderation and administrator review.
+- 15 configurable Virtual User profiles, including editable avatar URLs and natural chat fallback behavior.
+- Admin dashboard for user roles, admin accounts, moderation reports, Virtual Users, cumulative room time, and STUN/TURN analytics.
+- Empty custom rooms are deleted after 60 seconds; empty rooms reset temporary topic, YouTube, language, and message state.
 
-## Local Development
+## Requirements
+
+- Node.js 20 or newer and npm.
+- PostgreSQL (Neon is recommended for production).
+- Google OAuth Web Client ID for sign-in.
+- Optional: Cloudflare Realtime TURN credentials for restrictive networks.
+- Optional: YouTube Data API v3 key for recommendation cards in Manage YouTube.
+
+## Installation and local setup
+
+From the repository root:
 
 ```bash
 npm install
+```
+
+Create a backend environment file at `backend/.env`:
+
+```dotenv
+PORT=4000
+CLIENT_ORIGIN=http://localhost:5173,http://127.0.0.1:5173
+DATABASE_URL=postgresql://user:password@host/database?sslmode=require
+GOOGLE_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
+JWT_SECRET=replace-with-a-long-random-secret
+ADMIN_JWT_SECRET=replace-with-another-long-random-secret
+```
+
+Create `frontend/.env`:
+
+```dotenv
+VITE_SOCKET_URL=http://localhost:4000
+VITE_API_URL=http://localhost:4000
+VITE_GOOGLE_CLIENT_ID=your-google-web-client-id.apps.googleusercontent.com
+VITE_SITE_URL=http://localhost:5173
+```
+
+Run every SQL file in `backend/migrations` against Neon in numeric order. The latest migration, `008_create_usage_tracking.sql`, creates cumulative user room-time storage and daily STUN/TURN usage buckets. Do this before starting the backend with a production database.
+
+Start both workspaces:
+
+```bash
 npm run dev
 ```
 
-Frontend runs on `http://localhost:5173`.
-Backend runs on `http://localhost:4000`.
+The frontend is available at `http://localhost:5173` and the backend at `http://localhost:4000`. On Windows PowerShell, use `npm.cmd` if script execution policy blocks `npm`:
 
-## Environment
+```powershell
+npm.cmd run dev
+```
 
-Copy `.env.example` if you want to override defaults.
-
-Backend:
-
-- `PORT`: Express and Socket.IO port
-- `CLIENT_ORIGIN`: comma-separated allowed frontend origins
-- `DATABASE_URL`: Postgres connection string used by the backend for users
-- `GOOGLE_CLIENT_ID`: Google OAuth web client ID used to verify ID tokens
-- `JWT_SECRET`: long random secret used to sign application JWTs
-- `JWT_EXPIRES_IN`: optional JWT lifetime, defaults to `7d`
-- `ADMIN_JWT_SECRET`: separate long random secret for admin sessions; falls back to `JWT_SECRET`
-- `ADMIN_JWT_EXPIRES_IN`: optional admin JWT lifetime, defaults to `8h`
-- `YOUTUBE_DATA_API_KEY`: optional server-side YouTube Data API v3 key used to load the 10 recommendations in Manage YouTube; manual URL sharing remains available when omitted
-- `OLLAMA_BASE_URL`: optional local Ollama endpoint, defaults to `http://127.0.0.1:11434`
-- `OLLAMA_MODEL`: optional Ollama model name. When omitted or unavailable, Virtual Users continue with the built-in rule fallback at no API cost
-- `CLOUDFLARE_TURN_KEY_ID`: optional Cloudflare Realtime TURN key ID
-- `CLOUDFLARE_TURN_API_TOKEN`: optional Cloudflare API token for generating short-lived TURN credentials
-- `CLOUDFLARE_TURN_TTL_SECONDS`: optional TURN credential lifetime, defaults to `86400`
-- `CLOUDFLARE_ACCOUNT_ID`: optional Cloudflare account ID used for TURN usage checks
-- `CLOUDFLARE_ANALYTICS_API_TOKEN`: optional Cloudflare API token with `Account Analytics: Read`
-- `CLOUDFLARE_TURN_USAGE_LIMIT_GB`: optional monthly TURN egress limit before TURN is disabled, defaults to `950`
-- `CLOUDFLARE_TURN_USAGE_CHECK_SECONDS`: optional usage check cache duration, defaults to `300`
-
-Frontend:
-
-- `VITE_SOCKET_URL`: Socket.IO server URL
-- `VITE_API_URL`: backend HTTP API URL
-- `VITE_GOOGLE_CLIENT_ID`: Google OAuth web client ID used by Google Sign-In
-- `VITE_SITE_URL`: public frontend URL used to generate production `sitemap.xml` and canonical SEO URLs
-
-## Authentication
-
-The first authentication provider is Google Sign-In. The frontend receives a Google ID token from Google Identity Services and sends it to:
+Useful checks:
 
 ```bash
-POST /auth/google
+npm run typecheck
+npm run build
+npm test
 ```
 
-The backend verifies the ID token, creates or updates the `users` row, stores only the Google avatar URL, then returns:
+## Environment variables
 
-```json
-{
-  "token": "application-jwt",
-  "user": {
-    "id": "uuid",
-    "googleId": "google-sub",
-    "email": "user@gmail.com",
-    "displayName": "John Smith",
-    "avatarUrl": "https://lh3.googleusercontent.com/...",
-    "role": "unverified",
-    "createdAt": "2026-08-02T00:00:00.000Z",
-    "lastLogin": "2026-08-02T00:00:00.000Z"
-  }
-}
-```
+Backend variables:
 
-After reload, the frontend verifies the stored application JWT through:
+- `PORT`: HTTP and Socket.IO port (default `4000`).
+- `CLIENT_ORIGIN`: comma-separated frontend origins allowed by Express and Socket.IO.
+- `DATABASE_URL`: Neon/PostgreSQL connection string.
+- `GOOGLE_CLIENT_ID`: Google OAuth client ID used to verify ID tokens.
+- `JWT_SECRET`, `JWT_EXPIRES_IN`: application JWT signing secret and optional lifetime (default `7d`).
+- `ADMIN_JWT_SECRET`, `ADMIN_JWT_EXPIRES_IN`: admin JWT secret and optional lifetime (default `8h`). Admin sessions are renewed while the application session remains valid.
+- `YOUTUBE_DATA_API_KEY`: optional server-side YouTube Data API v3 key. Only the backend uses it.
+- `OLLAMA_BASE_URL`, `OLLAMA_MODEL`: optional local LLM provider for Virtual User responses; rule fallback works without Ollama.
+- `CLOUDFLARE_TURN_KEY_ID`, `CLOUDFLARE_TURN_API_TOKEN`, `CLOUDFLARE_TURN_TTL_SECONDS`: optional short-lived Cloudflare TURN credentials.
+- `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_ANALYTICS_API_TOKEN`: optional Cloudflare Analytics access for TURN egress checks. The analytics dashboard's STUN/TURN duration is recorded by this backend independently.
+- `CLOUDFLARE_TURN_USAGE_LIMIT_GB`, `CLOUDFLARE_TURN_USAGE_CHECK_SECONDS`: optional TURN egress guard settings (defaults `950` GB and `300` seconds).
 
-```bash
-GET /auth/me
-Authorization: Bearer <application-jwt>
-```
+Frontend variables:
 
-Run the SQL files in `backend/migrations` in numeric order against the configured Postgres database before enabling login. Migration `002_add_user_role.sql` adds the extensible user roles and defaults existing accounts to `unverified`. Migration `004_create_moderation.sql` adds user reports and system-wide blocks. Migration `006_create_virtual_user_profiles.sql` creates and seeds the 15 fixed Virtual User chat profiles; migration `007_remove_legacy_virtual_user_settings.sql` removes the retired fake-occupancy settings table.
+- `VITE_SOCKET_URL`: backend Socket.IO URL.
+- `VITE_API_URL`: backend HTTP API URL.
+- `VITE_GOOGLE_CLIENT_ID`: Google OAuth client ID.
+- `VITE_SITE_URL`: public canonical URL used by generated SEO files.
 
-To promote an account after verification or supporter approval, update its role explicitly:
+## Authentication, roles, and admin setup
 
-```sql
-UPDATE users SET role = 'verified' WHERE email = 'person@example.com';
-UPDATE users SET role = 'supporter' WHERE email = 'supporter@example.com';
-```
+Google Sign-In creates or updates a row in `users`. User roles are:
 
-## Admin area
+- `unverified`: can join rooms but cannot create custom rooms.
+- `verified`: can create custom rooms.
+- `supporter`: can create custom rooms and use camera features.
 
-The admin interface is available at `/admin`. It uses a separate `admin_users` table and a separate admin JWT session from normal app users.
-
-After running `backend/migrations/003_create_admin_users.sql`, bootstrap the first owner once:
+Bootstrap the first owner after migrations `001` through `003` have been applied:
 
 ```bash
 npm run admin:bootstrap -w backend -- --email owner@example.com
 ```
 
-The owner first signs in from the main site with that exact Google email, then opens `/admin`. The normal Google login response provisions a separate admin session only when the email belongs to an eligible `admin_users` row. Admin and application tokens rotate while the signed-in application session remains valid, including when `/admin` is reopened, focused, or kept open; suspended accounts cannot refresh. Owners can invite and manage other admin accounts from `/admin/admins`; both owners and admins can update app-user roles from `/admin/users`, review reports from `/admin/reports`, and edit the 15 fixed chat bot profiles at `/admin/virtual-users`. Removing an admin performs a soft suspension, and the final active owner cannot be demoted or suspended. Configure a separate `ADMIN_JWT_SECRET` in production; individual admin tokens default to 8 hours but are renewed through the active application session.
+The owner must then sign in with the same Google email and open `/admin`. Owners can invite or suspend admins at `/admin/admins`; admins and owners can manage users, reports, Virtual Users, and analytics. Only owners can manage admin accounts.
 
-## Virtual User chat
+## Admin analytics
 
-When a room has exactly one human participant, an available enabled Virtual User joins as a chat-only participant. It leaves immediately when a second human arrives or the room becomes empty. Virtual Users never publish media tracks and are excluded from WebRTC signaling. Simple greetings and reactions use local rules; contextual messages can use one shared local Ollama provider. If Ollama is not configured or fails, the rule fallback keeps chat operational without a paid API.
+Open `/admin/analytics` to view:
+
+- cumulative room time for every authenticated user;
+- STUN and TURN duration for today, the last seven days, the current month, and the current year;
+- daily STUN/TURN history for the latest period retained by the backend.
+
+Room time is finalized when a user leaves or disconnects. STUN/TURN time is finalized when the selected WebRTC route changes or the peer connection ends. Anonymous guests are not included in per-user database totals because they do not have a durable account ID.
 
 ## Deployment
 
-- Frontend: deploy `frontend/` to GitHub Pages with the included GitHub Actions workflow.
-- Backend: deploy `backend/` to Railway, Render, Koyeb, or another Node.js host.
-- Configure `VITE_SOCKET_URL` to point to the deployed backend.
-- Configure `CLIENT_ORIGIN` on the backend to the deployed frontend URL.
+Recommended production layout:
 
-### GitHub Pages
+1. Run the backend on Render (or another Node.js host) with Neon `DATABASE_URL`.
+2. Deploy `frontend/` to Cloudflare Pages or GitHub Pages.
+3. Set frontend `VITE_API_URL` and `VITE_SOCKET_URL` to the deployed backend URL.
+4. Set backend `CLIENT_ORIGIN` to the exact deployed frontend origin(s).
+5. Configure Google OAuth authorized origins/redirect settings for the production domain.
+6. Apply all migrations, including `008_create_usage_tracking.sql`, before enabling sign-in and analytics.
 
-1. In the GitHub repository, open **Settings > Pages**.
-2. Set **Build and deployment > Source** to **GitHub Actions**.
-3. Open **Settings > Secrets and variables > Actions > Variables**.
-4. Add these GitHub Actions variables:
-   - `VITE_SOCKET_URL` with the deployed backend URL, for example `https://your-app.onrender.com`.
-   - `VITE_API_URL` with the deployed backend URL.
-   - `VITE_GOOGLE_CLIENT_ID` with the Google OAuth web client ID.
-5. Push to `master` or run **Deploy frontend to GitHub Pages** manually from the **Actions** tab.
+For Cloudflare Pages, build the frontend workspace with `npm run build -w frontend` and publish `frontend/dist`. For Render, build the backend with `npm run build -w backend` and start it with `npm run start -w backend`.
 
-The server only manages rooms, chat, presence, and WebRTC signaling. Audio and video are never relayed through the server.
-For restrictive networks, configure Cloudflare Realtime TURN on the backend. The frontend loads short-lived ICE servers from `GET /webrtc/ice-config`; if Cloudflare TURN env vars are absent, credential generation fails, or monthly TURN egress reaches `CLOUDFLARE_TURN_USAGE_LIMIT_GB`, it falls back to public STUN servers. TURN usage status is available at `GET /webrtc/turn-usage`.
+## HTTP and realtime endpoints
 
-Selected WebRTC routes are written to the backend logs with the `[WEBRTC_TRANSPORT]` prefix. `TURN` means media is relayed, `STUN` means a server-reflexive P2P route, `DIRECT` means a host-to-host route, and `UNKNOWN` means the browser did not expose enough candidate stats. Reports are deduplicated per peer connection and logged again only when the selected route changes.
+- `GET /health`
+- `GET /rooms`
+- `POST /auth/google`, `GET /auth/me`
+- `GET /webrtc/ice-config`, `GET /webrtc/turn-usage`
+- Admin-protected: `/admin/users`, `/admin/admins`, `/admin/reports`, `/admin/virtual-users`, `/admin/room-time`, `/admin/webrtc-usage`
 
-```text
-[WEBRTC_TRANSPORT] TURN/RELAY | room=room-1 | users=Alice[abc12345]<->Bob[def67890] | candidates=prflx<->relay | protocol=udp | at=2026-08-03T15:26:00.681Z
-```
+Audio/video media is peer-to-peer whenever possible. The server handles presence, chat, authorization, signaling, usage accounting, and moderation; it does not persist media or chat history.

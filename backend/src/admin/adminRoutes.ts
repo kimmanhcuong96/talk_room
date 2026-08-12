@@ -27,6 +27,8 @@ import { evictGloballyBlockedUsers } from "../socket/registerSocketHandlers.js";
 import type { AppServer } from "../types/socket.js";
 import { updateVirtualUserProfile } from "../virtualUsers/virtualUserRepository.js";
 import { applyVirtualUserProfile, getVirtualUsersForAdmin } from "../virtualUsers/virtualUserService.js";
+import { listUserRoomTime } from "../usage/userRoomTime.js";
+import { getWebRtcUsageSummary } from "../usage/webrtcUsage.js";
 
 const userRoles = new Set<UserRole>(["unverified", "verified", "supporter"]);
 const adminRoles = new Set<AdminRole>(["owner", "admin"]);
@@ -98,6 +100,18 @@ adminRouter.get("/users", requireAdmin, async (request, response, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+adminRouter.get("/room-time", requireAdmin, async (request, response, next) => {
+  try {
+    const page = Math.max(1, Number.parseInt(String(request.query.page ?? "1"), 10) || 1);
+    const limit = Math.min(100, Math.max(1, Number.parseInt(String(request.query.limit ?? "50"), 10) || 50));
+    response.json(await listUserRoomTime({ page, limit }));
+  } catch (error) { next(error); }
+});
+
+adminRouter.get("/webrtc-usage", requireAdmin, async (_request, response, next) => {
+  try { response.json(await getWebRtcUsageSummary()); } catch (error) { next(error); }
 });
 
 adminRouter.patch("/users/:id/role", requireAdmin, async (request, response, next) => {

@@ -2,15 +2,15 @@
 
 ## Goal
 
-Build a lightweight web application for people to practice English speaking in small public rooms.
+Build a lightweight web application for people to practice languages, talk, and connect in small public Talking Rooms.
 
 ## Principles
 
 - Use a lightweight database only for authenticated user profiles.
 - Use Google OAuth only for the first authentication version.
-- Keep realtime room state in server RAM only.
+- Keep realtime room state in server RAM; persist only authenticated account metadata and usage aggregates.
 - Maximum 4 users per room.
-- Exactly 20 predefined rooms.
+- Exactly 18 predefined rooms.
 - Lowest possible server cost.
 - WebRTC mesh peer-to-peer for audio/video media.
 - The server must never relay audio or video.
@@ -42,7 +42,7 @@ Build a lightweight web application for people to practice English speaking in s
 - Neon Postgres.
 - Backend-only database access.
 - No media or image binary storage.
-- No chat history persistence in the MVP.
+- No chat history persistence; chat remains in room memory and is cleared when the room resets.
 
 ### Realtime
 
@@ -65,6 +65,9 @@ Server responsibilities:
 - User profile creation and updates.
 - Application JWT issuance.
 - Authenticated user profile lookup.
+- Cumulative authenticated-user room-time accounting.
+- STUN/TURN route accounting and daily usage aggregation.
+- Admin APIs for user management, Virtual Users, moderation, room-time, and WebRTC analytics.
 
 Client responsibilities:
 
@@ -84,15 +87,15 @@ Client responsibilities:
 
 ## Rooms
 
-Exactly 20 predefined rooms.
+Exactly 18 predefined rooms.
 
 Each room:
 
-- Has a deterministic id: `room-1` through `room-20`.
+- Has a deterministic id: `room-1` through `room-18`.
 - Has a stable URL: `/room/:roomId`.
 - Max 4 users.
 - Hardcoded.
-- No create/delete in the MVP, even though the UI may include a disabled or placeholder "Create a new group" action.
+- Verified users can create custom rooms; supporters can create custom rooms and use camera features. Custom rooms are removed after 60 seconds with no connected users.
 
 Room names:
 
@@ -148,6 +151,9 @@ Behavior:
 - Language selection is persisted and reused after reload.
 - User information is shown on Home when authenticated.
 - Google avatar is rendered directly from the backend-verified `avatarUrl`.
+- Language tags are displayed on each card and can be used as a filter; counts include all matching rooms.
+- The density selector means one, two, or three room cards per row.
+- Participant avatars are shown on room cards with basic profile information on hover.
 
 ## Authentication
 
@@ -226,7 +232,30 @@ Database usage rules:
 - Store only profile metadata and the Google avatar URL.
 - Do not upload or store avatar images.
 - Do not store image binaries.
-- Do not persist room state, WebRTC signaling, or chat history in the MVP.
+- Do not persist room state, WebRTC signaling, or chat history.
+- Store cumulative authenticated-user room duration in `user_room_time_totals` and finalized sessions in `user_room_time_sessions`.
+- Store daily STUN/TURN duration in `webrtc_usage_daily`; aggregate it into day, week, month, and year views in the admin API.
+- Virtual User profiles are persisted in `virtual_user_profiles`, including `avatar_url`, and can be edited only through admin authorization.
+
+### Usage tracking
+
+When an authenticated user joins a room, the backend starts an in-memory session keyed by socket ID and user ID. On an explicit leave, room replacement, or disconnect, it writes the elapsed duration and atomically increments the user's cumulative total. Guest sessions are intentionally excluded from per-user totals because they have no durable account ID.
+
+For WebRTC, the server receives the selected route for each peer connection. STUN and TURN intervals are closed when the route changes or the connection ends, then split across UTC calendar days in `webrtc_usage_daily`. The admin endpoint exposes daily, rolling-week, month-to-date, and year-to-date totals plus a daily series.
+
+The usage migration is `backend/migrations/008_create_usage_tracking.sql` and must be applied after the existing migrations.
+
+### Virtual User avatars
+
+The 15 fixed Virtual User identities are stored in `virtual_user_profiles`. An owner or admin may update a profile's display name, avatar URL, language level, personality, interests, speaking style, reply probability, or enabled state. Avatar binaries are not uploaded; only a validated HTTP(S) URL is stored. Active room presence is refreshed after a profile update.
+
+### Admin analytics
+
+The `/admin` application contains an authenticated Usage Analytics section:
+
+- `/admin/room-time` returns cumulative room time per authenticated user.
+- `/admin/webrtc-usage` returns STUN/TURN totals for daily, weekly, monthly, and yearly periods and a daily history series.
+- Both endpoints require an active `owner` or `admin` session.
 
 ## Internationalization
 
@@ -252,7 +281,7 @@ Room URLs must be deterministic:
 /room/room-1
 /room/room-2
 ...
-/room/room-20
+/room/room-18
 ```
 
 Flow:
@@ -301,7 +330,7 @@ Navigation:
 - Authenticated user information uses the Google avatar URL stored in the database.
 - The Google avatar URL is rendered directly by the frontend.
 - The backend must not proxy, cache, upload, or store Google avatar image binaries.
-- Each user receives a random basic cute avatar when joining a room.
+- Guests receive a random basic cute avatar when joining; authenticated users use their Google avatar URL.
 - Avatar is generated by the backend and stored in RAM with the room user.
 - Avatar is sent with:
   - `room-users`
@@ -539,13 +568,13 @@ Backend:
 - Connect to Neon Postgres with `DATABASE_URL`.
 - Configure CORS with comma-separated `CLIENT_ORIGIN` values.
 - Socket.IO should use short heartbeat settings so closed tabs or browsers are removed from rooms quickly.
-- Run the users table migration before enabling Google Sign-In.
+- Run all SQL files in `backend/migrations` in numeric order before enabling Google Sign-In, including `008_create_usage_tracking.sql` for room-time and STUN/TURN analytics.
 
 Database:
 
 - Neon Postgres.
 - Use the pooled connection string for serverless-style deployment if required by the hosting plan.
-- Keep database usage limited to authenticated user profiles in the MVP.
+- Keep database usage limited to authenticated profiles, Virtual User profiles, moderation records, and usage aggregates.
 
 Environment:
 

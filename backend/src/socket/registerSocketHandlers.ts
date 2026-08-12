@@ -34,6 +34,8 @@ import {
 } from "../moderation/moderationRepository.js";
 import { handleHumanChatMessage, handleHumanVoiceAttempt, reconcileVirtualUserForRoom } from "../virtualUsers/virtualUserService.js";
 import { getYouTubeRecommendations, validateYouTubeVideoForEmbed, YouTubeServiceError } from "../youtube/youtubeRecommendationService.js";
+import { finishUserRoomSession, startUserRoomSession } from "../usage/userRoomTime.js";
+import { finishWebRtcConnection, recordWebRtcTransport } from "../usage/webrtcUsage.js";
 
 const avatars = ["🐣", "🐼", "🐰", "🦊", "🐨", "🐥", "🐧", "🐸", "🦄", "🐙", "🐢", "🐹"];
 
@@ -173,12 +175,14 @@ function clearWebRtcTransportLogs(socketId: string) {
   for (const key of loggedWebRtcTransports.keys()) {
     if (key.split(":").includes(socketId)) {
       loggedWebRtcTransports.delete(key);
+      void finishWebRtcConnection(key);
     }
   }
 }
 
 function leaveCurrentRoom(io: AppServer, socket: AppSocket) {
   const previousRoomId = socket.data.roomId;
+  void finishUserRoomSession(socket.id);
   const removed = removeUser(socket.id);
 
   if (!removed || !previousRoomId) {
@@ -360,7 +364,8 @@ export function registerSocketHandlers(io: AppServer) {
       socket.data.avatar = result.users.find((user) => user.socketId === socket.id)?.avatar;
       socket.data.role = role;
       socket.data.userId = authenticatedUser?.id;
-      socket.data.identityKey = identityKey;
+  socket.data.identityKey = identityKey;
+      startUserRoomSession(socket.id, socket.data.userId, roomId);
       reconcileVirtualUserForRoom(io, roomId);
       cancelEmptyRoomDeletion(roomId);
       socket.join(roomId);
@@ -756,6 +761,11 @@ export function registerSocketHandlers(io: AppServer) {
       }
 
       loggedWebRtcTransports.set(connectionId, payload.transport);
+      if (payload.transport === "stun" || payload.transport === "turn") {
+        void recordWebRtcTransport(connectionId, payload.transport);
+      } else {
+        void finishWebRtcConnection(connectionId);
+      }
       const protocol = typeof payload.protocol === "string" ? payload.protocol.slice(0, 16) : null;
       const relayProtocol = typeof payload.relayProtocol === "string" ? payload.relayProtocol.slice(0, 16) : null;
       const transportLabel = {

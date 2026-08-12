@@ -47,9 +47,29 @@ export async function getWebRtcUsageSummary() {
   );
   const now = new Date();
   const rows = result.rows.map((row) => ({ date: row.usage_date, transport: row.transport, seconds: Number(row.total_seconds) }));
-  const sum = (from: Date) => rows.reduce((acc, row) => row.date >= from.toISOString().slice(0, 10) ? { ...acc, [row.transport]: (acc[row.transport] ?? 0) + row.seconds } : acc, {} as Record<string, number>);
+  for (const session of active.values()) {
+    for (const [date, seconds] of splitDuration(session.startedAt, Date.now())) {
+      const existing = rows.find((row) => row.date === date && row.transport === session.transport);
+      if (existing) existing.seconds += seconds;
+      else rows.push({ date, transport: session.transport, seconds });
+    }
+  }
+  const sum = (from: Date) => rows.reduce((acc, row) => row.date >= from.toISOString().slice(0, 10) ? { ...acc, [row.transport]: (acc[row.transport] ?? 0) + row.seconds } : acc, { stun: 0, turn: 0 } as Record<string, number>);
   const startWeek = new Date(now); startWeek.setUTCDate(now.getUTCDate() - 6);
   const startMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const startYear = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
-  return { daily: sum(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))), weekly: sum(startWeek), monthly: sum(startMonth), yearly: sum(startYear), series: rows };
+  return { daily: sum(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))), weekly: sum(startWeek), monthly: sum(startMonth), yearly: sum(startYear), series: rows.sort((a, b) => a.date.localeCompare(b.date)) };
+}
+
+function splitDuration(startedAt: number, endedAt: number) {
+  const buckets = new Map<string, number>();
+  let cursor = startedAt;
+  while (cursor < endedAt) {
+    const date = new Date(cursor);
+    const dayEnd = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate() + 1);
+    const key = new Date(cursor).toISOString().slice(0, 10);
+    buckets.set(key, (buckets.get(key) ?? 0) + Math.max(0, Math.floor((Math.min(endedAt, dayEnd) - cursor) / 1000)));
+    cursor = dayEnd;
+  }
+  return buckets;
 }

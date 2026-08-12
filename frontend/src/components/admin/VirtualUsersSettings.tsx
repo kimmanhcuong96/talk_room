@@ -8,6 +8,7 @@ import {
 } from "../../lib/adminAuth";
 import type { Language } from "../../lib/i18n";
 import { adminPath } from "../../lib/routes";
+import { AdminReloadButton } from "./AdminReloadButton";
 
 const labels = {
   en: { title: "Virtual Users", description: "15 fixed chat identities. Profiles can be edited, but bots cannot be added, removed, or renamed by ID.", back: "Back to dashboard", bot: "Bot", name: "Name", status: "Status", room: "Room", actions: "Actions", edit: "Edit", enabled: "Enabled", avatar: "Avatar URL", level: "English level", personality: "Personality", interests: "Interests (comma separated)", style: "Speaking style", probability: "Reply probability", save: "Save profile", saving: "Saving...", available: "Available", active: "Active", loadFailed: "Could not load virtual users.", saved: "Profile updated." },
@@ -22,6 +23,7 @@ export function VirtualUsersPage({ token, language }: { token: string; language:
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -32,7 +34,7 @@ export function VirtualUsersPage({ token, language }: { token: string; language:
     void load();
     const interval = window.setInterval(() => void load(), 5_000);
     return () => { cancelled = true; window.clearInterval(interval); };
-  }, [token]);
+  }, [token, refreshNonce]);
 
   const save = async () => {
     if (!editing) return;
@@ -48,6 +50,7 @@ export function VirtualUsersPage({ token, language }: { token: string; language:
 
   return <div className="grid gap-5">
     <a href={adminPath()} className="inline-flex w-fit items-center gap-2 text-sm text-white/60 hover:text-white"><ChevronLeft size={16}/>{t.back}</a>
+    <div className="flex justify-end"><AdminReloadButton language={language} loading={loading} onClick={() => setRefreshNonce((value) => value + 1)} /></div>
     <section className="rounded-xl border border-white/10 bg-panel p-5">
       <div className="flex items-start gap-3"><span className="grid h-11 w-11 place-items-center rounded-lg bg-[#258ff4]/15 text-[#55aaff]"><Bot size={22}/></span><div><h2 className="text-xl font-semibold">{t.title} ({items.length || 15})</h2><p className="mt-1 text-sm leading-6 text-white/55">{t.description}</p></div></div>
     </section>

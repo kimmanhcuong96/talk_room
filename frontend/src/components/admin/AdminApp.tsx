@@ -26,8 +26,10 @@ import { isLanguage, type Language } from "../../lib/i18n";
 import { adminPath, getAdminPageFromPath, homePath } from "../../lib/routes";
 import { ReportsPage } from "./ReportsPage";
 import { adminModerationCopy } from "../../lib/adminModerationI18n";
+import { adminAnalyticsCopy } from "../../lib/adminAnalyticsI18n";
 import { VirtualUsersPage } from "./VirtualUsersSettings";
 import { UsageAnalyticsPage } from "./UsageAnalyticsPage";
+import { AdminReloadButton } from "./AdminReloadButton";
 import { LLMUsagePage } from "./LLMUsagePage";
 
 const LANGUAGE_STORAGE_KEY = "me2talk:language";
@@ -98,7 +100,7 @@ function Dashboard({ session, t }: { session: AdminSession; t: Translator }) {
     { page: "virtual-users" as const, icon: Bot, title: "Virtual Users", description: "Manage the 15 fixed chat bot profiles and view their live room status.", allowed: true },
     { page: "llm-usage" as const, icon: BrainCircuit, title: "LLM Usage", description: "Monitor Virtual User LLM requests, token usage, providers, and models.", allowed: true },
     { page: "reports" as const, icon: Flag, title: moderation.title, description: moderation.description, allowed: true },
-    { page: "analytics" as const, icon: BarChart3, title: "Usage analytics", description: "Monitor cumulative room time and daily STUN/TURN usage.", allowed: true },
+    { page: "analytics" as const, icon: BarChart3, title: adminAnalyticsCopy(getAdminLanguage()).title, description: adminAnalyticsCopy(getAdminLanguage()).description, allowed: true },
     { page: "admins" as const, icon: UserCog, title: t("adminManagement"), description: t("adminManagementDescription"), allowed: session.admin.role === "owner" }
   ];
   return (
@@ -161,6 +163,7 @@ function UsersPage({ session, language, t }: { session: AdminSession; language: 
         <select value={role} onChange={(event) => { setRole(event.target.value); setPage(1); }} className="h-10 rounded-md border border-white/10 bg-field px-3 text-sm outline-none"><option value="">{t("allRoles")}</option>{userRoles.map((value) => <option key={value} value={value}>{userRoleLabel(value, t)}</option>)}</select>
         <button className="h-10 rounded-md bg-[#258ff4] px-5 text-sm font-semibold hover:bg-[#1d7edb]">{t("search")}</button>
       </form>
+      <div className="flex justify-end"><AdminReloadButton language={language} loading={loading} onClick={() => void load()} /></div>
       <ErrorNotice error={error} />
       <div className="overflow-x-auto rounded-lg border border-white/10 bg-panel">
         <table className="w-full min-w-[850px] text-left text-sm">
@@ -198,7 +201,7 @@ function AdminsPage({ session, language, t }: { session: AdminSession; language:
   const invite = async (event: FormEvent) => { event.preventDefault(); setError(null); try { const created = await createAdminInvite(session.token, email.trim(), role); setAdmins((current) => [created, ...current]); setEmail(""); setRole("admin"); } catch (inviteError) { setError(localizeAdminError(inviteError, t)); } };
   const update = (admin: AdminProfile) => setAdmins((current) => current.map((item) => item.id === admin.id ? admin : item));
 
-  return <div className="grid gap-5"><a href={adminPath()} className="inline-flex w-fit items-center gap-2 text-sm text-white/60 hover:text-white"><ChevronLeft size={16} />{t("backToDashboard")}</a><form onSubmit={(event) => void invite(event)} className="grid gap-3 rounded-lg border border-white/10 bg-panel p-4 md:grid-cols-[1fr_160px_auto]"><input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t("email")} className="h-10 rounded-md border border-white/10 bg-field px-3 text-sm outline-none focus:border-mint" /><select value={role} onChange={(event) => setRole(event.target.value as AdminRole)} className="h-10 rounded-md border border-white/10 bg-field px-3"><option value="admin">{t("admin")}</option><option value="owner">{t("owner")}</option></select><button className="h-10 rounded-md bg-[#258ff4] px-5 text-sm font-semibold hover:bg-[#1d7edb]">{t("inviteAdmin")}</button></form><ErrorNotice error={error} /><div className="overflow-x-auto rounded-lg border border-white/10 bg-panel"><table className="w-full min-w-[920px] text-left text-sm"><thead className="border-b border-white/10 bg-white/[0.03] text-xs uppercase tracking-wide text-white/45"><tr><th className="px-4 py-3">{t("account")}</th><th className="px-4 py-3">{t("role")}</th><th className="px-4 py-3">{t("status")}</th><th className="px-4 py-3">{t("lastLogin")}</th><th className="px-4 py-3">{t("actions")}</th></tr></thead><tbody className="divide-y divide-white/8">{loading ? <tr><td colSpan={5} className="px-4 py-10 text-center text-white/50"><LoaderCircle className="mr-2 inline animate-spin" size={17} />{t("loading")}</td></tr> : null}{!loading && admins.length === 0 ? <tr><td colSpan={5} className="px-4 py-10 text-center text-white/50">{t("noAdmins")}</td></tr> : null}{!loading && admins.map((item) => <AdminRow key={item.id} item={item} currentAdminId={session.admin.id} language={language} t={t} token={session.token} onSaved={update} onError={setError} />)}</tbody></table></div></div>;
+  return <div className="grid gap-5"><a href={adminPath()} className="inline-flex w-fit items-center gap-2 text-sm text-white/60 hover:text-white"><ChevronLeft size={16} />{t("backToDashboard")}</a><form onSubmit={(event) => void invite(event)} className="grid gap-3 rounded-lg border border-white/10 bg-panel p-4 md:grid-cols-[1fr_160px_auto]"><input required type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder={t("email")} className="h-10 rounded-md border border-white/10 bg-field px-3 text-sm outline-none focus:border-mint" /><select value={role} onChange={(event) => setRole(event.target.value as AdminRole)} className="h-10 rounded-md border border-white/10 bg-field px-3"><option value="admin">{t("admin")}</option><option value="owner">{t("owner")}</option></select><button className="h-10 rounded-md bg-[#258ff4] px-5 text-sm font-semibold hover:bg-[#1d7edb]">{t("inviteAdmin")}</button></form><div className="flex justify-end"><AdminReloadButton language={language} loading={loading} onClick={() => void load()} /></div><ErrorNotice error={error} /><div className="overflow-x-auto rounded-lg border border-white/10 bg-panel"><table className="w-full min-w-[920px] text-left text-sm"><thead className="border-b border-white/10 bg-white/[0.03] text-xs uppercase tracking-wide text-white/45"><tr><th className="px-4 py-3">{t("account")}</th><th className="px-4 py-3">{t("role")}</th><th className="px-4 py-3">{t("status")}</th><th className="px-4 py-3">{t("lastLogin")}</th><th className="px-4 py-3">{t("actions")}</th></tr></thead><tbody className="divide-y divide-white/8">{loading ? <tr><td colSpan={5} className="px-4 py-10 text-center text-white/50"><LoaderCircle className="mr-2 inline animate-spin" size={17} />{t("loading")}</td></tr> : null}{!loading && admins.length === 0 ? <tr><td colSpan={5} className="px-4 py-10 text-center text-white/50">{t("noAdmins")}</td></tr> : null}{!loading && admins.map((item) => <AdminRow key={item.id} item={item} currentAdminId={session.admin.id} language={language} t={t} token={session.token} onSaved={update} onError={setError} />)}</tbody></table></div></div>;
 }
 
 export function AdminApp() {
@@ -303,13 +306,13 @@ export function AdminApp() {
   if (!session) return <main className="grid min-h-screen place-items-center bg-ink text-white"><LoaderCircle size={28} className="animate-spin text-mint" /></main>;
 
   const signOut = () => { clearAdminToken(); setSession(null); };
-  const pageTitle = page === "users" ? t("userManagement") : page === "virtual-users" ? "Virtual Users" : page === "llm-usage" ? "LLM Usage" : page === "admins" ? t("adminManagement") : page === "reports" ? adminModerationCopy(language).title : page === "analytics" ? "Usage analytics" : t("adminArea");
+  const pageTitle = page === "users" ? t("userManagement") : page === "virtual-users" ? "Virtual Users" : page === "llm-usage" ? "LLM Usage" : page === "admins" ? t("adminManagement") : page === "reports" ? adminModerationCopy(language).title : page === "analytics" ? adminAnalyticsCopy(language).title : t("adminArea");
   let content: ReactNode = <Dashboard session={session} t={t} />;
   if (page === "users") content = <UsersPage session={session} language={language} t={t} />;
   if (page === "admins") content = <AdminsPage session={session} language={language} t={t} />;
   if (page === "reports") content = <ReportsPage session={session} language={language} backLabel={t("backToDashboard")} previousLabel={t("previous")} nextLabel={t("next")} loadingLabel={t("loading")} pageLabel={(current, pages) => t("pageOf", { page: current, pages })} />;
   if (page === "virtual-users") content = <VirtualUsersPage token={session.token} language={language} />;
-  if (page === "llm-usage") content = <LLMUsagePage token={session.token} />;
-  if (page === "analytics") content = <UsageAnalyticsPage token={session.token} />;
+  if (page === "llm-usage") content = <LLMUsagePage token={session.token} language={language} />;
+  if (page === "analytics") content = <UsageAnalyticsPage token={session.token} language={language} />;
   return <AdminLayout session={session} title={pageTitle} t={t} onSignOut={signOut}>{content}</AdminLayout>;
 }

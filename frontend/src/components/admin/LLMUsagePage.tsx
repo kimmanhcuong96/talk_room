@@ -2,6 +2,8 @@ import { Bot, BrainCircuit, ChevronLeft, Cpu, LoaderCircle } from "lucide-react"
 import { useEffect, useState } from "react";
 import { getLLMUsage, type AdminLLMUsageResponse, type LLMUsageBreakdownItem, type LLMUsageTotals } from "../../lib/adminAuth";
 import { adminPath } from "../../lib/routes";
+import type { Language } from "../../lib/i18n";
+import { AdminReloadButton } from "./AdminReloadButton";
 
 function number(value: number) {
   return new Intl.NumberFormat("en").format(value);
@@ -43,23 +45,25 @@ function BreakdownTable({ title, icon: Icon, items }: { title: string; icon: typ
   );
 }
 
-export function LLMUsagePage({ token }: { token: string }) {
+export function LLMUsagePage({ token, language = "en" }: { token: string; language?: Language }) {
   const [usage, setUsage] = useState<AdminLLMUsageResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   useEffect(() => {
     getLLMUsage(token)
       .then(setUsage)
       .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Unable to load LLM usage."))
       .finally(() => setLoading(false));
-  }, [token]);
+  }, [token, refreshNonce]);
 
   if (loading) return <div className="grid place-items-center py-20"><LoaderCircle className="animate-spin text-mint" /></div>;
 
   return (
     <div className="grid gap-5">
       <a href={adminPath()} className="inline-flex w-fit items-center gap-2 text-sm text-white/60 hover:text-white"><ChevronLeft size={16} />Back to dashboard</a>
+      <div className="flex justify-end"><AdminReloadButton language={language} loading={loading} onClick={() => setRefreshNonce((value) => value + 1)} /></div>
       {error ? <p className="rounded-md border border-coral/30 bg-coral/10 px-4 py-3 text-coral">{error}</p> : null}
       <section className="rounded-xl border border-white/10 bg-panel p-5">
         <div className="flex items-center gap-3">

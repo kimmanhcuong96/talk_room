@@ -29,6 +29,7 @@ import { updateVirtualUserProfile } from "../virtualUsers/virtualUserRepository.
 import { applyVirtualUserProfile, getVirtualUsersForAdmin } from "../virtualUsers/virtualUserService.js";
 import { listUserRoomTime } from "../usage/userRoomTime.js";
 import { getWebRtcUsageSummary } from "../usage/webrtcUsage.js";
+import { getTurnUsageStatus } from "../webrtc/turnUsage.js";
 import { getLLMUsageSummary } from "../usage/llmUsage.js";
 import { getResponseUsageSummary } from "../usage/responseUsage.js";
 
@@ -114,6 +115,10 @@ adminRouter.get("/room-time", requireAdmin, async (request, response, next) => {
 
 adminRouter.get("/webrtc-usage", requireAdmin, async (_request, response, next) => {
   try { response.json(await getWebRtcUsageSummary()); } catch (error) { next(error); }
+});
+
+adminRouter.get("/turn-usage", requireAdmin, async (_request, response, next) => {
+  try { response.json(await getTurnUsageStatus()); } catch (error) { next(error); }
 });
 
 adminRouter.get("/llm-usage", requireAdmin, async (_request, response, next) => {

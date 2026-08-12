@@ -1,0 +1,18 @@
+import type { Language } from "./i18n";
+
+export type AdminAnalyticsCopy = {
+  title: string; description: string; daily: string; weekly: string; monthly: string; yearly: string;
+  stun: string; turn: string; turnBandwidth: string; turnBandwidthDescription: string;
+  turnAvailable: string; turnLimitReached: string; cloudflareNotConfigured: string;
+  bytes: string; mb: string; gb: string; lastCloudflareCheck: string; partialError: string;
+  roomTime: string; user: string; email: string; totalRoomTime: string; dailyHistory: string; date: string;
+};
+
+const copies: Record<Language, AdminAnalyticsCopy> = {
+  en: { title: "TURN/STUN Usage analytics.", description: "Monitor cumulative room time and live WebRTC route usage.", daily: "Daily", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly", stun: "STUN", turn: "TURN", turnBandwidth: "TURN bandwidth usage", turnBandwidthDescription: "Current Cloudflare TURN egress for the current month. Cloudflare Analytics may have a short reporting delay.", turnAvailable: "TURN available", turnLimitReached: "TURN limit reached", cloudflareNotConfigured: "Cloudflare analytics not configured", bytes: "Bytes", mb: "MB", gb: "GB", lastCloudflareCheck: "Last Cloudflare check", partialError: "Some usage data is temporarily unavailable.", roomTime: "Accumulated room time by user", user: "User", email: "Email", totalRoomTime: "Total room time", dailyHistory: "WebRTC daily history", date: "Date" },
+  vi: { title: "Phân tích sử dụng TURN/STUN", description: "Theo dõi thời gian trong phòng và route WebRTC đang hoạt động.", daily: "Theo ngày", weekly: "Theo tuần", monthly: "Theo tháng", yearly: "Theo năm", stun: "STUN", turn: "TURN", turnBandwidth: "Băng thông TURN", turnBandwidthDescription: "Lưu lượng TURN Cloudflare trong tháng hiện tại. Dữ liệu Analytics có thể bị trễ ngắn.", turnAvailable: "TURN đang khả dụng", turnLimitReached: "Đã đạt giới hạn TURN", cloudflareNotConfigured: "Chưa cấu hình Cloudflare Analytics", bytes: "Bytes", mb: "MB", gb: "GB", lastCloudflareCheck: "Lần kiểm tra Cloudflare gần nhất", partialError: "Một số dữ liệu usage tạm thời không khả dụng.", roomTime: "Tổng thời gian trong phòng theo user", user: "User", email: "Email", totalRoomTime: "Tổng thời gian trong phòng", dailyHistory: "Lịch sử WebRTC theo ngày", date: "Ngày" },
+  zh: { title: "TURN/STUN 使用分析", description: "监控累计房间时间和实时 WebRTC 路由使用情况。", daily: "每日", weekly: "每周", monthly: "每月", yearly: "每年", stun: "STUN", turn: "TURN", turnBandwidth: "TURN 带宽使用量", turnBandwidthDescription: "当前月份的 Cloudflare TURN 流量。Analytics 数据可能有短暂延迟。", turnAvailable: "TURN 可用", turnLimitReached: "已达到 TURN 限制", cloudflareNotConfigured: "未配置 Cloudflare Analytics", bytes: "字节", mb: "MB", gb: "GB", lastCloudflareCheck: "Cloudflare 最后检查", partialError: "部分使用数据暂时不可用。", roomTime: "按用户统计的累计房间时间", user: "用户", email: "邮箱", totalRoomTime: "房间总时间", dailyHistory: "WebRTC 每日历史", date: "日期" },
+  ja: { title: "TURN/STUN 使用状況", description: "累計ルーム時間とリアルタイム WebRTC 経路を監視します。", daily: "日別", weekly: "週別", monthly: "月別", yearly: "年別", stun: "STUN", turn: "TURN", turnBandwidth: "TURN 帯域使用量", turnBandwidthDescription: "現在の月の Cloudflare TURN 通信量。Analytics データは反映に遅延がある場合があります。", turnAvailable: "TURN 利用可能", turnLimitReached: "TURN 制限に達しました", cloudflareNotConfigured: "Cloudflare Analytics 未設定", bytes: "バイト", mb: "MB", gb: "GB", lastCloudflareCheck: "Cloudflare 最終確認", partialError: "一部の使用データは一時的に利用できません。", roomTime: "ユーザー別の累計ルーム時間", user: "ユーザー", email: "メール", totalRoomTime: "合計ルーム時間", dailyHistory: "WebRTC 日別履歴", date: "日付" }
+};
+
+export function adminAnalyticsCopy(language: Language) { return copies[language] ?? copies.en; }

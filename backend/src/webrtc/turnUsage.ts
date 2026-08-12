@@ -1,11 +1,13 @@
 import { env } from "../config/env.js";
 
 const BYTES_PER_GB = 1_000_000_000;
+const BYTES_PER_MB = 1_000_000;
 
-type TurnUsageStatus = {
+export type TurnUsageStatus = {
   configured: boolean;
   checkedAt: string | null;
   egressBytes: number | null;
+  egressMb: number | null;
   egressGb: number | null;
   limitGb: number;
   turnAllowed: boolean;
@@ -55,11 +57,13 @@ function getMonthRange(now = new Date()) {
 function buildStatus(egressBytes: number | null): TurnUsageStatus {
   const limitGb = getUsageLimitGb();
   const egressGb = egressBytes === null ? null : egressBytes / BYTES_PER_GB;
+  const egressMb = egressBytes === null ? null : egressBytes / BYTES_PER_MB;
 
   return {
-    configured: Boolean(env.cloudflareAccountId && env.cloudflareAnalyticsApiToken),
+    configured: Boolean(env.cloudflareAccountId && env.cloudflareAnalyticsApiToken && env.cloudflareTurnKeyId),
     checkedAt: new Date().toISOString(),
     egressBytes,
+    egressMb,
     egressGb,
     limitGb,
     turnAllowed: egressGb === null || egressGb < limitGb
@@ -69,11 +73,12 @@ function buildStatus(egressBytes: number | null): TurnUsageStatus {
 export async function getTurnUsageStatus(): Promise<TurnUsageStatus> {
   const limitGb = getUsageLimitGb();
 
-  if (!env.cloudflareAccountId || !env.cloudflareAnalyticsApiToken) {
+  if (!env.cloudflareAccountId || !env.cloudflareAnalyticsApiToken || !env.cloudflareTurnKeyId) {
     return {
       configured: false,
       checkedAt: null,
       egressBytes: null,
+      egressMb: null,
       egressGb: null,
       limitGb,
       turnAllowed: true
@@ -91,7 +96,7 @@ export async function getTurnUsageStatus(): Promise<TurnUsageStatus> {
       viewer {
         accounts(filter: { accountTag: $accountId }) {
           callsTurnUsageAdaptiveGroups(
-            limit: 1
+            limit: 1000
             filter: {
               date_geq: $dateFrom
               date_leq: $dateTo

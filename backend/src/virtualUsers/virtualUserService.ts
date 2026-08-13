@@ -64,17 +64,21 @@ function createLLMProvider() {
 const llmProvider = createLLMProvider();
 const responseEngine = new HybridResponseEngine(llmProvider, undefined, llmUsageCoordinator, env.llmMaxTokens);
 
-export function getTypingDelayRange(text: string): readonly [number, number] {
-  return text.length >= 30 ? [15_000, 30_000] : [500, 1_200];
+export function getTypingDelayRange(text: string, profile?: Pick<VirtualUserProfile, "longResponseDelayMinSeconds" | "longResponseDelayMaxSeconds">): readonly [number, number] {
+  if (text.length < 30) return [500, 1_200];
+  return [
+    (profile?.longResponseDelayMinSeconds ?? 5) * 1_000,
+    (profile?.longResponseDelayMaxSeconds ?? 15) * 1_000
+  ];
 }
 
-function typingDelay(text: string) {
-  const [minimum, maximum] = getTypingDelayRange(text);
+function typingDelay(text: string, profile?: Pick<VirtualUserProfile, "longResponseDelayMinSeconds" | "longResponseDelayMaxSeconds">) {
+  const [minimum, maximum] = getTypingDelayRange(text, profile);
   return minimum + Math.floor(Math.random() * (maximum - minimum + 1));
 }
 
-function remainingTypingDelay(text: string, responseWindowStartedAt: number) {
-  return Math.max(0, typingDelay(text) - (Date.now() - responseWindowStartedAt));
+function remainingTypingDelay(text: string, responseWindowStartedAt: number, profile?: Pick<VirtualUserProfile, "longResponseDelayMinSeconds" | "longResponseDelayMaxSeconds">) {
+  return Math.max(0, typingDelay(text, profile) - (Date.now() - responseWindowStartedAt));
 }
 
 export function shouldAttemptProactiveMessage(
@@ -259,7 +263,7 @@ async function flushMessages(io: AppServer, roomId: string) {
     io.to(roomId).emit("typing", { senderId: profile.id, nickname: profile.name, active: true });
     const response = await responseEngine.respondDetailed(profile, responseContext, combined, decision);
     if (!response || !isActiveConversation()) return;
-    await new Promise((resolve) => setTimeout(resolve, remainingTypingDelay(response.text, responseWindowStartedAt)));
+    await new Promise((resolve) => setTimeout(resolve, remainingTypingDelay(response.text, responseWindowStartedAt, profile)));
     if (!isActiveConversation()) return;
 
     const message: ChatMessage = {
@@ -331,7 +335,7 @@ export async function checkProactiveMessages(io: AppServer, now = Date.now(), ra
       io.to(roomId).emit("typing", { senderId: item.profile.id, nickname: item.profile.name, active: true });
       const response = await responseEngine.respondProactively(item.profile, responseContext);
       if (!isActiveConversation()) return;
-      await new Promise((resolve) => setTimeout(resolve, remainingTypingDelay(response.text, responseWindowStartedAt)));
+      await new Promise((resolve) => setTimeout(resolve, remainingTypingDelay(response.text, responseWindowStartedAt, item.profile)));
       if (!isActiveConversation()) return;
 
       const message: ChatMessage = {
@@ -422,7 +426,7 @@ export async function initializeVirtualUserService(io: AppServer) {
   const profiles = await listVirtualUserProfiles();
   const ids = profiles.map((profile) => profile.id).sort();
   if (profiles.length !== VIRTUAL_USER_IDS.length || ids.some((id, index) => id !== VIRTUAL_USER_IDS[index])) {
-    throw new Error("Virtual User profiles are incomplete. Run migration 006_create_virtual_user_profiles.sql.");
+    throw new Error("Virtual User profiles are incomplete. Run migration 005_create_virtual_users.sql.");
   }
   pool.replaceProfiles(profiles);
   for (const room of getRoomSummaries()) {

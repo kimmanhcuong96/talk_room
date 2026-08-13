@@ -47,6 +47,8 @@ export type VirtualUserProfile = {
   speakingStyle: string;
   replyProbability: number;
   proactiveMessageProbability: number;
+  longResponseDelayMinSeconds: number;
+  longResponseDelayMaxSeconds: number;
   enabled: boolean;
   updatedAt: string;
 };

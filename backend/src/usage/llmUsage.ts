@@ -89,7 +89,7 @@ async function insertUsage(client: PoolClient, virtualUserId: string, roomId: st
      WHERE scope = 'application'`,
     [normalized.totalTokens]
   );
-  if (counterUpdate.rowCount !== 1) throw new Error("LLM usage counter is missing. Run migration 009.");
+  if (counterUpdate.rowCount !== 1) throw new Error("LLM usage counter is missing. Run migration 005_create_virtual_users.sql.");
 }
 
 export async function recordLLMUsage(virtualUserId: string, roomId: string, usage: LLMUsage) {
@@ -134,7 +134,7 @@ async function generateTracked(
       const counter = await client.query<{ total_tokens: string }>(
         "SELECT total_tokens::text AS total_tokens FROM llm_usage_counters WHERE scope = 'application' FOR UPDATE"
       );
-      if (!counter.rows[0]) throw new Error("LLM usage counter is missing. Run migration 009.");
+      if (!counter.rows[0]) throw new Error("LLM usage counter is missing. Run migration 005_create_virtual_users.sql.");
       if (Number(counter.rows[0]?.total_tokens ?? 0) >= maxTokens) {
         await client.query("ROLLBACK");
         return null;

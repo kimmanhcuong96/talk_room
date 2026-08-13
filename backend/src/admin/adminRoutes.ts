@@ -154,6 +154,8 @@ adminRouter.patch("/virtual-users/:id", requireAdmin, async (request, response, 
     const speakingStyle = typeof request.body?.speakingStyle === "string" ? request.body.speakingStyle.trim() : "";
     const replyProbability = Number(request.body?.replyProbability);
     const proactiveMessageProbability = Number(request.body?.proactiveMessageProbability);
+    const longResponseDelayMinSeconds = Number(request.body?.longResponseDelayMinSeconds);
+    const longResponseDelayMaxSeconds = Number(request.body?.longResponseDelayMaxSeconds);
     const enabled = request.body?.enabled;
     if (!name || name.length > 80 || !isValidAvatarUrl(avatarUrl)
       || !englishLevel || englishLevel.length > 40 || !personality || personality.length > 1_000
@@ -161,11 +163,15 @@ adminRouter.patch("/virtual-users/:id", requireAdmin, async (request, response, 
       || !speakingStyle || speakingStyle.length > 1_000
       || !Number.isFinite(replyProbability) || replyProbability < 0 || replyProbability > 1
       || !Number.isFinite(proactiveMessageProbability) || proactiveMessageProbability < 0 || proactiveMessageProbability > 1
+      || !Number.isInteger(longResponseDelayMinSeconds) || longResponseDelayMinSeconds < 1 || longResponseDelayMinSeconds > 120
+      || !Number.isInteger(longResponseDelayMaxSeconds) || longResponseDelayMaxSeconds < 1 || longResponseDelayMaxSeconds > 120
+      || longResponseDelayMinSeconds > longResponseDelayMaxSeconds
       || typeof enabled !== "boolean") {
       throw new HttpError(400, "Invalid virtual user profile.");
     }
     const profile = await updateVirtualUserProfile(getRequestAdmin(request).id, request.params.id, {
-      name, avatarUrl, englishLevel, personality, interests, speakingStyle, replyProbability, proactiveMessageProbability, enabled
+      name, avatarUrl, englishLevel, personality, interests, speakingStyle, replyProbability, proactiveMessageProbability,
+      longResponseDelayMinSeconds, longResponseDelayMaxSeconds, enabled
     });
     if (!profile) throw new HttpError(404, "Virtual user not found.");
     const io = request.app.get("io") as AppServer | undefined;

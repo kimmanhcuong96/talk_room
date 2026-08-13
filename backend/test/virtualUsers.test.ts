@@ -13,7 +13,8 @@ import { addUserToRoom, createRoom, getRoomHumanCount, getRoomMessages, getRoomV
 
 const makeProfile = (id: string, enabled = true): VirtualUserProfile => ({
   id, name: id, avatarUrl: null, englishLevel: "B1", personality: "Friendly",
-  interests: ["travel"], speakingStyle: "Casual", replyProbability: 1, proactiveMessageProbability: 0.5, enabled,
+  interests: ["travel"], speakingStyle: "Casual", replyProbability: 1, proactiveMessageProbability: 0.5,
+  longResponseDelayMinSeconds: 5, longResponseDelayMaxSeconds: 15, enabled,
   updatedAt: new Date(0).toISOString()
 });
 
@@ -313,8 +314,9 @@ test("low activity keeps a waiting bot in a random empty system room and typing 
   assert.equal(waitingBots.length, 1);
   assert.deepEqual(getTypingDelayRange("short"), [500, 1_200]);
   assert.deepEqual(getTypingDelayRange("x".repeat(29)), [500, 1_200]);
-  assert.deepEqual(getTypingDelayRange("x".repeat(30)), [15_000, 30_000]);
-  assert.deepEqual(getTypingDelayRange("x".repeat(180)), [15_000, 30_000]);
+  assert.deepEqual(getTypingDelayRange("x".repeat(30)), [5_000, 15_000]);
+  assert.deepEqual(getTypingDelayRange("x".repeat(180)), [5_000, 15_000]);
+  assert.deepEqual(getTypingDelayRange("x".repeat(30), { longResponseDelayMinSeconds: 8, longResponseDelayMaxSeconds: 12 }), [8_000, 12_000]);
 
   const context = makeContext();
   context.recentMessages = [{ ...makeMessage("room-a", "Still here?", 1), senderType: "virtual_user", senderId: "bot-01", socketId: "virtual:bot-01", timestamp: 1_000 }];

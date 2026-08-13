@@ -66,6 +66,8 @@ function makeDefaultProfile(): VirtualUserProfile {
     speakingStyle: "Casual and concise",
     replyProbability: 1,
     proactiveMessageProbability: 0.5,
+    longResponseDelayMinSeconds: 5,
+    longResponseDelayMaxSeconds: 15,
     enabled: true,
     updatedAt: new Date(0).toISOString()
   };

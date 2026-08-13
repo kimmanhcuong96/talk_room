@@ -28,6 +28,8 @@ type RoomPageProps = {
   socket: AppSocket;
   room: RoomSummary;
   nickname: string;
+  guestId: string;
+  authToken?: string;
   avatarUrl: string | null;
   isConnected: boolean;
   connectionError: string | null;
@@ -44,7 +46,7 @@ function getYouTubeErrorMessage(language: Language, error: string) {
   return youtubeTranslate(language, "failed");
 }
 
-export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, connectionError, language, role, onLeave }: RoomPageProps) {
+export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl, isConnected, connectionError, language, role, onLeave }: RoomPageProps) {
   const [chatOpen, setChatOpen] = useState(false);
   const [roomConnectionError, setRoomConnectionError] = useState<string | null>(null);
   const [mediaNotice, setMediaNotice] = useState<string | null>(null);
@@ -104,6 +106,11 @@ export function RoomPage({ socket, room, nickname, avatarUrl, isConnected, conne
   const hasJoinedRoom = users.some((user) => user.socketId === socket.id);
   const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
   const screenShareError = screenShareErrorKey ? t(screenShareErrorKey) : null;
+
+  useEffect(() => {
+    if (!isConnected) return;
+    socket.emit("join-room", { roomId: room.id, nickname, guestId, authToken });
+  }, [authToken, guestId, isConnected, nickname, room.id, socket]);
   const handleToggleScreenShare = async () => {
     if (!canToggleScreenShare) {
       setMediaNotice(t("screenShareDenied"));

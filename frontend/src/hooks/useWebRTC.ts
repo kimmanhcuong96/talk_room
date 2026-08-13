@@ -27,6 +27,8 @@ type TransportStats = RTCStats & {
 
 export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
   const peersRef = useRef(new Map<string, RTCPeerConnection>());
+  const peerCreationRef = useRef(new Map<string, Promise<RTCPeerConnection | null>>());
+  const peerGenerationRef = useRef(new Map<string, number>());
   const makingOfferRef = useRef(new Map<string, boolean>());
   const pendingIceCandidatesRef = useRef(new Map<string, RTCIceCandidateInit[]>());
   const disconnectTimersRef = useRef(new Map<string, number>());
@@ -62,6 +64,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
   }, []);
 
   const closePeer = useCallback((socketId: string) => {
+    peerGenerationRef.current.set(socketId, (peerGenerationRef.current.get(socketId) ?? 0) + 1);
     const disconnectTimer = disconnectTimersRef.current.get(socketId);
     if (disconnectTimer) {
       window.clearTimeout(disconnectTimer);
@@ -76,6 +79,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
 
     peersRef.current.get(socketId)?.close();
     peersRef.current.delete(socketId);
+    peerCreationRef.current.delete(socketId);
     makingOfferRef.current.delete(socketId);
     pendingIceCandidatesRef.current.delete(socketId);
     reportedTransportsRef.current.delete(socketId);
@@ -137,14 +141,11 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
       });
 
       if (tracksChanged && connection.signalingState === "stable") {
-        if (connection.connectionState === "connected") {
-          void createAndSendOffer(peerId);
-        } else {
-          console.log(`[WebRTC][${peerId}] postponed renegotiation until connected:`, {
-            connectionState: connection.connectionState,
-            signalingState: connection.signalingState
-          });
-        }
+        // ICE connectivity is independent from signaling. Waiting for
+        // connectionState=connected can permanently strand a newly-added
+        // microphone/camera track because no later event is guaranteed to
+        // trigger another offer.
+        void createAndSendOffer(peerId);
       }
     });
   }, [createAndSendOffer, localStream]);
@@ -160,7 +161,24 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
         return existingConnection;
       }
 
-      const connection = new RTCPeerConnection(await getRtcConfig());
+      const pendingConnection = peerCreationRef.current.get(peerId);
+      if (pendingConnection) {
+        return pendingConnection;
+      }
+
+      const generation = peerGenerationRef.current.get(peerId) ?? 0;
+      const creation = (async () => {
+        const connectionConfig = await getRtcConfig();
+        if ((peerGenerationRef.current.get(peerId) ?? 0) !== generation) {
+          return null;
+        }
+
+        const currentConnection = peersRef.current.get(peerId);
+        if (currentConnection) {
+          return currentConnection;
+        }
+
+      const connection = new RTCPeerConnection(connectionConfig);
       const remoteStream = new MediaStream();
       const logPeerState = (label: string, value: string) => {
         console.log(`[WebRTC][${peerId}] ${label}:`, value);
@@ -278,6 +296,10 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
         });
       };
 
+      connection.onnegotiationneeded = () => {
+        void createAndSendOffer(peerId);
+      };
+
       connection.ontrack = (event) => {
         const incomingTracks = event.streams[0]?.getTracks() ?? [event.track];
 
@@ -342,8 +364,18 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
 
       peersRef.current.set(peerId, connection);
       return connection;
+      })();
+
+      peerCreationRef.current.set(peerId, creation);
+      try {
+        return await creation;
+      } finally {
+        if (peerCreationRef.current.get(peerId) === creation) {
+          peerCreationRef.current.delete(peerId);
+        }
+      }
     },
-    [closePeer, getRtcConfig, socket]
+    [closePeer, createAndSendOffer, getRtcConfig, socket]
   );
 
   useEffect(() => {
@@ -486,6 +518,10 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
       disconnectTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
       transportReportTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
       peersRef.current.clear();
+      peerCreationRef.current.clear();
+      peerGenerationRef.current.forEach((generation, peerId) => {
+        peerGenerationRef.current.set(peerId, generation + 1);
+      });
       makingOfferRef.current.clear();
       pendingIceCandidatesRef.current.clear();
       disconnectTimersRef.current.clear();

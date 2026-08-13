@@ -106,9 +106,8 @@ export function App() {
       setPendingJoin(null);
       setError(null);
       setActiveRoom({ roomId, nickname: cleanNickname });
-      socket.emit("join-room", { roomId, nickname: cleanNickname, guestId, authToken: authSession?.token });
     },
-    [authSession?.token, guestId, socket]
+    []
   );
 
   useEffect(() => {
@@ -406,6 +405,8 @@ export function App() {
         socket={socket}
         room={selectedRoom}
         nickname={activeRoom.nickname}
+        guestId={guestId}
+        authToken={authSession?.token}
         avatarUrl={authSession?.user.avatarUrl ?? null}
         isConnected={isConnected}
         connectionError={connectionError}

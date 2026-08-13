@@ -165,6 +165,14 @@ async function getAuthenticatedUser(authToken: string | undefined): Promise<User
   }
 }
 
+async function canFavoriteUsers(socket: AppSocket) {
+  if (!socket.data.userId) return false;
+  const user = await findUserById(socket.data.userId);
+  if (!user) return false;
+  socket.data.role = user.role;
+  return hasPermission(user.role, "favorite_user");
+}
+
 const loggedWebRtcTransports = new Map<string, string>();
 
 function formatWebRtcLogUser(nickname: string | undefined, socketId: string) {
@@ -692,6 +700,10 @@ export function registerSocketHandlers(io: AppServer) {
         return;
       }
       try {
+        if (!await canFavoriteUsers(socket)) {
+          respond?.({ ok: false, error: "FAVORITE_PERMISSION_DENIED" });
+          return;
+        }
         respond?.({ ok: true, ...(await toggleFavorite(socket.data.userId, targetSocket.data.userId)) });
       } catch (error) {
         console.error("Unable to update favorite user", error);
@@ -709,6 +721,10 @@ export function registerSocketHandlers(io: AppServer) {
         (candidate) => candidate.id !== socket.id && candidate.data.roomId === roomId && candidate.data.userId
       );
       try {
+        if (!await canFavoriteUsers(socket)) {
+          respond?.({ ok: false, error: "FAVORITE_PERMISSION_DENIED" });
+          return;
+        }
         const favoriteUserIds = new Set(await listFavoriteUserIds(socket.data.userId, candidates.map((candidate) => candidate.data.userId!)));
         respond?.({ ok: true, targetSocketIds: candidates.filter((candidate) => favoriteUserIds.has(candidate.data.userId!)).map((candidate) => candidate.id) });
       } catch (error) {

@@ -54,6 +54,7 @@ export type TranslationKey =
   | "favoriteAdded"
   | "favoriteRemoved"
   | "favoriteAuthRequired"
+  | "favoritePermissionDenied"
   | "favoriteFailed"
   | "messagePlaceholder"
   | "micMute"
@@ -179,6 +180,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     favoriteAdded: "{name} was added to your favorites.",
     favoriteRemoved: "{name} was removed from your favorites.",
     favoriteAuthRequired: "Sign in to favorite another user.",
+    favoritePermissionDenied: "Only verified users and supporters can favorite other users.",
     favoriteFailed: "We couldn't update favorites. Please try again.",
     messagePlaceholder: "Message",
     micMute: "Mute microphone",
@@ -288,6 +290,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     favoriteAdded: "Đã thêm {name} vào danh sách yêu thích.",
     favoriteRemoved: "Đã bỏ {name} khỏi danh sách yêu thích.",
     favoriteAuthRequired: "Hãy đăng nhập để yêu thích người dùng khác.",
+    favoritePermissionDenied: "Chỉ user đã xác minh và Supporter mới có thể yêu thích người khác.",
     favoriteFailed: "Không thể cập nhật yêu thích. Vui lòng thử lại.",
     messagePlaceholder: "Tin nhắn",
     micMute: "Tắt micro",
@@ -397,6 +400,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     favoriteAdded: "已将 {name} 添加到收藏。",
     favoriteRemoved: "已将 {name} 从收藏中移除。",
     favoriteAuthRequired: "请登录后收藏其他用户。",
+    favoritePermissionDenied: "只有已验证用户和 Supporter 才能收藏其他用户。",
     favoriteFailed: "无法更新收藏，请重试。",
     messagePlaceholder: "消息",
     micMute: "关闭麦克风",
@@ -506,6 +510,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     favoriteAdded: "{name} をお気に入りに追加しました。",
     favoriteRemoved: "{name} をお気に入りから削除しました。",
     favoriteAuthRequired: "他のユーザーをお気に入りにするにはログインしてください。",
+    favoritePermissionDenied: "他のユーザーをお気に入りにできるのは認証済みユーザーと Supporter のみです。",
     favoriteFailed: "お気に入りを更新できませんでした。もう一度お試しください。",
     messagePlaceholder: "メッセージ",
     micMute: "マイクをミュート",

@@ -1,11 +1,11 @@
 import type { UserRole } from "./userRepository.js";
 
-export type UserPermission = "create_room" | "use_camera";
+export type UserPermission = "create_room" | "use_camera" | "favorite_user";
 
 const rolePermissions: Record<UserRole, ReadonlySet<UserPermission>> = {
   unverified: new Set(),
-  verified: new Set(["create_room"]),
-  supporter: new Set(["create_room", "use_camera"])
+  verified: new Set(["create_room", "favorite_user"]),
+  supporter: new Set(["create_room", "use_camera", "favorite_user"])
 };
 
 export function hasPermission(role: UserRole, permission: UserPermission) {

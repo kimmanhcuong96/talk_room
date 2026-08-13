@@ -111,17 +111,21 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
   const screenShareError = screenShareErrorKey ? t(screenShareErrorKey) : null;
 
   useEffect(() => {
-    if (!authToken || !hasJoinedRoom) return;
+    if (!authToken || !hasPermission(role, "favorite_user") || !hasJoinedRoom) return;
     let cancelled = false;
     socket.emit("request-room-favorites", (result) => {
       if (!cancelled && result.ok) setFavoritedUserIds(new Set(result.targetSocketIds));
     });
     return () => { cancelled = true; };
-  }, [authToken, hasJoinedRoom, roomUserSignature, socket]);
+  }, [authToken, hasJoinedRoom, role, roomUserSignature, socket]);
 
   const handleToggleFavorite = useCallback((targetSocketId: string) => {
     if (!authToken) {
       setMediaNotice(t("favoriteAuthRequired"));
+      return;
+    }
+    if (!hasPermission(role, "favorite_user")) {
+      setMediaNotice(t("favoritePermissionDenied"));
       return;
     }
     if (pendingFavoriteUserIds.current.has(targetSocketId)) return;
@@ -132,7 +136,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
       window.clearTimeout(releasePending);
       pendingFavoriteUserIds.current.delete(targetSocketId);
       if (!result.ok) {
-        setMediaNotice(result.error === "AUTH_REQUIRED" ? t("favoriteAuthRequired") : t("favoriteFailed"));
+        setMediaNotice(result.error === "AUTH_REQUIRED" ? t("favoriteAuthRequired") : result.error === "FAVORITE_PERMISSION_DENIED" ? t("favoritePermissionDenied") : t("favoriteFailed"));
         return;
       }
       setFavoritedUserIds((current) => {
@@ -143,7 +147,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
       });
       setSuccessNotice(t(result.favorited ? "favoriteAdded" : "favoriteRemoved", { name: targetName }));
     });
-  }, [authToken, socket, t, users]);
+  }, [authToken, role, socket, t, users]);
 
   useEffect(() => {
     if (!isConnected) return;
@@ -527,7 +531,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
               localUser={localUser}
               language={language}
               remotePeers={remotePeers}
-              canFavorite
+              canFavorite={Boolean(authToken) && hasPermission(role, "favorite_user")}
               favoritedIds={favoritedUserIds}
               onToggleFavorite={handleToggleFavorite}
               stageContent={youtubeOnStage && youtubeVideo

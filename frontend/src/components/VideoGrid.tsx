@@ -22,6 +22,9 @@ type VideoGridProps = {
   language: Language;
   remotePeers: RemotePeer[];
   stageContent?: ReactNode;
+  canFavorite?: boolean;
+  favoritedIds?: ReadonlySet<string>;
+  onToggleFavorite?: (socketId: string) => void;
 };
 
 type Participant = {
@@ -35,6 +38,7 @@ type Participant = {
   screenSharing: boolean;
   screenTrackId: string | null;
   muted: boolean;
+  favoriteEligible: boolean;
 };
 
 function createPreviewStream(source: MediaStream | null, screenSharing: boolean, screenTrackId: string | null, mode: "stage" | "thumbnail") {
@@ -66,9 +70,12 @@ type ParticipantVideoTileProps = {
   language: Language;
   selected?: boolean;
   onClick: () => void;
+  canFavorite: boolean;
+  favorited: boolean;
+  onToggleFavorite?: () => void;
 };
 
-function ParticipantVideoTile({ participant, mode, language, selected = false, onClick }: ParticipantVideoTileProps) {
+function ParticipantVideoTile({ participant, mode, language, selected = false, onClick, canFavorite, favorited, onToggleFavorite }: ParticipantVideoTileProps) {
   const sourceStream = mode === "thumbnail" ? participant.thumbnailStream : participant.stream;
   const sourceTrackSignature = getTrackSignature(sourceStream);
   const previewStream = useMemo(
@@ -89,6 +96,9 @@ function ParticipantVideoTile({ participant, mode, language, selected = false, o
       compact={mode === "thumbnail"}
       selected={selected}
       onClick={onClick}
+      favoriteEnabled={canFavorite && participant.favoriteEligible && mode === "stage"}
+      favorited={favorited}
+      onToggleFavorite={onToggleFavorite}
     />
   );
 }
@@ -97,7 +107,7 @@ function getTrackSignature(stream: MediaStream | null) {
   return stream?.getTracks().map((track) => `${track.kind}:${track.id}:${track.readyState}`).join("|") ?? "";
 }
 
-export function VideoGrid({ localStream, localCameraStream, localUser, language, remotePeers, stageContent }: VideoGridProps) {
+export function VideoGrid({ localStream, localCameraStream, localUser, language, remotePeers, stageContent, canFavorite = false, favoritedIds = new Set(), onToggleFavorite }: VideoGridProps) {
   const [featuredParticipantId, setFeaturedParticipantId] = useState<string | null>(null);
   const totalUsers = remotePeers.length + 1;
   const participants = useMemo(
@@ -112,7 +122,8 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
         cameraEnabled: localUser.cameraEnabled,
         screenSharing: localUser.screenSharing,
         screenTrackId: localUser.screenTrackId,
-        muted: true
+        muted: true,
+        favoriteEligible: false
       },
       ...remotePeers.map((peer) => ({
         id: peer.socketId,
@@ -124,7 +135,8 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
         cameraEnabled: peer.cameraEnabled,
         screenSharing: peer.screenSharing,
         screenTrackId: peer.screenTrackId,
-        muted: false
+        muted: false,
+        favoriteEligible: peer.senderType === "human" && Boolean(peer.isAuthenticated)
       }))
     ],
     [localCameraStream, localStream, localUser.avatar, localUser.cameraEnabled, localUser.micEnabled, localUser.nickname, localUser.screenSharing, localUser.screenTrackId, remotePeers]
@@ -165,6 +177,8 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
                 mode="thumbnail"
                 language={language}
                 onClick={() => undefined}
+                canFavorite={false}
+                favorited={false}
               />
             </div>
           ))}
@@ -183,6 +197,9 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
             language={language}
             selected
             onClick={() => setFeaturedParticipantId(null)}
+            canFavorite={canFavorite}
+            favorited={favoritedIds.has(featuredParticipant.id)}
+            onToggleFavorite={() => onToggleFavorite?.(featuredParticipant.id)}
           />
         </div>
 
@@ -196,6 +213,8 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
                   language={language}
                   selected={participant.id === featuredParticipant.id}
                   onClick={() => setFeaturedParticipantId(participant.id)}
+                  canFavorite={false}
+                  favorited={favoritedIds.has(participant.id)}
                 />
               </div>
             ))}
@@ -246,6 +265,9 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
             language={language}
             muted={participant.muted}
             onClick={() => setFeaturedParticipantId(participant.id)}
+            favoriteEnabled={canFavorite && participant.favoriteEligible}
+            favorited={favoritedIds.has(participant.id)}
+            onToggleFavorite={() => onToggleFavorite?.(participant.id)}
           />
         </div>
       ))}

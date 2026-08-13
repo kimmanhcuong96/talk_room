@@ -63,12 +63,12 @@ function mapDatabaseError(error: unknown): never {
   throw error;
 }
 
-export async function upsertGoogleUser(profile: VerifiedOAuthProfile) {
+export async function upsertGoogleUser(profile: VerifiedOAuthProfile, referralCode?: string) {
   try {
     const result = await getPool().query<UserRow>(
       `
-        INSERT INTO users (id, google_id, email, display_name, avatar_url, last_login)
-        VALUES ($1, $2, $3, $4, $5, NOW())
+        INSERT INTO users (id, google_id, email, display_name, avatar_url, referral_code, referred_by_user_id, last_login)
+        VALUES ($1, $2, $3, $4, $5, $6, (SELECT id FROM users WHERE referral_code = $7), NOW())
         ON CONFLICT (google_id) DO UPDATE
         SET
           email = EXCLUDED.email,
@@ -77,7 +77,7 @@ export async function upsertGoogleUser(profile: VerifiedOAuthProfile) {
           last_login = NOW()
         RETURNING id, google_id, email, display_name, avatar_url, role, created_at, last_login
       `,
-      [randomUUID(), profile.providerUserId, profile.email, profile.displayName, profile.avatarUrl]
+      [randomUUID(), profile.providerUserId, profile.email, profile.displayName, profile.avatarUrl, randomUUID().replaceAll("-", "").slice(0, 10), referralCode ?? null]
     );
 
     return toUserProfile(result.rows[0]);

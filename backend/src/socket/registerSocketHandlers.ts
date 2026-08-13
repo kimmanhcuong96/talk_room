@@ -36,6 +36,7 @@ import { handleHumanChatMessage, handleHumanVoiceAttempt, reconcileVirtualUserFo
 import { getYouTubeRecommendations, validateYouTubeVideoForEmbed, YouTubeServiceError } from "../youtube/youtubeRecommendationService.js";
 import { finishUserRoomSession, startUserRoomSession } from "../usage/userRoomTime.js";
 import { finishWebRtcConnection, recordWebRtcTransport } from "../usage/webrtcUsage.js";
+import { listFavoriteUserIds, toggleFavorite } from "../rewards/rewardRepository.js";
 
 const avatars = ["🐣", "🐼", "🐰", "🦊", "🐨", "🐥", "🐧", "🐸", "🦄", "🐙", "🐢", "🐹"];
 
@@ -350,7 +351,8 @@ export function registerSocketHandlers(io: AppServer) {
         cameraEnabled: false,
         screenSharing: false,
         screenTrackId: null,
-        senderType: "human"
+        senderType: "human",
+        isAuthenticated: Boolean(authenticatedUser)
       });
 
       if (!result.ok) {
@@ -667,6 +669,52 @@ export function registerSocketHandlers(io: AppServer) {
       leaveCurrentRoom(io, targetSocket);
       targetSocket.emit("access-blocked", { scope: "room", expiresAt: result.expiresAt });
       socket.emit("moderation-success", { action: "block", targetSocketId });
+    });
+
+    socket.on("toggle-favorite-user", async ({ targetSocketId }, respond) => {
+      const now = Date.now();
+      const recentFavoriteActions = (socket.data.favoriteActionTimestamps ?? []).filter((timestamp) => now - timestamp < 60_000);
+      if (recentFavoriteActions.length >= 10) {
+        respond?.({ ok: false, error: "FAVORITE_RATE_LIMITED" });
+        return;
+      }
+      recentFavoriteActions.push(now);
+      socket.data.favoriteActionTimestamps = recentFavoriteActions;
+      const roomId = socket.data.roomId;
+      const targetSocket = io.sockets.sockets.get(targetSocketId);
+      const targetUser = roomId ? getRoomUsers(roomId).find((user) => user.socketId === targetSocketId) : undefined;
+      if (!socket.data.userId) {
+        respond?.({ ok: false, error: "AUTH_REQUIRED" });
+        return;
+      }
+      if (!roomId || !targetSocket?.data.userId || targetSocket.data.roomId !== roomId || targetSocketId === socket.id || targetUser?.senderType !== "human") {
+        respond?.({ ok: false, error: "INVALID_FAVORITE_TARGET" });
+        return;
+      }
+      try {
+        respond?.({ ok: true, ...(await toggleFavorite(socket.data.userId, targetSocket.data.userId)) });
+      } catch (error) {
+        console.error("Unable to update favorite user", error);
+        respond?.({ ok: false, error: "FAVORITE_FAILED" });
+      }
+    });
+
+    socket.on("request-room-favorites", async (respond) => {
+      const roomId = socket.data.roomId;
+      if (!roomId || !socket.data.userId) {
+        respond?.({ ok: false, error: "AUTH_REQUIRED" });
+        return;
+      }
+      const candidates = [...io.sockets.sockets.values()].filter(
+        (candidate) => candidate.id !== socket.id && candidate.data.roomId === roomId && candidate.data.userId
+      );
+      try {
+        const favoriteUserIds = new Set(await listFavoriteUserIds(socket.data.userId, candidates.map((candidate) => candidate.data.userId!)));
+        respond?.({ ok: true, targetSocketIds: candidates.filter((candidate) => favoriteUserIds.has(candidate.data.userId!)).map((candidate) => candidate.id) });
+      } catch (error) {
+        console.error("Unable to load room favorites", error);
+        respond?.({ ok: false, error: "FAVORITE_FAILED" });
+      }
     });
 
     socket.on("leave-room", () => {

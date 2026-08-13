@@ -49,6 +49,7 @@ export type RoomUser = {
   screenSharing: boolean;
   screenTrackId: string | null;
   senderType: "human" | "virtual_user";
+  isAuthenticated?: boolean;
   virtualUserId?: string;
 };
 
@@ -85,6 +86,13 @@ export type ClientToServerEvents = {
   "request-room-moderation-permission": (payload: { roomId: string }) => void;
   "block-room-user": (payload: { targetSocketId: string }) => void;
   "report-user": (payload: { targetSocketId: string; reason: ReportReason; details?: string }) => void;
+  "toggle-favorite-user": (
+    payload: { targetSocketId: string },
+    respond?: (result: { ok: true; favorited: boolean; pointsAwarded: number } | { ok: false; error: string }) => void
+  ) => void;
+  "request-room-favorites": (
+    respond?: (result: { ok: true; targetSocketIds: string[] } | { ok: false; error: string }) => void
+  ) => void;
   "leave-room": () => void;
   "send-message": (payload: { text: string }) => void;
   "media-status": (payload: { micEnabled: boolean; cameraEnabled: boolean; screenSharing: boolean; screenTrackId: string | null }) => void;

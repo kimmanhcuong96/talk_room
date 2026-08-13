@@ -446,6 +446,7 @@ export function App() {
       language={language}
       onLanguageChange={handleLanguageChange}
       user={authSession?.user ?? null}
+      authToken={authSession?.token}
       authError={authError}
       isAuthLoading={isAuthLoading}
       isSigningIn={isSigningIn}

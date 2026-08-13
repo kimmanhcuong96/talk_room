@@ -41,6 +41,18 @@ export type TranslationKey =
   | "language"
   | "leaveRoom"
   | "loadUserProfileFailed"
+  | "points"
+  | "activityPoints"
+  | "referralPoints"
+  | "favoritePoints"
+  | "favoritesReceived"
+  | "copyReferralLink"
+  | "referralCopied"
+  | "favoriteUser"
+  | "unfavoriteUser"
+  | "favoriteUpdated"
+  | "favoriteAuthRequired"
+  | "favoriteFailed"
   | "messagePlaceholder"
   | "micMute"
   | "micUnavailable"
@@ -151,6 +163,18 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     language: "Language",
     leaveRoom: "Leave room",
     loadUserProfileFailed: "Could not load user profile.",
+    points: "Points",
+    activityPoints: "Activity",
+    referralPoints: "Referrals",
+    favoritePoints: "Favorites",
+    favoritesReceived: "{count} favorites received",
+    copyReferralLink: "Copy invitation link",
+    referralCopied: "Invitation link copied",
+    favoriteUser: "Add to favorites",
+    unfavoriteUser: "Remove from favorites",
+    favoriteUpdated: "Favorites updated.",
+    favoriteAuthRequired: "Sign in to favorite another user.",
+    favoriteFailed: "We couldn't update favorites. Please try again.",
     messagePlaceholder: "Message",
     micMute: "Mute microphone",
     micUnavailable: "No microphone found",
@@ -245,6 +269,18 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     language: "Ngôn ngữ",
     leaveRoom: "Rời phòng",
     loadUserProfileFailed: "Không thể tải thông tin người dùng.",
+    points: "Điểm",
+    activityPoints: "Hoạt động",
+    referralPoints: "Giới thiệu",
+    favoritePoints: "Yêu thích",
+    favoritesReceived: "Đã nhận {count} lượt yêu thích",
+    copyReferralLink: "Sao chép liên kết mời",
+    referralCopied: "Đã sao chép liên kết mời",
+    favoriteUser: "Thêm vào yêu thích",
+    unfavoriteUser: "Bỏ khỏi yêu thích",
+    favoriteUpdated: "Đã cập nhật yêu thích.",
+    favoriteAuthRequired: "Hãy đăng nhập để yêu thích người dùng khác.",
+    favoriteFailed: "Không thể cập nhật yêu thích. Vui lòng thử lại.",
     messagePlaceholder: "Tin nhắn",
     micMute: "Tắt micro",
     micUnavailable: "Không tìm thấy micro",
@@ -339,6 +375,18 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     language: "语言",
     leaveRoom: "离开房间",
     loadUserProfileFailed: "无法加载用户资料。",
+    points: "积分",
+    activityPoints: "活跃",
+    referralPoints: "邀请",
+    favoritePoints: "收藏",
+    favoritesReceived: "收到 {count} 个收藏",
+    copyReferralLink: "复制邀请链接",
+    referralCopied: "邀请链接已复制",
+    favoriteUser: "添加到收藏",
+    unfavoriteUser: "取消收藏",
+    favoriteUpdated: "收藏已更新。",
+    favoriteAuthRequired: "请登录后收藏其他用户。",
+    favoriteFailed: "无法更新收藏，请重试。",
     messagePlaceholder: "消息",
     micMute: "关闭麦克风",
     micUnavailable: "未找到麦克风",
@@ -433,6 +481,18 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     language: "言語",
     leaveRoom: "ルームを退出",
     loadUserProfileFailed: "ユーザープロフィールを読み込めませんでした。",
+    points: "ポイント",
+    activityPoints: "アクティビティ",
+    referralPoints: "紹介",
+    favoritePoints: "お気に入り",
+    favoritesReceived: "お気に入り {count} 件",
+    copyReferralLink: "招待リンクをコピー",
+    referralCopied: "招待リンクをコピーしました",
+    favoriteUser: "お気に入りに追加",
+    unfavoriteUser: "お気に入りから削除",
+    favoriteUpdated: "お気に入りを更新しました。",
+    favoriteAuthRequired: "他のユーザーをお気に入りにするにはログインしてください。",
+    favoriteFailed: "お気に入りを更新できませんでした。もう一度お試しください。",
     messagePlaceholder: "メッセージ",
     micMute: "マイクをミュート",
     micUnavailable: "マイクが見つかりません",

@@ -1,5 +1,5 @@
 import { AlertTriangle, Home, Languages, MessageSquare, Palette, ShieldAlert, X, Youtube } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "../hooks/useChat";
 import { useLocalMedia } from "../hooks/useLocalMedia";
 import { useScreenShare } from "../hooks/useScreenShare";
@@ -52,6 +52,8 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
   const [mediaNotice, setMediaNotice] = useState<string | null>(null);
   const [mediaDeviceToast, setMediaDeviceToast] = useState<string | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
+  const [favoritedUserIds, setFavoritedUserIds] = useState<Set<string>>(() => new Set());
+  const pendingFavoriteUserIds = useRef(new Set<string>());
   const [screenShareBlocked, setScreenShareBlocked] = useState(false);
   const [canManageLanguages, setCanManageLanguages] = useState(false);
   const [languageEditorOpen, setLanguageEditorOpen] = useState(false);
@@ -104,8 +106,43 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
   const screenShareSupported = canShareScreen && !screenShareBlocked;
   const canToggleScreenShare = !screenShareBlocked && (!screenShareOwner || screenShareOwner.socketId === socket.id);
   const hasJoinedRoom = users.some((user) => user.socketId === socket.id);
+  const roomUserSignature = users.map((user) => user.socketId).sort().join("|");
   const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
   const screenShareError = screenShareErrorKey ? t(screenShareErrorKey) : null;
+
+  useEffect(() => {
+    if (!authToken || !hasJoinedRoom) return;
+    let cancelled = false;
+    socket.emit("request-room-favorites", (result) => {
+      if (!cancelled && result.ok) setFavoritedUserIds(new Set(result.targetSocketIds));
+    });
+    return () => { cancelled = true; };
+  }, [authToken, hasJoinedRoom, roomUserSignature, socket]);
+
+  const handleToggleFavorite = useCallback((targetSocketId: string) => {
+    if (!authToken) {
+      setMediaNotice(t("favoriteAuthRequired"));
+      return;
+    }
+    if (pendingFavoriteUserIds.current.has(targetSocketId)) return;
+    pendingFavoriteUserIds.current.add(targetSocketId);
+    const releasePending = window.setTimeout(() => pendingFavoriteUserIds.current.delete(targetSocketId), 8_000);
+    socket.emit("toggle-favorite-user", { targetSocketId }, (result) => {
+      window.clearTimeout(releasePending);
+      pendingFavoriteUserIds.current.delete(targetSocketId);
+      if (!result.ok) {
+        setMediaNotice(result.error === "AUTH_REQUIRED" ? t("favoriteAuthRequired") : t("favoriteFailed"));
+        return;
+      }
+      setFavoritedUserIds((current) => {
+        const next = new Set(current);
+        if (result.favorited) next.add(targetSocketId);
+        else next.delete(targetSocketId);
+        return next;
+      });
+      setSuccessNotice(t("favoriteUpdated"));
+    });
+  }, [authToken, socket, t]);
 
   useEffect(() => {
     if (!isConnected) return;
@@ -489,6 +526,9 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
               localUser={localUser}
               language={language}
               remotePeers={remotePeers}
+              canFavorite={Boolean(authToken)}
+              favoritedIds={favoritedUserIds}
+              onToggleFavorite={handleToggleFavorite}
               stageContent={youtubeOnStage && youtubeVideo
                 ? <YouTubeVideoStage key={youtubeVideo.videoId} video={youtubeVideo} canManage={canEditYoutube} language={language} onClose={() => setYoutubeOnStage(false)} onOwnerPlayback={handleOwnerYouTubePlayback} onViewerPlayback={handleViewerYouTubePlayback}/>
                 : currentTopic ? <RoomTopicSlide topic={currentTopic} language={language} fill/> : undefined}

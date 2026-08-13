@@ -79,6 +79,7 @@ Client responsibilities:
 - Local nickname persistence in `localStorage`.
 - Local language preference persistence in `localStorage`.
 - Client-side i18n rendering.
+- User points are earned from eligible room activity (1 point per 5 minutes, capped at 2 hours per day), qualified referrals, and unique favorites. Rewards use an auditable, idempotent ledger; referral rewards require 30 minutes of activity and favorite rewards are issued only from established users.
 - Local media capture and device availability checks.
 - Screen sharing capture when supported by the browser.
 - WebRTC peer connection management.

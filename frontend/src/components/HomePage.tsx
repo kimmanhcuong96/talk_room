@@ -1,7 +1,7 @@
-import { Check, ChevronDown, Coffee, Grid2X2, Info, Languages, LoaderCircle, LogIn, LogOut, MessageCircle, Plus, Search, Settings, ShieldCheck, UserCircle, Users, X } from "lucide-react";
+import { Check, ChevronDown, Coffee, Copy, Grid2X2, Heart, Info, Languages, LoaderCircle, LogIn, LogOut, MessageCircle, Plus, Search, Settings, ShieldCheck, Sparkles, UserCircle, Users, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GoogleSignInButton } from "./GoogleSignInButton";
-import type { AuthUser } from "../lib/auth";
+import { getRewardSummary, type AuthUser, type RewardSummary } from "../lib/auth";
 import { type Language, languages, translate } from "../lib/i18n";
 import type { RoomSummary } from "../types/realtime";
 import { adminPath, infoPagePath, type InfoPage } from "../lib/routes";
@@ -18,6 +18,7 @@ type HomePageProps = {
   error: string | null;
   language: Language;
   user: AuthUser | null;
+  authToken?: string;
   authError: string | null;
   isAuthLoading: boolean;
   isSigningIn: boolean;
@@ -31,6 +32,23 @@ type HomePageProps = {
 };
 
 type RoomDensity = "3x" | "2x" | "1x";
+
+async function copyReferralUrl(value: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+  const input = document.createElement("textarea");
+  input.value = value;
+  input.setAttribute("readonly", "");
+  input.style.position = "fixed";
+  input.style.opacity = "0";
+  document.body.appendChild(input);
+  input.select();
+  const copied = document.execCommand("copy");
+  input.remove();
+  if (!copied) throw new Error("Clipboard is unavailable.");
+}
 
 const densityGridClass: Record<RoomDensity, string> = {
   "3x": "sm:grid-cols-2 lg:grid-cols-3",
@@ -87,6 +105,7 @@ export function HomePage({
   error,
   language,
   user,
+  authToken,
   authError,
   isAuthLoading,
   isSigningIn,
@@ -104,6 +123,8 @@ export function HomePage({
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [oauthMenuOpen, setOauthMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [rewards, setRewards] = useState<RewardSummary | null>(null);
+  const [referralCopied, setReferralCopied] = useState(false);
   const [createRoomOpen, setCreateRoomOpen] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
   const [primaryLanguage, setPrimaryLanguage] = useState<RoomLanguage>(() => language);
@@ -118,6 +139,18 @@ export function HomePage({
   const selectedLanguage = languages.find((option) => option.value === language) ?? languages[0];
   const canCreateRoom = hasPermission(user?.role ?? "unverified", "create_room");
   const roleLabel = user ? t(user.role === "supporter" ? "roleSupporter" : user.role === "verified" ? "roleVerified" : "roleUnverified") : "";
+
+  useEffect(() => {
+    if (!authToken) {
+      setRewards(null);
+      return;
+    }
+    let cancelled = false;
+    void getRewardSummary(authToken).then((summary) => {
+      if (!cancelled) setRewards(summary);
+    }).catch(() => undefined);
+    return () => { cancelled = true; };
+  }, [authToken, userMenuOpen]);
 
   const availableLanguageTags = useMemo(() => {
     const counts = new Map<RoomLanguage, number>();
@@ -265,6 +298,36 @@ export function HomePage({
                               : "bg-white/8 text-white/60"
                         }`}>{roleLabel}</span>
                       </div>
+                      {rewards ? (
+                        <div className="mt-1 rounded-lg border border-[#ffd84d]/20 bg-[#ffd84d]/8 p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="flex items-center gap-2 font-medium text-white/75"><Sparkles size={16} className="text-[#ffd84d]" />{t("points")}</span>
+                            <strong className="text-lg text-[#ffd84d]">{rewards.totalPoints.toLocaleString()}</strong>
+                          </div>
+                          <div className="mt-2 grid grid-cols-3 gap-1 text-center text-[11px] text-white/55">
+                            <span>{t("activityPoints")}<strong className="mt-0.5 block text-white/85">{rewards.activityPoints}</strong></span>
+                            <span>{t("referralPoints")}<strong className="mt-0.5 block text-white/85">{rewards.referralPoints}</strong></span>
+                            <span>{t("favoritePoints")}<strong className="mt-0.5 block text-white/85">{rewards.favoritePoints}</strong></span>
+                          </div>
+                          <p className="mt-2 flex items-center justify-center gap-1 text-[11px] text-white/50"><Heart size={12} />{t("favoritesReceived", { count: rewards.favoriteCount })}</p>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const referralUrl = `${window.location.origin}/?ref=${rewards.referralCode}`;
+                              try {
+                                await copyReferralUrl(referralUrl);
+                                setReferralCopied(true);
+                                window.setTimeout(() => setReferralCopied(false), 2500);
+                              } catch {
+                                setReferralCopied(false);
+                              }
+                            }}
+                            className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-md bg-white/8 px-2 text-xs font-medium text-white/80 transition hover:bg-white/12"
+                          >
+                            <Copy size={14} />{referralCopied ? t("referralCopied") : t("copyReferralLink")}
+                          </button>
+                        </div>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => {

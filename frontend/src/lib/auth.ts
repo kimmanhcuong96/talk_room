@@ -4,6 +4,7 @@ export const AUTH_TOKEN_STORAGE_KEY = "me2talk:auth-token";
 export const AUTH_USER_STORAGE_KEY = "me2talk:auth-user";
 const LEGACY_AUTH_TOKEN_STORAGE_KEY = "english-talk-rooms:auth-token";
 const LEGACY_AUTH_USER_STORAGE_KEY = "english-talk-rooms:auth-user";
+const REFERRAL_CODE_STORAGE_KEY = "me2talk:referral-code";
 
 export type UserRole = "unverified" | "verified" | "supporter";
 
@@ -22,6 +23,16 @@ export type AuthSession = {
   token: string;
   user: AuthUser;
   adminSession?: AdminSession | null;
+};
+
+export type RewardSummary = {
+  totalPoints: number;
+  activityPoints: number;
+  referralPoints: number;
+  favoritePoints: number;
+  favoriteCount: number;
+  qualifiedReferrals: number;
+  referralCode: string;
 };
 
 export class AuthRequestError extends Error {
@@ -90,10 +101,13 @@ export function clearStoredSession() {
 }
 
 export async function loginWithGoogleIdToken(idToken: string): Promise<AuthSession> {
+  const urlReferralCode = new URLSearchParams(window.location.search).get("ref")?.trim().toLowerCase();
+  if (urlReferralCode && /^[a-z0-9]{8,12}$/.test(urlReferralCode)) localStorage.setItem(REFERRAL_CODE_STORAGE_KEY, urlReferralCode);
+  const referralCode = localStorage.getItem(REFERRAL_CODE_STORAGE_KEY) ?? undefined;
   const response = await fetch(`${apiUrl}/auth/google`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idToken })
+    body: JSON.stringify({ idToken, referralCode })
   });
 
   const body = (await response.json().catch(() => ({}))) as Partial<AuthSession> & { error?: string };
@@ -102,7 +116,15 @@ export async function loginWithGoogleIdToken(idToken: string): Promise<AuthSessi
     throw new Error(body.error ?? "GOOGLE_SIGN_IN_FAILED");
   }
 
+  localStorage.removeItem(REFERRAL_CODE_STORAGE_KEY);
   return { token: body.token, user: body.user, adminSession: body.adminSession ?? null };
+}
+
+export async function getRewardSummary(token: string): Promise<RewardSummary> {
+  const response = await fetch(`${apiUrl}/auth/rewards`, { headers: { Authorization: `Bearer ${token}` } });
+  const body = (await response.json().catch(() => ({}))) as RewardSummary & { error?: string };
+  if (!response.ok) throw new AuthRequestError(body.error ?? "LOAD_REWARDS_FAILED", response.status);
+  return body;
 }
 
 export async function getCurrentUser(token: string): Promise<AuthSession> {

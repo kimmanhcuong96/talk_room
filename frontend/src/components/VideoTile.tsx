@@ -1,4 +1,4 @@
-import { Mic, MicOff, Video, VideoOff } from "lucide-react";
+import { Heart, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useSpeaking } from "../hooks/useSpeaking";
 import { type Language, translate } from "../lib/i18n";
@@ -16,6 +16,9 @@ type VideoTileProps = {
   compact?: boolean;
   selected?: boolean;
   onClick?: () => void;
+  favoriteEnabled?: boolean;
+  favorited?: boolean;
+  onToggleFavorite?: () => void;
 };
 
 export function VideoTile({
@@ -29,7 +32,10 @@ export function VideoTile({
   muted = false,
   compact = false,
   selected = false,
-  onClick
+  onClick,
+  favoriteEnabled = false,
+  favorited = false,
+  onToggleFavorite,
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -75,6 +81,18 @@ export function VideoTile({
             : "border-white/10"
       }`}
     >
+      {favoriteEnabled && onToggleFavorite ? (
+        <button
+          type="button"
+          title={t(favorited ? "unfavoriteUser" : "favoriteUser")}
+          aria-label={t(favorited ? "unfavoriteUser" : "favoriteUser")}
+          aria-pressed={favorited}
+          onClick={(event) => { event.stopPropagation(); onToggleFavorite(); }}
+          className={`absolute right-3 top-3 z-20 grid h-9 w-9 place-items-center rounded-full border backdrop-blur transition ${favorited ? "border-rose-300/60 bg-rose-500/25 text-rose-200" : "border-white/15 bg-black/45 text-white/75 hover:text-rose-200"}`}
+        >
+          <Heart size={17} fill={favorited ? "currentColor" : "none"} />
+        </button>
+      ) : null}
       {showVideo ? (
         screenSharing ? (
           <div className={`${screenShareMediaFrame} grid place-items-center bg-black`}>

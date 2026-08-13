@@ -263,17 +263,17 @@ test("room lifecycle assigns at one human and releases at the two-human threshol
   const io = { to: () => ({ emit: () => undefined }), emit: () => undefined } as never;
   const human = (socketId: string) => ({ socketId, nickname: socketId, avatar: "🙂", role: "unverified" as const, micEnabled: false, cameraEnabled: false, screenSharing: false, screenTrackId: null, senderType: "human" as const });
 
-  assert.equal(addUserToRoom("room-18", human("human-a")).ok, true);
-  reconcileVirtualUserForRoom(io, "room-18");
-  assert.equal(getRoomHumanCount("room-18"), 1);
-  assert.equal(getRoomVirtualUser("room-18")?.virtualUserId, "bot-01");
-  assert.equal(getRoomVirtualUser("room-18")?.role, "verified");
+  assert.equal(addUserToRoom("room-12", human("human-a")).ok, true);
+  reconcileVirtualUserForRoom(io, "room-12");
+  assert.equal(getRoomHumanCount("room-12"), 1);
+  assert.equal(getRoomVirtualUser("room-12")?.virtualUserId, "bot-01");
+  assert.equal(getRoomVirtualUser("room-12")?.role, "verified");
 
-  assert.equal(addUserToRoom("room-18", human("human-b")).ok, true);
-  reconcileVirtualUserForRoom(io, "room-18");
-  assert.equal(getRoomHumanCount("room-18"), 2);
-  assert.equal(getRoomVirtualUser("room-18"), undefined);
-  assert.notEqual(virtualUserInternals.pool.getRuntime("bot-01")?.roomId, "room-18");
+  assert.equal(addUserToRoom("room-12", human("human-b")).ok, true);
+  reconcileVirtualUserForRoom(io, "room-12");
+  assert.equal(getRoomHumanCount("room-12"), 2);
+  assert.equal(getRoomVirtualUser("room-12"), undefined);
+  assert.notEqual(virtualUserInternals.pool.getRuntime("bot-01")?.roomId, "room-12");
   removeUser("human-a"); removeUser("human-b");
 });
 
@@ -288,7 +288,7 @@ test("low activity distributes five distinct random bots across five empty syste
   }
   virtualUserInternals.pool.replaceProfiles(VIRTUAL_USER_IDS.map((id) => makeProfile(id)));
   rebalanceWaitingVirtualUsers(io, () => 0.99);
-  const waiting = Array.from({ length: 18 }, (_, index) => {
+  const waiting = Array.from({ length: 12 }, (_, index) => {
     const roomId = `room-${index + 1}`;
     return { roomId, user: getRoomVirtualUser(roomId) };
   }).filter((item) => item.user);
@@ -309,8 +309,8 @@ test("low activity keeps a waiting bot in a random empty system room and typing 
   const { getTypingDelayRange, reconcileVirtualUserForRoom, releaseVirtualUser, shouldAttemptProactiveMessage, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
   virtualUserInternals.pool.replaceProfiles([makeProfile("bot-01")]);
   const io = { to: () => ({ emit: () => undefined }), emit: () => undefined } as never;
-  reconcileVirtualUserForRoom(io, "room-16");
-  const waitingBots = Array.from({ length: 18 }, (_, index) => getRoomVirtualUser(`room-${index + 1}`)).filter(Boolean);
+  reconcileVirtualUserForRoom(io, "room-10");
+  const waitingBots = Array.from({ length: 12 }, (_, index) => getRoomVirtualUser(`room-${index + 1}`)).filter(Boolean);
   assert.equal(waitingBots.length, 1);
   assert.deepEqual(getTypingDelayRange("short"), [500, 1_200]);
   assert.deepEqual(getTypingDelayRange("x".repeat(29)), [500, 1_200]);
@@ -339,13 +339,13 @@ test("rapid human messages are batched into one pending interaction", async () =
   virtualUserInternals.pool.replaceProfiles([makeProfile("bot-01")]);
   const io = { to: () => ({ emit: () => undefined }), emit: () => undefined } as never;
   const human = { socketId: "human-batch", nickname: "Human", avatar: "🙂", role: "unverified" as const, micEnabled: false, cameraEnabled: false, screenSharing: false, screenTrackId: null, senderType: "human" as const };
-  assert.equal(addUserToRoom("room-15", human).ok, true);
-  reconcileVirtualUserForRoom(io, "room-15");
-  handleHumanChatMessage(io, makeMessage("room-15", "Hi", 1));
-  handleHumanChatMessage(io, makeMessage("room-15", "How are you?", 2));
-  assert.equal(virtualUserInternals.pendingMessages.get("room-15")?.messages.length, 2);
-  releaseVirtualUser(io, "room-15");
-  assert.equal(virtualUserInternals.pendingMessages.has("room-15"), false);
+  assert.equal(addUserToRoom("room-9", human).ok, true);
+  reconcileVirtualUserForRoom(io, "room-9");
+  handleHumanChatMessage(io, makeMessage("room-9", "Hi", 1));
+  handleHumanChatMessage(io, makeMessage("room-9", "How are you?", 2));
+  assert.equal(virtualUserInternals.pendingMessages.get("room-9")?.messages.length, 2);
+  releaseVirtualUser(io, "room-9");
+  assert.equal(virtualUserInternals.pendingMessages.has("room-9"), false);
   removeUser("human-batch");
 });
 
@@ -490,12 +490,12 @@ test("disabling an active bot releases it, while active profile edits are applie
   const io = { to: () => ({ emit: (...args: unknown[]) => events.push(args) }), emit: (...args: unknown[]) => events.push(args) } as never;
   const human = { socketId: "human-profile", nickname: "Human", avatar: "🙂", role: "unverified" as const, micEnabled: false, cameraEnabled: false, screenSharing: false, screenTrackId: null, senderType: "human" as const };
   virtualUserInternals.pool.replaceProfiles([makeProfile("bot-01")]);
-  assert.equal(addUserToRoom("room-17", human).ok, true);
-  reconcileVirtualUserForRoom(io, "room-17");
+  assert.equal(addUserToRoom("room-11", human).ok, true);
+  reconcileVirtualUserForRoom(io, "room-11");
   applyVirtualUserProfile(io, { ...makeProfile("bot-01"), name: "Updated Emma" });
-  assert.equal(getRoomVirtualUser("room-17")?.nickname, "Updated Emma");
+  assert.equal(getRoomVirtualUser("room-11")?.nickname, "Updated Emma");
   applyVirtualUserProfile(io, makeProfile("bot-01", false));
-  assert.equal(getRoomVirtualUser("room-17"), undefined);
+  assert.equal(getRoomVirtualUser("room-11"), undefined);
   assert.equal(virtualUserInternals.pool.getRuntime("bot-01")?.status, "AVAILABLE");
   assert.ok(events.length > 0);
   removeUser("human-profile");

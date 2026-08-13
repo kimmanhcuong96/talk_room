@@ -17,13 +17,7 @@ const roomNames = [
   "Movie Discussion",
   "Book Club",
   "Technology",
-  "Gaming",
-  "Culture Exchange",
-  "Debate",
-  "Vocabulary Practice",
-  "Grammar Practice",
-  "Interview English",
-  "Coffee Chat"
+  "Gaming"
 ] as const;
 
 type Room = {

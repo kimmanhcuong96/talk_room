@@ -4,7 +4,7 @@ Me2talk (Me to talk) is a realtime language-practice application built around sm
 
 ## Features
 
-- 18 predefined Talking Rooms, up to 4 participants per room.
+- 12 predefined Talking Rooms, up to 4 participants per room.
 - Custom rooms for verified users; supporters can also enable camera access.
 - Primary and optional secondary language tags, native-language labels, and CEFR-style level selection.
 - Search and language-tag filtering on the home page, including room counts.

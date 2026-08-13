@@ -10,7 +10,7 @@ Build a lightweight web application for people to practice languages, talk, and 
 - Use Google OAuth only for the first authentication version.
 - Keep realtime room state in server RAM; persist only authenticated account metadata and usage aggregates.
 - Maximum 4 users per room.
-- Exactly 18 predefined rooms.
+- Exactly 12 predefined rooms.
 - Lowest possible server cost.
 - WebRTC mesh peer-to-peer for audio/video media.
 - The server must never relay audio or video.
@@ -87,11 +87,11 @@ Client responsibilities:
 
 ## Rooms
 
-Exactly 18 predefined rooms.
+Exactly 12 predefined rooms.
 
 Each room:
 
-- Has a deterministic id: `room-1` through `room-18`.
+- Has a deterministic id: `room-1` through `room-12`.
 - Has a stable URL: `/room/:roomId`.
 - Max 4 users.
 - Hardcoded.
@@ -281,7 +281,7 @@ Room URLs must be deterministic:
 /room/room-1
 /room/room-2
 ...
-/room/room-18
+/room/room-12
 ```
 
 Flow:

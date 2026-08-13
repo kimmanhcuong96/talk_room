@@ -328,6 +328,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
               avatar: knownUser?.avatar ?? "🐣",
               role: knownUser?.role ?? "unverified",
               senderType: knownUser?.senderType ?? "human",
+              isAuthenticated: knownUser?.isAuthenticated ?? false,
               micEnabled: knownUser?.micEnabled ?? true,
               cameraEnabled: knownUser?.cameraEnabled ?? true,
               screenSharing: knownUser?.screenSharing ?? false,

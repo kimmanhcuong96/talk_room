@@ -51,6 +51,8 @@ export type TranslationKey =
   | "favoriteUser"
   | "unfavoriteUser"
   | "favoriteUpdated"
+  | "favoriteAdded"
+  | "favoriteRemoved"
   | "favoriteAuthRequired"
   | "favoriteFailed"
   | "messagePlaceholder"
@@ -174,6 +176,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     favoriteUser: "Add to favorites",
     unfavoriteUser: "Remove from favorites",
     favoriteUpdated: "Favorites updated.",
+    favoriteAdded: "{name} was added to your favorites.",
+    favoriteRemoved: "{name} was removed from your favorites.",
     favoriteAuthRequired: "Sign in to favorite another user.",
     favoriteFailed: "We couldn't update favorites. Please try again.",
     messagePlaceholder: "Message",
@@ -281,6 +285,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     favoriteUser: "Thêm vào yêu thích",
     unfavoriteUser: "Bỏ khỏi yêu thích",
     favoriteUpdated: "Đã cập nhật yêu thích.",
+    favoriteAdded: "Đã thêm {name} vào danh sách yêu thích.",
+    favoriteRemoved: "Đã bỏ {name} khỏi danh sách yêu thích.",
     favoriteAuthRequired: "Hãy đăng nhập để yêu thích người dùng khác.",
     favoriteFailed: "Không thể cập nhật yêu thích. Vui lòng thử lại.",
     messagePlaceholder: "Tin nhắn",
@@ -388,6 +394,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     favoriteUser: "添加到收藏",
     unfavoriteUser: "取消收藏",
     favoriteUpdated: "收藏已更新。",
+    favoriteAdded: "已将 {name} 添加到收藏。",
+    favoriteRemoved: "已将 {name} 从收藏中移除。",
     favoriteAuthRequired: "请登录后收藏其他用户。",
     favoriteFailed: "无法更新收藏，请重试。",
     messagePlaceholder: "消息",
@@ -495,6 +503,8 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     favoriteUser: "お気に入りに追加",
     unfavoriteUser: "お気に入りから削除",
     favoriteUpdated: "お気に入りを更新しました。",
+    favoriteAdded: "{name} をお気に入りに追加しました。",
+    favoriteRemoved: "{name} をお気に入りから削除しました。",
     favoriteAuthRequired: "他のユーザーをお気に入りにするにはログインしてください。",
     favoriteFailed: "お気に入りを更新できませんでした。もう一度お試しください。",
     messagePlaceholder: "メッセージ",

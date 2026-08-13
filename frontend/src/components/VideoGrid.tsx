@@ -96,7 +96,7 @@ function ParticipantVideoTile({ participant, mode, language, selected = false, o
       compact={mode === "thumbnail"}
       selected={selected}
       onClick={onClick}
-      favoriteEnabled={canFavorite && participant.favoriteEligible && mode === "stage"}
+      favoriteEnabled={canFavorite && participant.favoriteEligible}
       favorited={favorited}
       onToggleFavorite={onToggleFavorite}
     />
@@ -177,8 +177,9 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
                 mode="thumbnail"
                 language={language}
                 onClick={() => undefined}
-                canFavorite={false}
-                favorited={false}
+                canFavorite={canFavorite}
+                favorited={favoritedIds.has(participant.id)}
+                onToggleFavorite={() => onToggleFavorite?.(participant.id)}
               />
             </div>
           ))}
@@ -213,8 +214,9 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
                   language={language}
                   selected={participant.id === featuredParticipant.id}
                   onClick={() => setFeaturedParticipantId(participant.id)}
-                  canFavorite={false}
+                  canFavorite={canFavorite}
                   favorited={favoritedIds.has(participant.id)}
+                  onToggleFavorite={() => onToggleFavorite?.(participant.id)}
                 />
               </div>
             ))}

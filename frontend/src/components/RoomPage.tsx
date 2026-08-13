@@ -125,6 +125,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
       return;
     }
     if (pendingFavoriteUserIds.current.has(targetSocketId)) return;
+    const targetName = users.find((user) => user.socketId === targetSocketId)?.nickname ?? "";
     pendingFavoriteUserIds.current.add(targetSocketId);
     const releasePending = window.setTimeout(() => pendingFavoriteUserIds.current.delete(targetSocketId), 8_000);
     socket.emit("toggle-favorite-user", { targetSocketId }, (result) => {
@@ -140,9 +141,9 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
         else next.delete(targetSocketId);
         return next;
       });
-      setSuccessNotice(t("favoriteUpdated"));
+      setSuccessNotice(t(result.favorited ? "favoriteAdded" : "favoriteRemoved", { name: targetName }));
     });
-  }, [authToken, socket, t]);
+  }, [authToken, socket, t, users]);
 
   useEffect(() => {
     if (!isConnected) return;
@@ -526,7 +527,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
               localUser={localUser}
               language={language}
               remotePeers={remotePeers}
-              canFavorite={Boolean(authToken)}
+              canFavorite
               favoritedIds={favoritedUserIds}
               onToggleFavorite={handleToggleFavorite}
               stageContent={youtubeOnStage && youtubeVideo

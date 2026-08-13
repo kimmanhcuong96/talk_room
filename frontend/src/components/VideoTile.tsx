@@ -88,9 +88,10 @@ export function VideoTile({
           aria-label={t(favorited ? "unfavoriteUser" : "favoriteUser")}
           aria-pressed={favorited}
           onClick={(event) => { event.stopPropagation(); onToggleFavorite(); }}
-          className={`absolute right-3 top-3 z-20 grid h-9 w-9 place-items-center rounded-full border backdrop-blur transition ${favorited ? "border-rose-300/60 bg-rose-500/25 text-rose-200" : "border-white/15 bg-black/45 text-white/75 hover:text-rose-200"}`}
+          onKeyDown={(event) => event.stopPropagation()}
+          className={`absolute z-20 grid place-items-center rounded-full border backdrop-blur transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/60 ${compact ? "right-1.5 top-1.5 h-7 w-7" : "right-3 top-3 h-9 w-9"} ${favorited ? "border-rose-300/70 bg-rose-500/35 text-rose-100 shadow-[0_0_14px_rgba(244,63,94,0.28)]" : "border-white/20 bg-black/55 text-white/80 hover:border-rose-300/60 hover:bg-rose-500/20 hover:text-rose-100"}`}
         >
-          <Heart size={17} fill={favorited ? "currentColor" : "none"} />
+          <Heart size={compact ? 14 : 17} fill={favorited ? "currentColor" : "none"} />
         </button>
       ) : null}
       {showVideo ? (

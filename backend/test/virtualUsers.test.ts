@@ -266,6 +266,7 @@ test("room lifecycle assigns at one human and releases at the two-human threshol
   reconcileVirtualUserForRoom(io, "room-18");
   assert.equal(getRoomHumanCount("room-18"), 1);
   assert.equal(getRoomVirtualUser("room-18")?.virtualUserId, "bot-01");
+  assert.equal(getRoomVirtualUser("room-18")?.role, "verified");
 
   assert.equal(addUserToRoom("room-18", human("human-b")).ok, true);
   reconcileVirtualUserForRoom(io, "room-18");

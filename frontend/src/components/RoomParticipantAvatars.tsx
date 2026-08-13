@@ -15,7 +15,7 @@ export function RoomParticipantAvatars({ participants, language }: { participant
   if (participants.length === 0) return null;
 
   return (
-    <div className="flex -space-x-2" aria-label={`${participants.length} participants`}>
+    <div className="flex -space-x-2.5" aria-label={`${participants.length} participants`}>
       {participants.map((participant, index) => {
         const roleLabel = getRoleLabel(participant, language);
         return (
@@ -25,7 +25,7 @@ export function RoomParticipantAvatars({ participants, language }: { participant
               aria-label={`${participant.nickname}, ${roleLabel}`}
               className="block rounded-full outline-none ring-mint transition hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-panel"
             >
-              <AvatarBadge avatar={participant.avatar} size="sm" />
+              <AvatarBadge avatar={participant.avatar} size="md" />
             </button>
             <div
               role="tooltip"

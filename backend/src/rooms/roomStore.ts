@@ -297,7 +297,7 @@ export function addVirtualUserToRoom(roomId: string, profile: { id: string; name
     socketId: `virtual:${profile.id}`,
     nickname: profile.name,
     avatar: getVirtualUserAvatar(profile),
-    role: "unverified",
+    role: "verified",
     micEnabled: false,
     cameraEnabled: false,
     screenSharing: false,

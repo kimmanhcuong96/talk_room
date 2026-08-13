@@ -9,17 +9,17 @@ export async function recordWebRtcTransport(connectionId: string, transport: "st
   const now = Date.now();
   if (current?.transport === transport) return;
   active.set(connectionId, { transport, startedAt: now });
-  if (current) await persist(current.transport, current.startedAt, now);
+  if (current) await persist(current.transport, current.startedAt, now, 1);
 }
 
 export async function finishWebRtcConnection(connectionId: string) {
   const current = active.get(connectionId);
   if (!current) return;
   active.delete(connectionId);
-  await persist(current.transport, current.startedAt, Date.now());
+  await persist(current.transport, current.startedAt, Date.now(), 1);
 }
 
-async function persist(transport: "stun" | "turn", startedAt: number, endedAt: number) {
+async function persist(transport: "stun" | "turn", startedAt: number, endedAt: number, connectionCount: number) {
   const buckets = new Map<string, number>();
   let cursor = startedAt;
   while (cursor < endedAt) {
@@ -33,28 +33,29 @@ async function persist(transport: "stun" | "turn", startedAt: number, endedAt: n
   try {
     for (const [date, seconds] of buckets) {
       await getPool().query(
-        `INSERT INTO webrtc_usage_daily (usage_date, transport, total_seconds) VALUES ($1, $2, $3)
-         ON CONFLICT (usage_date, transport) DO UPDATE SET total_seconds = webrtc_usage_daily.total_seconds + EXCLUDED.total_seconds, updated_at = NOW()`,
-        [date, transport, seconds]
+        `INSERT INTO webrtc_usage_daily (usage_date, transport, total_seconds, connection_count) VALUES ($1, $2, $3, $4)
+         ON CONFLICT (usage_date, transport) DO UPDATE SET total_seconds = webrtc_usage_daily.total_seconds + EXCLUDED.total_seconds,
+           connection_count = webrtc_usage_daily.connection_count + EXCLUDED.connection_count, updated_at = NOW()`,
+        [date, transport, seconds, date === new Date(startedAt).toISOString().slice(0, 10) ? connectionCount : 0]
       );
     }
   } catch (error) { console.error("Unable to persist WebRTC usage", error); }
 }
 
 export async function getWebRtcUsageSummary() {
-  const result = await getPool().query<{ usage_date: string; transport: "stun" | "turn"; total_seconds: string }>(
-    `SELECT usage_date::text, transport, total_seconds::text FROM webrtc_usage_daily WHERE usage_date >= CURRENT_DATE - INTERVAL '1 year' ORDER BY usage_date`
+  const result = await getPool().query<{ usage_date: string; transport: "stun" | "turn"; total_seconds: string; connection_count: string }>(
+    `SELECT usage_date::text, transport, total_seconds::text, connection_count::text FROM webrtc_usage_daily WHERE usage_date >= CURRENT_DATE - INTERVAL '1 year' ORDER BY usage_date`
   );
   const now = new Date();
-  const rows = result.rows.map((row) => ({ date: row.usage_date, transport: row.transport, seconds: Number(row.total_seconds) }));
+  const rows = result.rows.map((row) => ({ date: row.usage_date, transport: row.transport, seconds: Number(row.total_seconds), connections: Number(row.connection_count) }));
   for (const session of active.values()) {
     for (const [date, seconds] of splitDuration(session.startedAt, Date.now())) {
       const existing = rows.find((row) => row.date === date && row.transport === session.transport);
-      if (existing) existing.seconds += seconds;
-      else rows.push({ date, transport: session.transport, seconds });
+      if (existing) { existing.seconds += seconds; if (date === new Date(session.startedAt).toISOString().slice(0, 10)) existing.connections += 1; }
+      else rows.push({ date, transport: session.transport, seconds, connections: date === new Date(session.startedAt).toISOString().slice(0, 10) ? 1 : 0 });
     }
   }
-  const sum = (from: Date) => rows.reduce((acc, row) => row.date >= from.toISOString().slice(0, 10) ? { ...acc, [row.transport]: (acc[row.transport] ?? 0) + row.seconds } : acc, { stun: 0, turn: 0 } as Record<string, number>);
+  const sum = (from: Date) => rows.reduce((acc, row) => row.date >= from.toISOString().slice(0, 10) ? { ...acc, [row.transport]: { seconds: acc[row.transport].seconds + row.seconds, connections: acc[row.transport].connections + row.connections } } : acc, { stun: { seconds: 0, connections: 0 }, turn: { seconds: 0, connections: 0 } });
   const startWeek = new Date(now); startWeek.setUTCDate(now.getUTCDate() - 6);
   const startMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const startYear = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));

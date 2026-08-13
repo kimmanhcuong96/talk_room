@@ -51,7 +51,8 @@ export type VirtualUserProfile = {
 };
 export type VirtualUserRuntime = { botId: string; status: "AVAILABLE" | "ACTIVE"; roomId?: string };
 export type AdminVirtualUser = { profile: VirtualUserProfile; runtime: VirtualUserRuntime };
-export type WebRtcUsage = { daily: Record<string, number>; weekly: Record<string, number>; monthly: Record<string, number>; yearly: Record<string, number>; series: Array<{ date: string; transport: "stun" | "turn"; seconds: number }> };
+export type WebRtcUsageMetric = { seconds: number; connections: number };
+export type WebRtcUsage = { daily: Record<"stun" | "turn", WebRtcUsageMetric>; weekly: Record<"stun" | "turn", WebRtcUsageMetric>; monthly: Record<"stun" | "turn", WebRtcUsageMetric>; yearly: Record<"stun" | "turn", WebRtcUsageMetric>; series: Array<{ date: string; transport: "stun" | "turn"; seconds: number; connections: number }> };
 export type TurnUsageStatus = { configured: boolean; checkedAt: string | null; egressBytes: number | null; egressMb: number | null; egressGb: number | null; limitGb: number; turnAllowed: boolean };
 export type LLMUsageTotals = { requests: number; inputTokens: number; outputTokens: number; totalTokens: number };
 export type LLMUsageBreakdownItem = { key: string; label: string; requests: number; inputTokens: number; outputTokens: number; totalTokens: number };

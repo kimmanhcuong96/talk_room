@@ -22,6 +22,7 @@ import { ConversationStore } from "./conversationStore.js";
 import { llmUsageCoordinator } from "../usage/llmUsage.js";
 import { recordVirtualUserResponse } from "../usage/responseUsage.js";
 import { getVirtualUserAvatar } from "./virtualUserAvatar.js";
+import { classifyHumanMessage, getToxicityDepartureMessage } from "./toxicity.js";
 
 const BATCH_DELAY_MS = 650;
 const RESPONSE_COOLDOWN_MS = 1_200;
@@ -41,6 +42,12 @@ const lastVoicePromptAt = new Map<string, number>();
 const voicePromptCounts = new Map<string, number>();
 const processedHumanMessages = new Map<string, Map<string, number>>();
 const proactiveSentRooms = new Set<string>();
+const toxicMessageWindows = new Map<string, number[]>();
+const withdrawnRooms = new Map<string, number>();
+const withdrawalTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const lastDepartureMessageByBot = new Map<string, string>();
+const TOXICITY_WINDOW_MS = 10 * 60_000;
+const WITHDRAWAL_COOLDOWN_MS = 5 * 60_000;
 let proactiveCheckTimer: ReturnType<typeof setInterval> | null = null;
 
 function createLLMProvider() {
@@ -112,6 +119,7 @@ function shuffled<T>(items: readonly T[], random = Math.random) {
 }
 
 function assignVirtualUser(io: AppServer, roomId: string, random = Math.random) {
+  if ((withdrawnRooms.get(roomId) ?? 0) > Date.now()) return null;
   const profile = pool.assign(roomId, random);
   if (!profile) return null;
   const user = addVirtualUserToRoom(roomId, profile);
@@ -200,12 +208,28 @@ export function releaseVirtualUser(io: AppServer, roomId: string) {
   conversations.destroy(roomId, botId);
   clearVoicePromptStateForRoom(roomId);
   processedHumanMessages.delete(roomId);
+  toxicMessageWindows.delete(roomId);
   proactiveSentRooms.delete(roomId);
   const removed = removeVirtualUserByBotId(roomId, botId);
   if (removed) emitPresence(io, roomId, "left", removed.socketId);
 }
 
+function scheduleWithdrawalExpiry(io: AppServer, roomId: string, expiresAt: number) {
+  const previousTimer = withdrawalTimers.get(roomId);
+  if (previousTimer) clearTimeout(previousTimer);
+  const timer = setTimeout(() => {
+    withdrawalTimers.delete(roomId);
+    if ((withdrawnRooms.get(roomId) ?? 0) <= Date.now()) {
+      withdrawnRooms.delete(roomId);
+      reconcileVirtualUserForRoom(io, roomId);
+    }
+  }, Math.max(0, expiresAt - Date.now()));
+  timer.unref();
+  withdrawalTimers.set(roomId, timer);
+}
+
 export function reconcileVirtualUserForRoom(io: AppServer, roomId: string) {
+  if ((withdrawnRooms.get(roomId) ?? 0) <= Date.now()) withdrawnRooms.delete(roomId);
   const humanCount = getRoomHumanCount(roomId);
   const existing = getRoomVirtualUser(roomId);
   if (humanCount >= 2) {
@@ -299,6 +323,34 @@ export function handleHumanChatMessage(io: AppServer, message: ChatMessage) {
   const bot = getRoomVirtualUser(message.roomId);
   if (!bot?.virtualUserId || getRoomHumanCount(message.roomId) !== 1) return;
   if (!rememberHumanMessage(message)) return;
+  const toxicity = classifyHumanMessage(message.text);
+  const now = Date.now();
+  const recentToxicMessages = (toxicMessageWindows.get(message.roomId) ?? []).filter((timestamp) => now - timestamp <= TOXICITY_WINDOW_MS);
+  if (toxicity !== "none") recentToxicMessages.push(now);
+  toxicMessageWindows.set(message.roomId, recentToxicMessages);
+  if (toxicity === "severe" || recentToxicMessages.length >= 2) {
+    const expiresAt = now + WITHDRAWAL_COOLDOWN_MS;
+    withdrawnRooms.set(message.roomId, expiresAt);
+    scheduleWithdrawalExpiry(io, message.roomId, expiresAt);
+    const departureText = getToxicityDepartureMessage(lastDepartureMessageByBot.get(bot.virtualUserId));
+    lastDepartureMessageByBot.set(bot.virtualUserId, departureText);
+    const departureMessage: ChatMessage = {
+      id: `${bot.virtualUserId}-moderation-${now}`,
+      roomId: message.roomId,
+      socketId: bot.socketId,
+      senderId: bot.virtualUserId,
+      senderType: "virtual_user",
+      nickname: bot.nickname,
+      avatar: bot.avatar,
+      text: departureText,
+      timestamp: now,
+    };
+    if (addRoomMessage(departureMessage)) {
+      io.to(message.roomId).emit("receive-message", departureMessage);
+    }
+    releaseVirtualUser(io, message.roomId);
+    return;
+  }
   proactiveSentRooms.delete(message.roomId);
   if (processingRooms.has(message.roomId)) {
     roomGenerations.set(message.roomId, (roomGenerations.get(message.roomId) ?? 0) + 1);
@@ -439,4 +491,18 @@ export async function initializeVirtualUserService(io: AppServer) {
   }
 }
 
-export const virtualUserInternals = { pool, conversations, processingRooms, roomGenerations, pendingMessages, lastVoicePromptAt, voicePromptCounts, processedHumanMessages, proactiveSentRooms };
+export const virtualUserInternals = {
+  pool,
+  conversations,
+  processingRooms,
+  roomGenerations,
+  pendingMessages,
+  lastVoicePromptAt,
+  voicePromptCounts,
+  processedHumanMessages,
+  proactiveSentRooms,
+  toxicMessageWindows,
+  withdrawnRooms,
+  withdrawalTimers,
+  lastDepartureMessageByBot,
+};

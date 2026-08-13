@@ -369,6 +369,86 @@ test("the same human message id cannot trigger duplicate bot processing", async 
   removeUser("human-dedup");
 });
 
+test("a severe targeted message makes the bot leave and prevents reassignment during cooldown", async () => {
+  process.env.DATABASE_URL ||= "postgres://test:test@localhost:5432/test";
+  process.env.GOOGLE_CLIENT_ID ||= "test.apps.googleusercontent.com";
+  process.env.JWT_SECRET ||= "test-secret-that-is-long-enough";
+  const { handleHumanChatMessage, reconcileVirtualUserForRoom, releaseVirtualUser, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
+  const events: Array<{ event: string; payload: unknown }> = [];
+  const io = {
+    to: () => ({ emit: (event: string, payload: unknown) => events.push({ event, payload }) }),
+    emit: (event: string, payload: unknown) => events.push({ event, payload }),
+  } as never;
+  const room = createRoom("Toxicity Cooldown Test", "en", "any", null, "00000000-0000-0000-0000-000000000000", 4);
+  const socketId = `human-${room.id}`;
+  const human = { socketId, nickname: "Human", avatar: "🙂", role: "unverified" as const, micEnabled: false, cameraEnabled: false, screenSharing: false, screenTrackId: null, senderType: "human" as const };
+  for (const item of virtualUserInternals.pool.list()) {
+    if (item.runtime.roomId) releaseVirtualUser(io, item.runtime.roomId);
+  }
+  virtualUserInternals.pool.replaceProfiles(VIRTUAL_USER_IDS.slice(0, 6).map((id) => makeProfile(id)));
+  assert.equal(addUserToRoom(room.id, human).ok, true);
+  reconcileVirtualUserForRoom(io, room.id);
+  assert.ok(getRoomVirtualUser(room.id));
+
+  handleHumanChatMessage(io, makeMessage(room.id, "I will hurt you", 1));
+  assert.equal(getRoomVirtualUser(room.id), undefined);
+  assert.ok((virtualUserInternals.withdrawnRooms.get(room.id) ?? 0) > Date.now());
+  const departureIndex = events.findIndex(({ event, payload }) =>
+    event === "receive-message" && typeof payload === "object" && payload !== null
+    && "senderType" in payload && payload.senderType === "virtual_user"
+    && "text" in payload && /disrespectful|rude|respectful/i.test(String(payload.text))
+  );
+  const leaveIndex = events.findIndex(({ event }) => event === "user-left");
+  assert.ok(departureIndex >= 0);
+  assert.ok(leaveIndex > departureIndex);
+  assert.match(getRoomMessages(room.id).at(-1)?.text ?? "", /disrespectful|rude|respectful/i);
+
+  reconcileVirtualUserForRoom(io, room.id);
+  assert.equal(getRoomVirtualUser(room.id), undefined);
+
+  const timer = virtualUserInternals.withdrawalTimers.get(room.id);
+  if (timer) clearTimeout(timer);
+  virtualUserInternals.withdrawalTimers.delete(room.id);
+  virtualUserInternals.withdrawnRooms.set(room.id, Date.now() - 1);
+  reconcileVirtualUserForRoom(io, room.id);
+  assert.ok(getRoomVirtualUser(room.id));
+
+  for (const item of virtualUserInternals.pool.list()) {
+    if (item.runtime.roomId) releaseVirtualUser(io, item.runtime.roomId);
+  }
+  removeUser(socketId);
+});
+
+test("two direct rude messages trigger withdrawal but a contextual mention does not", async () => {
+  process.env.DATABASE_URL ||= "postgres://test:test@localhost:5432/test";
+  process.env.GOOGLE_CLIENT_ID ||= "test.apps.googleusercontent.com";
+  process.env.JWT_SECRET ||= "test-secret-that-is-long-enough";
+  const { handleHumanChatMessage, reconcileVirtualUserForRoom, releaseVirtualUser, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
+  const io = { to: () => ({ emit: () => undefined }), emit: () => undefined } as never;
+  const room = createRoom("Repeated Rudeness Test", "en", "any", null, "00000000-0000-0000-0000-000000000000", 4);
+  const socketId = `human-${room.id}`;
+  const human = { socketId, nickname: "Human", avatar: "🙂", role: "unverified" as const, micEnabled: false, cameraEnabled: false, screenSharing: false, screenTrackId: null, senderType: "human" as const };
+  for (const item of virtualUserInternals.pool.list()) {
+    if (item.runtime.roomId) releaseVirtualUser(io, item.runtime.roomId);
+  }
+  virtualUserInternals.pool.replaceProfiles([makeProfile("bot-01")]);
+  assert.equal(addUserToRoom(room.id, human).ok, true);
+  reconcileVirtualUserForRoom(io, room.id);
+
+  handleHumanChatMessage(io, makeMessage(room.id, "The movie character is an idiot", 1));
+  handleHumanChatMessage(io, makeMessage(room.id, "You are an idiot", 2));
+  assert.ok(getRoomVirtualUser(room.id));
+  handleHumanChatMessage(io, makeMessage(room.id, "Shut up", 3));
+  assert.equal(getRoomVirtualUser(room.id), undefined);
+
+  const timer = virtualUserInternals.withdrawalTimers.get(room.id);
+  if (timer) clearTimeout(timer);
+  virtualUserInternals.withdrawalTimers.delete(room.id);
+  virtualUserInternals.withdrawnRooms.delete(room.id);
+  releaseVirtualUser(io, room.id);
+  removeUser(socketId);
+});
+
 test("voice attempts in a bot room get a text-only bot prompt", async () => {
   process.env.DATABASE_URL ||= "postgres://test:test@localhost:5432/test";
   process.env.GOOGLE_CLIENT_ID ||= "test.apps.googleusercontent.com";

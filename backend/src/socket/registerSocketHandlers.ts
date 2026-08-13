@@ -590,8 +590,9 @@ export function registerSocketHandlers(io: AppServer) {
 
     socket.on("report-user", async ({ targetSocketId, reason, details }) => {
       const roomId = socket.data.roomId;
+      const targetUser = roomId ? getRoomUsers(roomId).find((user) => user.socketId === targetSocketId) : undefined;
       const targetSocket = io.sockets.sockets.get(targetSocketId);
-      if (!roomId || !targetSocket || targetSocket.data.roomId !== roomId || targetSocketId === socket.id) {
+      if (!roomId || !targetUser || targetSocketId === socket.id) {
         socket.emit("moderation-error", "INVALID_MODERATION_TARGET");
         return;
       }
@@ -599,9 +600,16 @@ export function registerSocketHandlers(io: AppServer) {
         socket.emit("moderation-error", "INVALID_REPORT_REASON");
         return;
       }
+      if (targetUser.senderType === "virtual_user") {
+        socket.emit("moderation-success", { action: "report", targetSocketId });
+        return;
+      }
+      if (!targetSocket || targetSocket.data.roomId !== roomId) {
+        socket.emit("moderation-error", "INVALID_MODERATION_TARGET");
+        return;
+      }
 
       const room = getRoomSummary(roomId);
-      const targetUser = getRoomUsers(roomId).find((user) => user.socketId === targetSocketId);
       if (!room || !targetUser || !socket.data.nickname) {
         socket.emit("moderation-error", "INVALID_MODERATION_TARGET");
         return;
@@ -631,13 +639,22 @@ export function registerSocketHandlers(io: AppServer) {
 
     socket.on("block-room-user", ({ targetSocketId }) => {
       const roomId = socket.data.roomId;
+      const targetUser = roomId ? getRoomUsers(roomId).find((user) => user.socketId === targetSocketId) : undefined;
       const targetSocket = io.sockets.sockets.get(targetSocketId);
-      if (!roomId || !targetSocket || targetSocket.data.roomId !== roomId || targetSocketId === socket.id) {
+      if (!roomId || !targetUser || targetSocketId === socket.id) {
         socket.emit("moderation-error", "INVALID_MODERATION_TARGET");
         return;
       }
       if (!canBlockUsersInRoom(roomId, socket.data.userId)) {
         socket.emit("moderation-error", "ROOM_BLOCK_PERMISSION_DENIED");
+        return;
+      }
+      if (targetUser.senderType === "virtual_user") {
+        socket.emit("moderation-success", { action: "block", targetSocketId });
+        return;
+      }
+      if (!targetSocket || targetSocket.data.roomId !== roomId) {
+        socket.emit("moderation-error", "INVALID_MODERATION_TARGET");
         return;
       }
 

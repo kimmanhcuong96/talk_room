@@ -1,6 +1,7 @@
 import type { ChatMessage, RoomSummary, RoomTopic, RoomUser, RoomYouTubeVideo } from "../types/socket.js";
 import { randomUUID } from "node:crypto";
 import type { RoomLanguage, RoomLanguageLevel } from "./roomLanguages.js";
+import { getVirtualUserAvatar } from "../virtualUsers/virtualUserAvatar.js";
 
 const ROOM_CAPACITY = 4;
 
@@ -85,6 +86,10 @@ export function getRoomSummaries(): RoomSummary[] {
     participants: room.users.map(({ nickname, avatar, role, senderType }) => ({ nickname, avatar, role, senderType }))
     });
   });
+}
+
+export function getSystemRoomIds() {
+  return [...rooms.values()].filter((room) => room.source === "system").map((room) => room.id);
 }
 
 export function getRoomSummary(roomId: string): RoomSummary | undefined {
@@ -287,11 +292,11 @@ export function getRoomVirtualUser(roomId: string) {
 
 export function addVirtualUserToRoom(roomId: string, profile: { id: string; name: string; avatarUrl: string | null }) {
   const room = rooms.get(roomId);
-  if (!room || getRoomHumanCount(roomId) !== 1 || room.users.some((user) => user.senderType === "virtual_user")) return null;
+  if (!room || getRoomHumanCount(roomId) > 1 || room.users.some((user) => user.senderType === "virtual_user")) return null;
   const user: RoomUser = {
     socketId: `virtual:${profile.id}`,
     nickname: profile.name,
-    avatar: profile.avatarUrl?.trim() || "🤖",
+    avatar: getVirtualUserAvatar(profile),
     role: "unverified",
     micEnabled: false,
     cameraEnabled: false,
@@ -316,7 +321,7 @@ export function updateVirtualUserProfileInRoom(roomId: string, botId: string, pr
   const user = rooms.get(roomId)?.users.find((candidate) => candidate.senderType === "virtual_user" && candidate.virtualUserId === botId);
   if (!user) return null;
   user.nickname = profile.name;
-  user.avatar = profile.avatarUrl?.trim() || "🤖";
+  user.avatar = getVirtualUserAvatar({ id: botId, avatarUrl: profile.avatarUrl });
   return user;
 }
 

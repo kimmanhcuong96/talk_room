@@ -98,7 +98,6 @@ export function ChatPanel({ messages, typingNames, currentSocketId, open, langua
               <span className="flex min-w-0 items-center gap-2">
                 <AvatarBadge avatar={message.avatar} size="sm" />
                 <span className="truncate font-medium text-white/70">{message.nickname}</span>
-                {message.senderType === "virtual_user" ? <span className="rounded-full bg-[#258ff4]/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-[#55aaff]">Virtual</span> : null}
               </span>
               <time>{formatTime(message.timestamp)}</time>
             </div>

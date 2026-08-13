@@ -243,7 +243,7 @@ When an authenticated user joins a room, the backend starts an in-memory session
 
 For WebRTC, the server receives the selected route for each peer connection. STUN and TURN intervals are closed when the route changes or the connection ends, then split across UTC calendar days in `webrtc_usage_daily`. The admin endpoint exposes daily, rolling-week, month-to-date, and year-to-date totals plus a daily series.
 
-The usage migration is `backend/migrations/008_create_usage_tracking.sql` and must be applied after the existing migrations.
+The usage migration is `backend/migrations/008_create_usage_tracking.sql`; `011_add_webrtc_connection_counts.sql` adds connection totals and must also be applied after the existing migrations.
 
 ### Virtual User avatars
 
@@ -568,7 +568,7 @@ Backend:
 - Connect to Neon Postgres with `DATABASE_URL`.
 - Configure CORS with comma-separated `CLIENT_ORIGIN` values.
 - Socket.IO should use short heartbeat settings so closed tabs or browsers are removed from rooms quickly.
-- Run all SQL files in `backend/migrations` in numeric order before enabling Google Sign-In, including `008_create_usage_tracking.sql` for room-time and STUN/TURN analytics.
+- Run all SQL files in `backend/migrations` in numeric order before enabling Google Sign-In, including `008_create_usage_tracking.sql` for usage tables and `011_add_webrtc_connection_counts.sql` for STUN/TURN connection counts.
 
 Database:
 

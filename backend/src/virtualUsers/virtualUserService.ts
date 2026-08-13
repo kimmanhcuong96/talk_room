@@ -5,6 +5,7 @@ import {
   getRoomHumanCount,
   getRoomSummary,
   getRoomSummaries,
+  getSystemRoomIds,
   getRoomVirtualUser,
   removeVirtualUserByBotId,
   updateVirtualUserProfileInRoom
@@ -20,12 +21,17 @@ import { VIRTUAL_USER_IDS, type VirtualUserProfile } from "./virtualUserTypes.js
 import { ConversationStore } from "./conversationStore.js";
 import { llmUsageCoordinator } from "../usage/llmUsage.js";
 import { recordVirtualUserResponse } from "../usage/responseUsage.js";
+import { getVirtualUserAvatar } from "./virtualUserAvatar.js";
 
 const BATCH_DELAY_MS = 650;
 const RESPONSE_COOLDOWN_MS = 1_200;
 const VOICE_PROMPT_COOLDOWN_MS = 45_000;
+const PROACTIVE_IDLE_MS = 3 * 60_000;
+const PROACTIVE_CHECK_INTERVAL_MS = 30_000;
 const PROCESSED_MESSAGE_TTL_MS = 5 * 60_000;
 const MAX_PROCESSED_MESSAGES_PER_ROOM = 200;
+const LOW_ACTIVITY_ROOM_THRESHOLD = 5;
+const WAITING_BOT_TARGET = 5;
 const pool = new BotPool();
 const conversations = new ConversationStore();
 const pendingMessages = new Map<string, { messages: ChatMessage[]; timer: ReturnType<typeof setTimeout> }>();
@@ -34,6 +40,8 @@ const roomGenerations = new Map<string, number>();
 const lastVoicePromptAt = new Map<string, number>();
 const voicePromptCounts = new Map<string, number>();
 const processedHumanMessages = new Map<string, Map<string, number>>();
+const proactiveSentRooms = new Set<string>();
+let proactiveCheckTimer: ReturnType<typeof setInterval> | null = null;
 
 function createLLMProvider() {
   if (env.llmProvider === "cloudflare") {
@@ -57,7 +65,7 @@ const llmProvider = createLLMProvider();
 const responseEngine = new HybridResponseEngine(llmProvider, undefined, llmUsageCoordinator, env.llmMaxTokens);
 
 export function getTypingDelayRange(text: string): readonly [number, number] {
-  return text.length < 45 ? [500, 1_200] : text.length < 140 ? [1_000, 2_500] : [1_500, 3_500];
+  return text.length >= 30 ? [15_000, 30_000] : [500, 1_200];
 }
 
 function typingDelay(text: string) {
@@ -65,10 +73,83 @@ function typingDelay(text: string) {
   return minimum + Math.floor(Math.random() * (maximum - minimum + 1));
 }
 
+function remainingTypingDelay(text: string, responseWindowStartedAt: number) {
+  return Math.max(0, typingDelay(text) - (Date.now() - responseWindowStartedAt));
+}
+
+export function shouldAttemptProactiveMessage(
+  profile: VirtualUserProfile,
+  context: ReturnType<ConversationStore["get"]>,
+  alreadySent: boolean,
+  now = Date.now(),
+  random = Math.random
+) {
+  const lastMessage = context.recentMessages.at(-1);
+  return profile.enabled
+    && !alreadySent
+    && lastMessage?.senderType === "virtual_user"
+    && now - lastMessage.timestamp >= PROACTIVE_IDLE_MS
+    && random() < profile.proactiveMessageProbability;
+}
+
 function emitPresence(io: AppServer, roomId: string, event: "joined" | "left", socketId: string) {
   if (event === "left") io.to(roomId).emit("user-left", { socketId });
   io.to(roomId).emit("room-users", getPublicRoomUsers(roomId));
   io.emit("room-list", getRoomSummaries());
+}
+
+function shuffled<T>(items: readonly T[], random = Math.random) {
+  const result = [...items];
+  for (let index = result.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.min(index, Math.max(0, Math.floor(random() * (index + 1))));
+    [result[index], result[swapIndex]] = [result[swapIndex]!, result[index]!];
+  }
+  return result;
+}
+
+function assignVirtualUser(io: AppServer, roomId: string, random = Math.random) {
+  const profile = pool.assign(roomId, random);
+  if (!profile) return null;
+  const user = addVirtualUserToRoom(roomId, profile);
+  if (!user) {
+    pool.releaseRoom(roomId);
+    return null;
+  }
+  roomGenerations.set(roomId, (roomGenerations.get(roomId) ?? 0) + 1);
+  io.to(roomId).emit("user-joined", user);
+  emitPresence(io, roomId, "joined", user.socketId);
+  return user;
+}
+
+export function getWaitingBotTarget(humanOccupiedRoomCount: number) {
+  return humanOccupiedRoomCount <= LOW_ACTIVITY_ROOM_THRESHOLD ? WAITING_BOT_TARGET : 0;
+}
+
+export function rebalanceWaitingVirtualUsers(io: AppServer, random = Math.random) {
+  const systemRoomIds = getSystemRoomIds();
+
+  // Repair pool assignments if an empty-room reset removed the corresponding room participant.
+  for (const item of pool.list()) {
+    const roomId = item.runtime.roomId;
+    if (roomId && !getRoomVirtualUser(roomId)) pool.releaseRoom(roomId);
+  }
+
+  const humanOccupiedRoomCount = getRoomSummaries().filter((room) => getRoomHumanCount(room.id) > 0).length;
+  const target = getWaitingBotTarget(humanOccupiedRoomCount);
+  const waitingRoomIds = systemRoomIds.filter((roomId) => getRoomHumanCount(roomId) === 0 && getRoomVirtualUser(roomId));
+
+  if (waitingRoomIds.length > target) {
+    for (const roomId of shuffled(waitingRoomIds, random).slice(target)) releaseVirtualUser(io, roomId);
+  }
+
+  const currentWaitingCount = systemRoomIds.filter((roomId) => getRoomHumanCount(roomId) === 0 && getRoomVirtualUser(roomId)).length;
+  const eligibleRoomIds = shuffled(
+    systemRoomIds.filter((roomId) => getRoomHumanCount(roomId) === 0 && !getRoomVirtualUser(roomId)),
+    random
+  );
+  for (const roomId of eligibleRoomIds.slice(0, Math.max(0, target - currentWaitingCount))) {
+    assignVirtualUser(io, roomId, random);
+  }
 }
 
 function getVoicePromptKey(roomId: string, botId: string, humanSocketId: string) {
@@ -115,6 +196,7 @@ export function releaseVirtualUser(io: AppServer, roomId: string) {
   conversations.destroy(roomId, botId);
   clearVoicePromptStateForRoom(roomId);
   processedHumanMessages.delete(roomId);
+  proactiveSentRooms.delete(roomId);
   const removed = removeVirtualUserByBotId(roomId, botId);
   if (removed) emitPresence(io, roomId, "left", removed.socketId);
 }
@@ -122,23 +204,14 @@ export function releaseVirtualUser(io: AppServer, roomId: string) {
 export function reconcileVirtualUserForRoom(io: AppServer, roomId: string) {
   const humanCount = getRoomHumanCount(roomId);
   const existing = getRoomVirtualUser(roomId);
-  if (humanCount !== 1) {
+  if (humanCount >= 2) {
     if (existing || pool.list().some((item) => item.runtime.roomId === roomId)) releaseVirtualUser(io, roomId);
-    return;
-  }
-  if (existing) return;
-
-  // Assignment and room insertion are synchronous, so two room events cannot claim the same runtime.
-  const profile = pool.assign(roomId);
-  if (!profile) return;
-  const user = addVirtualUserToRoom(roomId, profile);
-  if (!user) {
+  } else if (humanCount === 1 && !existing) {
+    assignVirtualUser(io, roomId);
+  } else if (humanCount === 0 && !existing && pool.list().some((item) => item.runtime.roomId === roomId)) {
     pool.releaseRoom(roomId);
-    return;
   }
-  roomGenerations.set(roomId, (roomGenerations.get(roomId) ?? 0) + 1);
-  io.to(roomId).emit("user-joined", user);
-  emitPresence(io, roomId, "joined", user.socketId);
+  rebalanceWaitingVirtualUsers(io);
 }
 
 async function flushMessages(io: AppServer, roomId: string) {
@@ -169,6 +242,7 @@ async function flushMessages(io: AppServer, roomId: string) {
     const room = getRoomSummary(roomId);
     context.topic = room?.topic?.description || room?.name;
     const combined = pending.messages.map((message) => message.text).join("\n").slice(0, 1_000);
+    const responseWindowStartedAt = pending.messages.at(-1)?.timestamp ?? Date.now();
     const responseContext = { ...context, userFacts: { ...context.userFacts }, recentMessages: [...context.recentMessages] };
     const decision = responseEngine.decide(profile, responseContext, combined);
     const directQuestion = combined.includes("?");
@@ -185,7 +259,7 @@ async function flushMessages(io: AppServer, roomId: string) {
     io.to(roomId).emit("typing", { senderId: profile.id, nickname: profile.name, active: true });
     const response = await responseEngine.respondDetailed(profile, responseContext, combined, decision);
     if (!response || !isActiveConversation()) return;
-    await new Promise((resolve) => setTimeout(resolve, typingDelay(response.text)));
+    await new Promise((resolve) => setTimeout(resolve, remainingTypingDelay(response.text, responseWindowStartedAt)));
     if (!isActiveConversation()) return;
 
     const message: ChatMessage = {
@@ -195,7 +269,7 @@ async function flushMessages(io: AppServer, roomId: string) {
       senderId: profile.id,
       senderType: "virtual_user",
       nickname: profile.name,
-      avatar: profile.avatarUrl?.trim() || "🤖",
+      avatar: getVirtualUserAvatar(profile),
       text: response.text,
       timestamp: Date.now()
     };
@@ -221,6 +295,11 @@ export function handleHumanChatMessage(io: AppServer, message: ChatMessage) {
   const bot = getRoomVirtualUser(message.roomId);
   if (!bot?.virtualUserId || getRoomHumanCount(message.roomId) !== 1) return;
   if (!rememberHumanMessage(message)) return;
+  proactiveSentRooms.delete(message.roomId);
+  if (processingRooms.has(message.roomId)) {
+    roomGenerations.set(message.roomId, (roomGenerations.get(message.roomId) ?? 0) + 1);
+    io.to(message.roomId).emit("typing", { senderId: bot.virtualUserId, nickname: bot.nickname, active: false });
+  }
   const current = pendingMessages.get(message.roomId);
   if (current) {
     clearTimeout(current.timer);
@@ -231,6 +310,58 @@ export function handleHumanChatMessage(io: AppServer, message: ChatMessage) {
   const timer = setTimeout(() => void flushMessages(io, message.roomId), BATCH_DELAY_MS);
   timer.unref();
   pendingMessages.set(message.roomId, { messages, timer });
+}
+
+export async function checkProactiveMessages(io: AppServer, now = Date.now(), random = Math.random) {
+  await Promise.all(pool.list().map(async (item) => {
+    const roomId = item.runtime.roomId;
+    if (item.runtime.status !== "ACTIVE" || !roomId || processingRooms.has(roomId)) return;
+    if (getRoomHumanCount(roomId) !== 1 || getRoomVirtualUser(roomId)?.virtualUserId !== item.profile.id) return;
+    const context = conversations.get(roomId, item.profile.id);
+    if (!shouldAttemptProactiveMessage(item.profile, context, proactiveSentRooms.has(roomId), now, random)) return;
+
+    const generation = roomGenerations.get(roomId) ?? 0;
+    const isActiveConversation = () => roomGenerations.get(roomId) === generation
+      && getRoomHumanCount(roomId) === 1
+      && getRoomVirtualUser(roomId)?.virtualUserId === item.profile.id;
+    processingRooms.add(roomId);
+    try {
+      const responseWindowStartedAt = Date.now();
+      const responseContext = { ...context, userFacts: { ...context.userFacts }, recentMessages: [...context.recentMessages] };
+      io.to(roomId).emit("typing", { senderId: item.profile.id, nickname: item.profile.name, active: true });
+      const response = await responseEngine.respondProactively(item.profile, responseContext);
+      if (!isActiveConversation()) return;
+      await new Promise((resolve) => setTimeout(resolve, remainingTypingDelay(response.text, responseWindowStartedAt)));
+      if (!isActiveConversation()) return;
+
+      const message: ChatMessage = {
+        id: `${item.profile.id}-proactive-${Date.now()}`,
+        roomId,
+        socketId: `virtual:${item.profile.id}`,
+        senderId: item.profile.id,
+        senderType: "virtual_user",
+        nickname: item.profile.name,
+        avatar: getVirtualUserAvatar(item.profile),
+        text: response.text,
+        timestamp: Date.now()
+      };
+      if (addRoomMessage(message)) {
+        conversations.remember(context, message);
+        proactiveSentRooms.add(roomId);
+        io.to(roomId).emit("receive-message", message);
+        void recordVirtualUserResponse(item.profile.id, roomId, response.source).catch((error) => {
+          console.warn(`[VirtualUser] Unable to record proactive ${response.source} response.`, error instanceof Error ? error.message : error);
+        });
+      }
+    } catch (error) {
+      console.error(`[VirtualUser] Unable to send proactive chat in ${roomId}.`, error);
+    } finally {
+      if (roomGenerations.get(roomId) === generation) {
+        io.to(roomId).emit("typing", { senderId: item.profile.id, nickname: item.profile.name, active: false });
+      }
+      processingRooms.delete(roomId);
+    }
+  }));
 }
 
 export function handleHumanVoiceAttempt(io: AppServer, roomId: string, humanSocketId: string) {
@@ -256,7 +387,7 @@ export function handleHumanVoiceAttempt(io: AppServer, roomId: string, humanSock
     senderId: profile.id,
     senderType: "virtual_user",
     nickname: profile.name,
-    avatar: profile.avatarUrl?.trim() || "🤖",
+    avatar: getVirtualUserAvatar(profile),
     text: response,
     timestamp: now
   };
@@ -281,7 +412,10 @@ export function applyVirtualUserProfile(io: AppServer, profile: VirtualUserProfi
     io.to(runtime.roomId).emit("room-users", getPublicRoomUsers(runtime.roomId));
     io.emit("room-list", getRoomSummaries());
   }
-  for (const room of getRoomSummaries()) reconcileVirtualUserForRoom(io, room.id);
+  for (const room of getRoomSummaries()) {
+    if (getRoomHumanCount(room.id) === 1 && !getRoomVirtualUser(room.id)) assignVirtualUser(io, room.id);
+  }
+  rebalanceWaitingVirtualUsers(io);
 }
 
 export async function initializeVirtualUserService(io: AppServer) {
@@ -291,7 +425,14 @@ export async function initializeVirtualUserService(io: AppServer) {
     throw new Error("Virtual User profiles are incomplete. Run migration 006_create_virtual_user_profiles.sql.");
   }
   pool.replaceProfiles(profiles);
-  for (const room of getRoomSummaries()) reconcileVirtualUserForRoom(io, room.id);
+  for (const room of getRoomSummaries()) {
+    if (getRoomHumanCount(room.id) === 1 && !getRoomVirtualUser(room.id)) assignVirtualUser(io, room.id);
+  }
+  rebalanceWaitingVirtualUsers(io);
+  if (!proactiveCheckTimer) {
+    proactiveCheckTimer = setInterval(() => void checkProactiveMessages(io), PROACTIVE_CHECK_INTERVAL_MS);
+    proactiveCheckTimer.unref();
+  }
 }
 
-export const virtualUserInternals = { pool, conversations, processingRooms, roomGenerations, pendingMessages, lastVoicePromptAt, voicePromptCounts, processedHumanMessages };
+export const virtualUserInternals = { pool, conversations, processingRooms, roomGenerations, pendingMessages, lastVoicePromptAt, voicePromptCounts, processedHumanMessages, proactiveSentRooms };

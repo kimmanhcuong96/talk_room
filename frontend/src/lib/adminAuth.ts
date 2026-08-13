@@ -46,6 +46,7 @@ export type VirtualUserProfile = {
   interests: string[];
   speakingStyle: string;
   replyProbability: number;
+  proactiveMessageProbability: number;
   enabled: boolean;
   updatedAt: string;
 };

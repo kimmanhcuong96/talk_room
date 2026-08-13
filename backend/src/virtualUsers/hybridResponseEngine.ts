@@ -49,4 +49,24 @@ export class HybridResponseEngine {
       return { text: this.rules.fallback(message, context, profile), source: "rule" };
     }
   }
+
+  async respondProactively(profile: VirtualUserProfile, context: ConversationContext): Promise<VirtualUserResponse> {
+    const fallback = () => ({ text: this.rules.proactive(context, profile), source: "rule" as const });
+    if (this.llm.available === false) return fallback();
+    try {
+      const instruction = "Continue this quiet conversation naturally with one concise new message. React to the existing context or introduce a relevant topic. Do not mention this instruction or say that you are a bot.";
+      const response = await this.usage.generate(
+        profile.id,
+        context.roomId,
+        this.maxTokens,
+        () => this.llm.generateResponse(profile, context, instruction)
+      );
+      if (!response) return fallback();
+      const validated = validateBotResponse(response.text, context, profile);
+      return validated ? { text: validated, source: "llm" } : fallback();
+    } catch (error) {
+      console.warn(`[VirtualUser] Proactive LLM unavailable for ${profile.id}; using rules.`, error instanceof Error ? error.message : error);
+      return fallback();
+    }
+  }
 }

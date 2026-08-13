@@ -13,7 +13,7 @@ import { addUserToRoom, createRoom, getRoomHumanCount, getRoomMessages, getRoomV
 
 const makeProfile = (id: string, enabled = true): VirtualUserProfile => ({
   id, name: id, avatarUrl: null, englishLevel: "B1", personality: "Friendly",
-  interests: ["travel"], speakingStyle: "Casual", replyProbability: 1, enabled,
+  interests: ["travel"], speakingStyle: "Casual", replyProbability: 1, proactiveMessageProbability: 0.5, enabled,
   updatedAt: new Date(0).toISOString()
 });
 
@@ -40,6 +40,13 @@ test("bot pool assigns atomically, never puts one bot in two rooms, and releases
   assert.equal(pool.releaseRoom("room-a")?.id, "bot-01");
   assert.equal(pool.getRuntime("bot-01")?.status, "AVAILABLE");
   assert.equal(pool.assign("room-b")?.id, "bot-01");
+});
+
+test("bot pool selects an available bot randomly instead of always taking the first", () => {
+  const pool = new BotPool();
+  pool.replaceProfiles(VIRTUAL_USER_IDS.slice(0, 3).map((id) => makeProfile(id)));
+  assert.equal(pool.assign("room-random", () => 0.99)?.id, "bot-03");
+  assert.equal(pool.assign("room-next", () => 0.99)?.id, "bot-02");
 });
 
 test("disabled bots are never assigned", () => {
@@ -264,22 +271,61 @@ test("room lifecycle assigns at one human and releases at the two-human threshol
   reconcileVirtualUserForRoom(io, "room-18");
   assert.equal(getRoomHumanCount("room-18"), 2);
   assert.equal(getRoomVirtualUser("room-18"), undefined);
-  assert.equal(virtualUserInternals.pool.getRuntime("bot-01")?.status, "AVAILABLE");
+  assert.notEqual(virtualUserInternals.pool.getRuntime("bot-01")?.roomId, "room-18");
   removeUser("human-a"); removeUser("human-b");
 });
 
-test("empty rooms stay idle and typing delays follow response-size ranges", async () => {
+test("low activity distributes five distinct random bots across five empty system rooms", async () => {
   process.env.DATABASE_URL ||= "postgres://test:test@localhost:5432/test";
   process.env.GOOGLE_CLIENT_ID ||= "test.apps.googleusercontent.com";
   process.env.JWT_SECRET ||= "test-secret-that-is-long-enough";
-  const { getTypingDelayRange, reconcileVirtualUserForRoom, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
+  const { getWaitingBotTarget, rebalanceWaitingVirtualUsers, releaseVirtualUser, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
+  const io = { to: () => ({ emit: () => undefined }), emit: () => undefined } as never;
+  for (const item of virtualUserInternals.pool.list()) {
+    if (item.runtime.roomId) releaseVirtualUser(io, item.runtime.roomId);
+  }
+  virtualUserInternals.pool.replaceProfiles(VIRTUAL_USER_IDS.map((id) => makeProfile(id)));
+  rebalanceWaitingVirtualUsers(io, () => 0.99);
+  const waiting = Array.from({ length: 18 }, (_, index) => {
+    const roomId = `room-${index + 1}`;
+    return { roomId, user: getRoomVirtualUser(roomId) };
+  }).filter((item) => item.user);
+  assert.equal(waiting.length, 5);
+  assert.equal(new Set(waiting.map((item) => item.user!.virtualUserId)).size, 5);
+  assert.equal(waiting.every((item) => getRoomHumanCount(item.roomId) === 0), true);
+  assert.equal(getWaitingBotTarget(5), 5);
+  assert.equal(getWaitingBotTarget(6), 0);
+  for (const item of virtualUserInternals.pool.list()) {
+    if (item.runtime.roomId) releaseVirtualUser(io, item.runtime.roomId);
+  }
+});
+
+test("low activity keeps a waiting bot in a random empty system room and typing delays follow response-size ranges", async () => {
+  process.env.DATABASE_URL ||= "postgres://test:test@localhost:5432/test";
+  process.env.GOOGLE_CLIENT_ID ||= "test.apps.googleusercontent.com";
+  process.env.JWT_SECRET ||= "test-secret-that-is-long-enough";
+  const { getTypingDelayRange, reconcileVirtualUserForRoom, releaseVirtualUser, shouldAttemptProactiveMessage, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
   virtualUserInternals.pool.replaceProfiles([makeProfile("bot-01")]);
   const io = { to: () => ({ emit: () => undefined }), emit: () => undefined } as never;
   reconcileVirtualUserForRoom(io, "room-16");
-  assert.equal(getRoomVirtualUser("room-16"), undefined);
+  const waitingBots = Array.from({ length: 18 }, (_, index) => getRoomVirtualUser(`room-${index + 1}`)).filter(Boolean);
+  assert.equal(waitingBots.length, 1);
   assert.deepEqual(getTypingDelayRange("short"), [500, 1_200]);
-  assert.deepEqual(getTypingDelayRange("x".repeat(80)), [1_000, 2_500]);
-  assert.deepEqual(getTypingDelayRange("x".repeat(180)), [1_500, 3_500]);
+  assert.deepEqual(getTypingDelayRange("x".repeat(29)), [500, 1_200]);
+  assert.deepEqual(getTypingDelayRange("x".repeat(30)), [15_000, 30_000]);
+  assert.deepEqual(getTypingDelayRange("x".repeat(180)), [15_000, 30_000]);
+
+  const context = makeContext();
+  context.recentMessages = [{ ...makeMessage("room-a", "Still here?", 1), senderType: "virtual_user", senderId: "bot-01", socketId: "virtual:bot-01", timestamp: 1_000 }];
+  assert.equal(shouldAttemptProactiveMessage(makeProfile("bot-01"), context, false, 180_999, () => 0), false);
+  assert.equal(shouldAttemptProactiveMessage(makeProfile("bot-01"), context, false, 181_000, () => 0.49), true);
+  assert.equal(shouldAttemptProactiveMessage(makeProfile("bot-01"), context, true, 181_000, () => 0), false);
+  assert.equal(shouldAttemptProactiveMessage({ ...makeProfile("bot-01"), proactiveMessageProbability: 0 }, context, false, 181_000, () => 0), false);
+  context.recentMessages = [makeMessage("room-a", "Your turn", 2)];
+  assert.equal(shouldAttemptProactiveMessage(makeProfile("bot-01"), context, false, 500_000, () => 0), false);
+  for (const item of virtualUserInternals.pool.list()) {
+    if (item.runtime.roomId) releaseVirtualUser(io, item.runtime.roomId);
+  }
 });
 
 test("rapid human messages are batched into one pending interaction", async () => {

@@ -65,6 +65,7 @@ function makeDefaultProfile(): VirtualUserProfile {
     interests: ["music", "food", "travel"],
     speakingStyle: "Casual and concise",
     replyProbability: 1,
+    proactiveMessageProbability: 0.5,
     enabled: true,
     updatedAt: new Date(0).toISOString()
   };
@@ -134,5 +135,24 @@ export class RuleEngine {
     return hasLikelyNonEnglishText(message)
       ? "I don't understand that yet. Could you write it in English?"
       : "I get you. There is more feeling in that than it looks at first.";
+  }
+
+  proactive(context: ConversationContext, profile: VirtualUserProfile) {
+    const topic = context.topic?.trim();
+    const interest = pick(profile.interests.length ? profile.interests : ["music", "movies", "travel"]);
+    const candidates = topic
+      ? [
+          `I was still thinking about ${topic}. What part of it interests you most?`,
+          `There is probably more to say about ${topic}. Have you had any personal experience with it?`,
+          `One thing about ${topic} just crossed my mind. Do you usually enjoy conversations like this?`
+        ]
+      : [
+          `Random question: what have you been enjoying lately?`,
+          `I just thought of ${interest}. Are you into that too?`,
+          `What kind of day are you having so far?`,
+          `Here is a small question: what are you looking forward to this week?`,
+          `I am curious—what topic could you talk about for hours?`
+        ];
+    return pick(candidates);
   }
 }

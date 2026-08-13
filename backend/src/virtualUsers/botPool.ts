@@ -21,12 +21,13 @@ export class BotPool {
     if (!this.runtimes.has(profile.id)) this.runtimes.set(profile.id, { botId: profile.id, status: "AVAILABLE" });
   }
 
-  assign(roomId: string) {
+  assign(roomId: string, random = Math.random) {
     const alreadyAssigned = [...this.runtimes.values()].find((runtime) => runtime.roomId === roomId);
     if (alreadyAssigned) return this.profiles.get(alreadyAssigned.botId) ?? null;
-    const runtime = [...this.runtimes.values()].find((candidate) =>
+    const available = [...this.runtimes.values()].filter((candidate) =>
       candidate.status === "AVAILABLE" && this.profiles.get(candidate.botId)?.enabled
     );
+    const runtime = available[Math.min(available.length - 1, Math.max(0, Math.floor(random() * available.length)))];
     if (!runtime) return null;
     runtime.status = "ACTIVE";
     runtime.roomId = roomId;

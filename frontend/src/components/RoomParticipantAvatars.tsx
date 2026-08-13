@@ -3,7 +3,6 @@ import type { RoomParticipantSummary } from "../types/realtime";
 import { AvatarBadge } from "./AvatarBadge";
 
 function getRoleLabel(participant: RoomParticipantSummary, language: Language) {
-  if (participant.senderType === "virtual_user") return "Virtual user";
   const key = participant.role === "supporter"
     ? "roleSupporter"
     : participant.role === "verified"

@@ -1,4 +1,4 @@
-import { Check, ChevronDown, Coffee, Copy, Grid2X2, Heart, Info, Languages, LoaderCircle, LogIn, LogOut, MessageCircle, Plus, Search, Settings, ShieldCheck, Sparkles, UserCircle, Users, X } from "lucide-react";
+import { Check, ChevronDown, Coffee, Copy, ExternalLink, Grid2X2, Heart, Info, Languages, LoaderCircle, LogIn, LogOut, MessageCircle, Plus, Search, Settings, ShieldCheck, Sparkles, UserCircle, Users, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { GoogleSignInButton } from "./GoogleSignInButton";
 import { getRewardSummary, type AuthUser, type RewardSummary } from "../lib/auth";
@@ -32,6 +32,7 @@ type HomePageProps = {
 };
 
 type RoomDensity = "3x" | "2x" | "1x";
+const ME2WRITE_URL = "https://write-checker.pages.dev/";
 
 async function copyReferralUrl(value: string) {
   if (navigator.clipboard?.writeText) {
@@ -594,7 +595,7 @@ export function HomePage({
       ) : null}
 
       <section className="flex flex-col gap-4">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
           <button
             type="button"
             onClick={() => setCreateRoomOpen(true)}
@@ -604,6 +605,17 @@ export function HomePage({
             <Plus size={18} />
             {t("createGroup")}
           </button>
+          <a
+            href={ME2WRITE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={t("openMe2write")}
+            aria-label={t("openMe2write")}
+            className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-mint/35 bg-mint/10 px-4 text-sm font-semibold text-mint transition hover:border-mint/55 hover:bg-mint/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint/45"
+          >
+            <span className="truncate">Me2write</span>
+            <ExternalLink size={16} className="shrink-0" aria-hidden="true" />
+          </a>
           {/* <button
             type="button"
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#ffd84d] px-4 text-sm font-semibold text-[#171100] transition hover:bg-[#f0c930]"

@@ -1,4 +1,5 @@
 import { buildCommonEnglishFallback } from "./commonEnglishPhraseBank.js";
+import { assessEnglishMessage } from "./languageDetection.js";
 import type { ConversationContext, RouteDecision, VirtualUserProfile } from "./virtualUserTypes.js";
 
 const normalizedReactionPattern = /^(?:ha(?:ha)+|lol+|lmao|rofl|[\p{Extended_Pictographic}\uFE0F\s]+)$/iu;
@@ -6,19 +7,6 @@ const greetingPattern = /^(?:hi|hello|hey|hiya|good (?:morning|afternoon|evening
 const thanksPattern = /^(?:thanks|thank you|thx|ty)[!.\s]*$/i;
 const byePattern = /^(?:bye|goodbye|see you|cya|good night)[!.\s]*$/i;
 const boringFallbackPattern = /\b(?:interesting|tell me more|good question|what do you think|your opinion)\b/i;
-
-const nonEnglishFallbacks = [
-  "I don't understand that language yet. Could you write it in English?",
-  "I am not sure I understand that. Can you send it in English?",
-  "Sorry, I can only follow English here. Could you type that again in English?",
-  "I might miss your meaning in that language. English would work better for me.",
-  "I don't want to guess wrong. Could you write that in English?",
-  "I cannot understand that clearly yet. Try it in English and I will reply properly.",
-  "That language is hard for me to read right now. Can we use English?",
-  "I am losing the meaning there. Send it in English and I will keep up.",
-  "I don't fully understand that message. Could you switch to English?",
-  "I can chat much better if you write that in English."
-] as const;
 
 export const voicePromptResponses = [
   "I can't use the mic or camera here, but I can chat with you. Type it and I'll answer.",
@@ -38,21 +26,26 @@ export const voicePromptResponses = [
   "If you are talking out loud, I will probably miss it. Type it here and I will reply."
 ] as const;
 
+const singleSentenceVoicePromptResponses = [
+  "I can't use the mic or camera, so please chat with me here.",
+  "I can't hear voice here, but I'll answer if you type it in chat.",
+  "Please send that as text because I can't use the mic.",
+  "I can only chat by text here, so type your message to me.",
+  "Voice won't reach me, so please write your message in chat.",
+  "I can't join by mic or camera, but I can talk with you in text.",
+  "Please type what you said because I can't hear the mic.",
+  "I am text-only here, so send me a chat message instead.",
+  "I can't pick up audio, but I can read anything you type here.",
+  "Let's use chat because I can't access the mic or camera.",
+  "I won't hear voice in this room, so please message me in text.",
+  "The mic doesn't work for me, but chat works perfectly.",
+  "I can reply in chat even though I can't hear your voice.",
+  "Please write it here because I can't listen through the mic.",
+  "I can't use voice or camera, so let's keep talking in chat."
+] as const;
+
 function pick<T>(items: readonly T[]) {
   return items[Math.floor(Math.random() * items.length)]!;
-}
-
-function hasVietnameseText(value: string) {
-  return /[\u0103\u00e2\u0111\u00ea\u00f4\u01a1\u01b0\u00e1\u00e0\u1ea3\u00e3\u1ea1\u1ea5\u1ea7\u1ea9\u1eab\u1ead\u1eaf\u1eb1\u1eb3\u1eb5\u1eb7\u00e9\u00e8\u1ebb\u1ebd\u1eb9\u1ebf\u1ec1\u1ec3\u1ec5\u1ec7\u00ed\u00ec\u1ec9\u0129\u1ecb\u00f3\u00f2\u1ecf\u00f5\u1ecd\u1ed1\u1ed3\u1ed5\u1ed7\u1ed9\u1edb\u1edd\u1edf\u1ee1\u1ee3\u00fa\u00f9\u1ee7\u0169\u1ee5\u1ee9\u1eeb\u1eed\u1eef\u1ef1\u00fd\u1ef3\u1ef7\u1ef9\u1ef5]/i.test(value)
-    || /\b(?:toi|ban|minh|khong|duoc|ngon ngu|tieng viet|tra loi|hieu|chao|cam on|xin loi|tai sao|lam sao)\b/i.test(value);
-}
-
-function hasLikelyNonEnglishText(value: string) {
-  if (hasVietnameseText(value)) return true;
-  const letters = value.match(/\p{L}/gu) ?? [];
-  if (!letters.length) return false;
-  const asciiLetters = value.match(/[a-z]/gi) ?? [];
-  return asciiLetters.length / letters.length < 0.7;
 }
 
 function makeDefaultProfile(): VirtualUserProfile {
@@ -68,17 +61,21 @@ function makeDefaultProfile(): VirtualUserProfile {
     proactiveMessageProbability: 0.5,
     longResponseDelayMinSeconds: 5,
     longResponseDelayMaxSeconds: 15,
+    singleSentenceProbability: 70,
+    twoSentenceProbability: 30,
+    leaveWhenRejectedProbability: 70,
+    nonEnglishReminderCooldownSeconds: 60,
     enabled: true,
     updatedAt: new Date(0).toISOString()
   };
 }
 
-export function getVoicePromptResponse() {
-  return pick(voicePromptResponses);
+export function getVoicePromptResponse(sentenceCount: 1 | 2 = 2) {
+  return pick(sentenceCount === 1 ? singleSentenceVoicePromptResponses : voicePromptResponses);
 }
 
 function fallbackFor(message: string, profile: VirtualUserProfile) {
-  if (hasLikelyNonEnglishText(message)) return pick(nonEnglishFallbacks);
+  if (assessEnglishMessage(message).stronglyNonEnglish) return "Could you write that in English?";
   return buildCommonEnglishFallback(message, profile);
 }
 
@@ -88,10 +85,6 @@ export class RuleEngine {
     if (!clean) return { route: "IGNORE", confidence: 1 };
     const previousBotMessage = [...context.recentMessages].reverse().find((item) => item.senderType === "virtual_user");
     const botAskedQuestion = previousBotMessage?.text.includes("?") ?? false;
-
-    if (hasLikelyNonEnglishText(clean)) {
-      return { route: "RULE", confidence: 0.98, response: pick(nonEnglishFallbacks) };
-    }
 
     if (greetingPattern.test(clean)) {
       const beginner = /^(?:A1|A2)$/i.test(profile.englishLevel);
@@ -134,9 +127,7 @@ export class RuleEngine {
       const duplicate = previousBotMessages.some((item) => item.text.toLocaleLowerCase() === candidate.toLocaleLowerCase());
       if (!boringFallbackPattern.test(candidate) && !duplicate) return candidate;
     }
-    return hasLikelyNonEnglishText(message)
-      ? "I don't understand that yet. Could you write it in English?"
-      : "I get you. There is more feeling in that than it looks at first.";
+    return "I get you. There is more feeling in that than it looks at first.";
   }
 
   proactive(context: ConversationContext, profile: VirtualUserProfile) {

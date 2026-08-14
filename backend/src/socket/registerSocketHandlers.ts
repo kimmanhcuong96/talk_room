@@ -8,6 +8,7 @@ import {
   canManageRoomTopic,
   createRoom,
   deleteUserCreatedRoomIfEmpty,
+  getRoomHumanCount,
   getRoomMessages,
   getPublicRoomUsers,
   getRoomSummary,
@@ -350,6 +351,7 @@ export function registerSocketHandlers(io: AppServer) {
         return;
       }
 
+      const humanCountBeforeJoin = getRoomHumanCount(roomId);
       const result = addUserToRoom(roomId, {
         socketId: socket.id,
         nickname: cleanNickname,
@@ -376,7 +378,7 @@ export function registerSocketHandlers(io: AppServer) {
       socket.data.userId = authenticatedUser?.id;
   socket.data.identityKey = identityKey;
       startUserRoomSession(socket.id, socket.data.userId, roomId);
-      reconcileVirtualUserForRoom(io, roomId);
+      reconcileVirtualUserForRoom(io, roomId, humanCountBeforeJoin);
       cancelEmptyRoomDeletion(roomId);
       socket.join(roomId);
 
@@ -761,7 +763,7 @@ export function registerSocketHandlers(io: AppServer) {
 
       if (message) {
         io.to(roomId).emit("receive-message", message);
-        handleHumanChatMessage(io, message);
+        void handleHumanChatMessage(io, message);
       }
     });
 

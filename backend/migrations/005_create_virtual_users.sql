@@ -16,11 +16,17 @@ CREATE TABLE IF NOT EXISTS virtual_user_profiles (
   proactive_message_probability NUMERIC(4,3) NOT NULL DEFAULT 0.500 CHECK (proactive_message_probability BETWEEN 0 AND 1),
   long_response_delay_min_seconds INTEGER NOT NULL DEFAULT 5 CHECK (long_response_delay_min_seconds BETWEEN 1 AND 120),
   long_response_delay_max_seconds INTEGER NOT NULL DEFAULT 15 CHECK (long_response_delay_max_seconds BETWEEN 1 AND 120),
+  single_sentence_probability INTEGER NOT NULL DEFAULT 70 CHECK (single_sentence_probability BETWEEN 0 AND 100),
+  two_sentence_probability INTEGER NOT NULL DEFAULT 30 CHECK (two_sentence_probability BETWEEN 0 AND 100),
+  leave_when_rejected_probability INTEGER NOT NULL DEFAULT 70 CHECK (leave_when_rejected_probability BETWEEN 0 AND 100),
+  non_english_reminder_cooldown_seconds INTEGER NOT NULL DEFAULT 60 CHECK (non_english_reminder_cooldown_seconds BETWEEN 0 AND 3600),
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
   updated_by UUID REFERENCES admin_users(id) ON DELETE SET NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT virtual_user_response_delay_bounds
-    CHECK (long_response_delay_min_seconds <= long_response_delay_max_seconds)
+    CHECK (long_response_delay_min_seconds <= long_response_delay_max_seconds),
+  CONSTRAINT virtual_user_sentence_probability_total
+    CHECK (single_sentence_probability + two_sentence_probability = 100)
 );
 
 ALTER TABLE virtual_user_profiles
@@ -29,12 +35,25 @@ ALTER TABLE virtual_user_profiles
   ADD COLUMN IF NOT EXISTS long_response_delay_min_seconds INTEGER NOT NULL DEFAULT 5
     CHECK (long_response_delay_min_seconds BETWEEN 1 AND 120),
   ADD COLUMN IF NOT EXISTS long_response_delay_max_seconds INTEGER NOT NULL DEFAULT 15
-    CHECK (long_response_delay_max_seconds BETWEEN 1 AND 120);
+    CHECK (long_response_delay_max_seconds BETWEEN 1 AND 120),
+  ADD COLUMN IF NOT EXISTS single_sentence_probability INTEGER NOT NULL DEFAULT 70
+    CHECK (single_sentence_probability BETWEEN 0 AND 100),
+  ADD COLUMN IF NOT EXISTS two_sentence_probability INTEGER NOT NULL DEFAULT 30
+    CHECK (two_sentence_probability BETWEEN 0 AND 100),
+  ADD COLUMN IF NOT EXISTS leave_when_rejected_probability INTEGER NOT NULL DEFAULT 70
+    CHECK (leave_when_rejected_probability BETWEEN 0 AND 100),
+  ADD COLUMN IF NOT EXISTS non_english_reminder_cooldown_seconds INTEGER NOT NULL DEFAULT 60
+    CHECK (non_english_reminder_cooldown_seconds BETWEEN 0 AND 3600);
 
 UPDATE virtual_user_profiles
 SET long_response_delay_min_seconds = 5,
     long_response_delay_max_seconds = 15
 WHERE long_response_delay_min_seconds > long_response_delay_max_seconds;
+
+UPDATE virtual_user_profiles
+SET single_sentence_probability = 70,
+    two_sentence_probability = 30
+WHERE single_sentence_probability + two_sentence_probability <> 100;
 
 DO $$
 BEGIN
@@ -47,6 +66,21 @@ BEGIN
     ALTER TABLE virtual_user_profiles
       ADD CONSTRAINT virtual_user_response_delay_bounds
       CHECK (long_response_delay_min_seconds <= long_response_delay_max_seconds);
+  END IF;
+END;
+$$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conrelid = 'virtual_user_profiles'::regclass
+      AND conname = 'virtual_user_sentence_probability_total'
+  ) THEN
+    ALTER TABLE virtual_user_profiles
+      ADD CONSTRAINT virtual_user_sentence_probability_total
+      CHECK (single_sentence_probability + two_sentence_probability = 100);
   END IF;
 END;
 $$;

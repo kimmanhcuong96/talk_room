@@ -8,6 +8,9 @@ import { estimateEnglishFallbackVariants } from "../src/virtualUsers/commonEngli
 import { buildCommonEnglishSituationResponse, estimateCommonEnglishSituationCount, estimateCommonEnglishSituationInputs } from "../src/virtualUsers/commonEnglishSituations.js";
 import { buildLLMMessages, CloudflareWorkersAIProvider } from "../src/virtualUsers/llmProvider.js";
 import { validateBotResponse } from "../src/virtualUsers/responseValidator.js";
+import { countBotResponseSentences, fitBotResponseToSentenceCount, selectSentenceCount } from "../src/virtualUsers/responseValidator.js";
+import { assessEnglishMessage } from "../src/virtualUsers/languageDetection.js";
+import { isUserRejectingBot } from "../src/virtualUsers/toxicity.js";
 import { VIRTUAL_USER_IDS, type ConversationContext, type LLMProvider, type LLMUsageCoordinator, type VirtualUserProfile } from "../src/virtualUsers/virtualUserTypes.js";
 import { addUserToRoom, createRoom, getRoomHumanCount, getRoomMessages, getRoomVirtualUser, removeUser } from "../src/rooms/roomStore.js";
 
@@ -15,6 +18,8 @@ const makeProfile = (id: string, enabled = true): VirtualUserProfile => ({
   id, name: id, avatarUrl: null, englishLevel: "B1", personality: "Friendly",
   interests: ["travel"], speakingStyle: "Casual", replyProbability: 1, proactiveMessageProbability: 0.5,
   longResponseDelayMinSeconds: 5, longResponseDelayMaxSeconds: 15, enabled,
+  singleSentenceProbability: 70, twoSentenceProbability: 30,
+  leaveWhenRejectedProbability: 70, nonEnglishReminderCooldownSeconds: 60,
   updatedAt: new Date(0).toISOString()
 });
 
@@ -81,8 +86,12 @@ test("an uncertain rule decision is escalated to the LLM", async () => {
     override route() { return { route: "RULE" as const, confidence: 0.4, response: "uncertain" }; }
   }
   const engine = new HybridResponseEngine(provider, new UncertainRules());
-  const response = await engine.respond(makeProfile("bot-01"), makeContext(), "ambiguous");
-  assert.equal(response, "Contextual response");
+  const response = await engine.respond({
+    ...makeProfile("bot-01"),
+    singleSentenceProbability: 100,
+    twoSentenceProbability: 0
+  }, makeContext(), "ambiguous");
+  assert.equal(response, "Contextual response.");
   assert.equal(llmCalls, 1);
 });
 
@@ -163,7 +172,7 @@ test("Cloudflare provider sends chat context and uses returned token counts", as
     const provider = new CloudflareWorkersAIProvider("account-id", "secret-token", "@cf/meta/llama-3.1-8b-instruct-fast");
     const result = await provider.generateResponse(makeProfile("bot-01"), makeContext(), "Where did you travel?");
     assert.match(requestedUrl, /accounts\/account-id\/ai\/run\/@cf\/meta\/llama-3\.1-8b-instruct-fast$/);
-    assert.equal(requestBody.max_tokens, 120);
+    assert.equal(requestBody.max_tokens, 48);
     assert.equal(requestBody.messages?.at(-1)?.content, "Where did you travel?");
     assert.deepEqual(result.usage, { provider: "cloudflare", model: "@cf/meta/llama-3.1-8b-instruct-fast", inputTokens: 21, outputTokens: 7, totalTokens: 28 });
   } finally {
@@ -230,6 +239,50 @@ test("response validation rejects empty, oversized, duplicate, malformed, assist
   assert.equal(validateBotResponse("That sounds fun!", context, profile), "That sounds fun!");
 });
 
+test("sentence selection follows profile probabilities and response fitting never calls the LLM", () => {
+  const profile = makeProfile("bot-01");
+  assert.equal(selectSentenceCount({ ...profile, singleSentenceProbability: 100, twoSentenceProbability: 0 }, () => 0.99), 1);
+  assert.equal(selectSentenceCount({ ...profile, singleSentenceProbability: 0, twoSentenceProbability: 100 }, () => 0), 2);
+  assert.equal(fitBotResponseToSentenceCount("One. Two. Three.", 1), "One.");
+  const twoSentences = fitBotResponseToSentenceCount("That sounds fun!", 2);
+  assert.equal(countBotResponseSentences(twoSentences), 2);
+});
+
+test("language heuristic skips safe short chat and flags likely non-English text", () => {
+  for (const message of ["Hi", "Yes", "No", "OK", "Thanks", "😊", "123", "https://example.com", "Alice"]) {
+    assert.equal(assessEnglishMessage(message).needsClassification, false, message);
+  }
+  assert.deepEqual(assessEnglishMessage("Bạn khỏe không?"), { needsClassification: true, stronglyNonEnglish: true });
+  assert.equal(assessEnglishMessage("Como estas amigo").needsClassification, true);
+  assert.equal(assessEnglishMessage("How are you today?").needsClassification, false);
+});
+
+test("language classification uses the existing provider only when explicitly requested", async () => {
+  let classificationCalls = 0;
+  let generationCalls = 0;
+  const provider: LLMProvider = {
+    async generateResponse() {
+      generationCalls += 1;
+      return { text: "Normal reply.", usage: { provider: "test", model: "test", inputTokens: 1, outputTokens: 1, totalTokens: 2 } };
+    },
+    async classifyEnglish() {
+      classificationCalls += 1;
+      return { text: '{"is_english":false}', usage: { provider: "test", model: "test", inputTokens: 2, outputTokens: 1, totalTokens: 3 } };
+    }
+  };
+  const engine = new HybridResponseEngine(provider);
+  assert.equal(await engine.classifyEnglish(makeProfile("bot-01"), makeContext(), "Bạn khỏe không?"), false);
+  assert.equal(classificationCalls, 1);
+  assert.equal(generationCalls, 0);
+});
+
+test("leave-request detection is targeted and separate from ordinary departure statements", () => {
+  for (const message of ["go away", "please leave", "can you leave?", "we don't need you", "leave me alone", "Go away, you idiot."]) {
+    assert.equal(isUserRejectingBot(message), true, message);
+  }
+  assert.equal(isUserRejectingBot("I need to leave now"), false);
+});
+
 test("conversation contexts are isolated per room and destroyed on release", () => {
   const store = new ConversationStore();
   const first = store.get("room-a", "bot-01");
@@ -254,11 +307,11 @@ test("conversation storage extracts facts and compacts history to ten recent mes
   assert.ok(context.summary);
 });
 
-test("room lifecycle assigns at one human and releases at the two-human threshold", async () => {
+test("room lifecycle delays the second-user leave and cancels it if the room returns to one human", async () => {
   process.env.DATABASE_URL ||= "postgres://test:test@localhost:5432/test";
   process.env.GOOGLE_CLIENT_ID ||= "test.apps.googleusercontent.com";
   process.env.JWT_SECRET ||= "test-secret-that-is-long-enough";
-  const { reconcileVirtualUserForRoom, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
+  const { reconcileVirtualUserForRoom, releaseVirtualUser, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
   virtualUserInternals.pool.replaceProfiles([makeProfile("bot-01")]);
   const io = { to: () => ({ emit: () => undefined }), emit: () => undefined } as never;
   const human = (socketId: string) => ({ socketId, nickname: socketId, avatar: "🙂", role: "unverified" as const, micEnabled: false, cameraEnabled: false, screenSharing: false, screenTrackId: null, senderType: "human" as const });
@@ -270,11 +323,17 @@ test("room lifecycle assigns at one human and releases at the two-human threshol
   assert.equal(getRoomVirtualUser("room-12")?.role, "verified");
 
   assert.equal(addUserToRoom("room-12", human("human-b")).ok, true);
-  reconcileVirtualUserForRoom(io, "room-12");
+  reconcileVirtualUserForRoom(io, "room-12", 1);
   assert.equal(getRoomHumanCount("room-12"), 2);
-  assert.equal(getRoomVirtualUser("room-12"), undefined);
-  assert.notEqual(virtualUserInternals.pool.getRuntime("bot-01")?.roomId, "room-12");
-  removeUser("human-a"); removeUser("human-b");
+  assert.equal(getRoomVirtualUser("room-12")?.virtualUserId, "bot-01");
+  assert.equal(virtualUserInternals.pendingLeaveTimers.get("room-12")?.reason, "second_user");
+
+  removeUser("human-b");
+  reconcileVirtualUserForRoom(io, "room-12");
+  assert.equal(virtualUserInternals.pendingLeaveTimers.has("room-12"), false);
+  assert.equal(getRoomVirtualUser("room-12")?.virtualUserId, "bot-01");
+  releaseVirtualUser(io, "room-12");
+  removeUser("human-a");
 });
 
 test("low activity distributes five distinct random bots across five empty system rooms", async () => {
@@ -369,11 +428,60 @@ test("the same human message id cannot trigger duplicate bot processing", async 
   removeUser("human-dedup");
 });
 
-test("a severe targeted message makes the bot leave and prevents reassignment during cooldown", async () => {
+test("rejection takes priority over rudeness and creates only one delayed leave", async () => {
+  process.env.DATABASE_URL ||= "postgres://test:test@localhost:5432/test";
+  process.env.GOOGLE_CLIENT_ID ||= "test.apps.googleusercontent.com";
+  process.env.JWT_SECRET ||= "test-secret-that-is-long-enough";
+  const { handleHumanChatMessage, reconcileVirtualUserForRoom, releaseVirtualUser, scheduleVirtualUserLeave, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
+  const io = { to: () => ({ emit: () => undefined }), emit: () => undefined } as never;
+  const room = createRoom("Rejection Priority Test", "en", "any", null, "00000000-0000-0000-0000-000000000000", 4);
+  const socketId = `human-${room.id}`;
+  const human = { socketId, nickname: "Human", avatar: "🙂", role: "unverified" as const, micEnabled: false, cameraEnabled: false, screenSharing: false, screenTrackId: null, senderType: "human" as const };
+  virtualUserInternals.pool.replaceProfiles([{ ...makeProfile("bot-01"), leaveWhenRejectedProbability: 100 }]);
+  assert.equal(addUserToRoom(room.id, human).ok, true);
+  reconcileVirtualUserForRoom(io, room.id);
+
+  await handleHumanChatMessage(io, makeMessage(room.id, "Go away, you idiot.", 1));
+  assert.equal(virtualUserInternals.pendingLeaveTimers.get(room.id)?.reason, "rejected");
+  assert.equal(scheduleVirtualUserLeave(io, room.id, "rude", 0, 0), false);
+  assert.equal(virtualUserInternals.toxicMessageWindows.get(room.id)?.length ?? 0, 0);
+
+  releaseVirtualUser(io, room.id);
+  const cooldown = virtualUserInternals.withdrawalTimers.get(room.id);
+  if (cooldown) clearTimeout(cooldown);
+  virtualUserInternals.withdrawalTimers.delete(room.id);
+  virtualUserInternals.withdrawnRooms.delete(room.id);
+  removeUser(socketId);
+});
+
+test("strong non-English messages receive one reminder during the per-user cooldown", async () => {
   process.env.DATABASE_URL ||= "postgres://test:test@localhost:5432/test";
   process.env.GOOGLE_CLIENT_ID ||= "test.apps.googleusercontent.com";
   process.env.JWT_SECRET ||= "test-secret-that-is-long-enough";
   const { handleHumanChatMessage, reconcileVirtualUserForRoom, releaseVirtualUser, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
+  const room = createRoom("Language Cooldown Test", "en", "any", null, "00000000-0000-0000-0000-000000000000", 4);
+  const socketId = `human-${room.id}`;
+  const human = { socketId, nickname: "Human", avatar: "🙂", role: "unverified" as const, micEnabled: false, cameraEnabled: false, screenSharing: false, screenTrackId: null, senderType: "human" as const };
+  const io = { to: () => ({ emit: () => undefined }), emit: () => undefined } as never;
+  virtualUserInternals.pool.replaceProfiles([makeProfile("bot-01")]);
+  assert.equal(addUserToRoom(room.id, human).ok, true);
+  reconcileVirtualUserForRoom(io, room.id);
+
+  await handleHumanChatMessage(io, makeMessage(room.id, "Bạn khỏe không?", 1));
+  await handleHumanChatMessage(io, makeMessage(room.id, "Mình khỏe, cảm ơn.", 2));
+  const reminders = getRoomMessages(room.id).filter((message) => message.senderType === "virtual_user" && message.id.includes("language"));
+  assert.equal(reminders.length, 1);
+  assert.equal(virtualUserInternals.pendingMessages.has(room.id), false);
+
+  releaseVirtualUser(io, room.id);
+  removeUser(socketId);
+});
+
+test("a severe targeted message makes the bot leave and prevents reassignment during cooldown", async () => {
+  process.env.DATABASE_URL ||= "postgres://test:test@localhost:5432/test";
+  process.env.GOOGLE_CLIENT_ID ||= "test.apps.googleusercontent.com";
+  process.env.JWT_SECRET ||= "test-secret-that-is-long-enough";
+  const { handleHumanChatMessage, reconcileVirtualUserForRoom, releaseVirtualUser, scheduleVirtualUserLeave, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
   const events: Array<{ event: string; payload: unknown }> = [];
   const io = {
     to: () => ({ emit: (event: string, payload: unknown) => events.push({ event, payload }) }),
@@ -391,17 +499,26 @@ test("a severe targeted message makes the bot leave and prevents reassignment du
   assert.ok(getRoomVirtualUser(room.id));
 
   handleHumanChatMessage(io, makeMessage(room.id, "I will hurt you", 1));
-  assert.equal(getRoomVirtualUser(room.id), undefined);
+  assert.ok(getRoomVirtualUser(room.id));
+  assert.equal(virtualUserInternals.pendingLeaveTimers.get(room.id)?.reason, "rude");
   assert.ok((virtualUserInternals.withdrawnRooms.get(room.id) ?? 0) > Date.now());
   const departureIndex = events.findIndex(({ event, payload }) =>
     event === "receive-message" && typeof payload === "object" && payload !== null
     && "senderType" in payload && payload.senderType === "virtual_user"
     && "text" in payload && /disrespectful|rude|respectful/i.test(String(payload.text))
   );
-  const leaveIndex = events.findIndex(({ event }) => event === "user-left");
   assert.ok(departureIndex >= 0);
-  assert.ok(leaveIndex > departureIndex);
+  assert.equal(events.findIndex(({ event }) => event === "user-left"), -1);
   assert.match(getRoomMessages(room.id).at(-1)?.text ?? "", /disrespectful|rude|respectful/i);
+
+  const delayed = virtualUserInternals.pendingLeaveTimers.get(room.id);
+  if (delayed) clearTimeout(delayed.timer);
+  virtualUserInternals.pendingLeaveTimers.delete(room.id);
+  assert.equal(scheduleVirtualUserLeave(io, room.id, "rude", 0, 0), true);
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.equal(getRoomVirtualUser(room.id), undefined);
+  const leaveIndex = events.findIndex(({ event }) => event === "user-left");
+  assert.ok(leaveIndex > departureIndex);
 
   reconcileVirtualUserForRoom(io, room.id);
   assert.equal(getRoomVirtualUser(room.id), undefined);
@@ -419,7 +536,7 @@ test("a severe targeted message makes the bot leave and prevents reassignment du
   removeUser(socketId);
 });
 
-test("two direct rude messages trigger withdrawal but a contextual mention does not", async () => {
+test("two direct rude messages schedule one delayed withdrawal but a contextual mention does not", async () => {
   process.env.DATABASE_URL ||= "postgres://test:test@localhost:5432/test";
   process.env.GOOGLE_CLIENT_ID ||= "test.apps.googleusercontent.com";
   process.env.JWT_SECRET ||= "test-secret-that-is-long-enough";
@@ -439,8 +556,12 @@ test("two direct rude messages trigger withdrawal but a contextual mention does 
   handleHumanChatMessage(io, makeMessage(room.id, "You are an idiot", 2));
   assert.ok(getRoomVirtualUser(room.id));
   handleHumanChatMessage(io, makeMessage(room.id, "Shut up", 3));
-  assert.equal(getRoomVirtualUser(room.id), undefined);
+  assert.ok(getRoomVirtualUser(room.id));
+  assert.equal(virtualUserInternals.pendingLeaveTimers.get(room.id)?.reason, "rude");
 
+  const pendingLeave = virtualUserInternals.pendingLeaveTimers.get(room.id);
+  if (pendingLeave) clearTimeout(pendingLeave.timer);
+  virtualUserInternals.pendingLeaveTimers.delete(room.id);
   const timer = virtualUserInternals.withdrawalTimers.get(room.id);
   if (timer) clearTimeout(timer);
   virtualUserInternals.withdrawalTimers.delete(room.id);
@@ -485,10 +606,11 @@ test("disabling an active bot releases it, while active profile edits are applie
   process.env.DATABASE_URL ||= "postgres://test:test@localhost:5432/test";
   process.env.GOOGLE_CLIENT_ID ||= "test.apps.googleusercontent.com";
   process.env.JWT_SECRET ||= "test-secret-that-is-long-enough";
-  const { applyVirtualUserProfile, reconcileVirtualUserForRoom, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
+  const { applyVirtualUserProfile, reconcileVirtualUserForRoom, releaseVirtualUser, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
   const events: unknown[] = [];
   const io = { to: () => ({ emit: (...args: unknown[]) => events.push(args) }), emit: (...args: unknown[]) => events.push(args) } as never;
   const human = { socketId: "human-profile", nickname: "Human", avatar: "🙂", role: "unverified" as const, micEnabled: false, cameraEnabled: false, screenSharing: false, screenTrackId: null, senderType: "human" as const };
+  releaseVirtualUser(io, "room-11");
   virtualUserInternals.pool.replaceProfiles([makeProfile("bot-01")]);
   assert.equal(addUserToRoom("room-11", human).ok, true);
   reconcileVirtualUserForRoom(io, "room-11");

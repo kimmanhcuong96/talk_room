@@ -12,7 +12,7 @@ function usageToken(value: unknown, fallback: number) {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.ceil(value) : fallback;
 }
 
-export function buildSystemPrompt(profile: VirtualUserProfile) {
+export function buildSystemPrompt(profile: VirtualUserProfile, sentenceCount: 1 | 2 = 1) {
   return `You are ${profile.name}, a natural English conversation partner.
 English level: ${profile.englishLevel}
 Personality: ${profile.personality}
@@ -23,7 +23,7 @@ Rules:
 - Talk like a normal person, never like an assistant.
 - Never mention being a bot, AI, model, or virtual user.
 - Reply directly to the latest user message. Do not dodge with generic filler.
-- Keep the response concise and conversational (normally 1-2 short sentences).
+- Write exactly ${sentenceCount} short sentence${sentenceCount === 1 ? "" : "s"}. Do not write fewer or more.
 - Add one specific reaction, opinion, detail, or feeling before asking anything back.
 - Do not always agree. A mild, friendly disagreement is okay when it feels natural.
 - Do not always ask a question; ask at most one short follow-up question.
@@ -35,13 +35,13 @@ Rules:
 - Use emojis rarely.`;
 }
 
-export function buildLLMMessages(profile: VirtualUserProfile, context: ConversationContext, message: string) {
+export function buildLLMMessages(profile: VirtualUserProfile, context: ConversationContext, message: string, sentenceCount: 1 | 2 = 1) {
   const recent = context.recentMessages.slice(-10).map((item) => ({
     role: item.senderType === "virtual_user" ? "assistant" : "user",
     content: item.text
   }));
   return [
-    { role: "system", content: buildSystemPrompt(profile) },
+    { role: "system", content: buildSystemPrompt(profile, sentenceCount) },
     ...(context.topic ? [{ role: "system", content: `Current conversation topic: ${context.topic}` }] : []),
     ...(context.summary ? [{ role: "system", content: `Conversation summary: ${context.summary}` }] : []),
     ...(Object.keys(context.userFacts).length ? [{ role: "system", content: `Known user facts: ${JSON.stringify(context.userFacts)}` }] : []),
@@ -53,6 +53,13 @@ export function buildLLMMessages(profile: VirtualUserProfile, context: Conversat
 // Kept as an alias for compatibility with existing imports.
 export const buildOllamaMessages = buildLLMMessages;
 
+function buildEnglishClassificationMessages(message: string) {
+  return [
+    { role: "system", content: "Classify whether the user's message is English. Reply with JSON only: {\"is_english\":true} or {\"is_english\":false}. Names, URLs, numbers, emojis, and common short chat expressions such as hi, yes, no, ok, and thanks count as English." },
+    { role: "user", content: message.slice(0, 500) }
+  ];
+}
+
 export class OllamaProvider implements LLMProvider {
   readonly provider = "ollama";
 
@@ -62,9 +69,9 @@ export class OllamaProvider implements LLMProvider {
     private readonly timeoutMs = 8_000
   ) {}
 
-  async generateResponse(profile: VirtualUserProfile, context: ConversationContext, message: string): Promise<LLMGeneration> {
+  async generateResponse(profile: VirtualUserProfile, context: ConversationContext, message: string, sentenceCount: 1 | 2 = 1): Promise<LLMGeneration> {
     if (!this.model) throw new Error("OLLAMA_MODEL is not configured.");
-    const messages = buildLLMMessages(profile, context, message);
+    const messages = buildLLMMessages(profile, context, message, sentenceCount);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     timeout.unref();
@@ -77,7 +84,7 @@ export class OllamaProvider implements LLMProvider {
           model: this.model,
           stream: false,
           messages,
-          options: { temperature: 0.75, num_predict: 120 }
+          options: { temperature: 0.75, num_predict: sentenceCount === 1 ? 48 : 80 }
         })
       });
       if (!response.ok) throw new Error(`Ollama returned ${response.status}.`);
@@ -86,6 +93,30 @@ export class OllamaProvider implements LLMProvider {
         prompt_eval_count?: number;
         eval_count?: number;
       };
+      const text = body.message?.content?.trim() ?? "";
+      const inputTokens = usageToken(body.prompt_eval_count, estimateMessageTokens(messages));
+      const outputTokens = usageToken(body.eval_count, estimateTokens(text));
+      return { text, usage: { provider: this.provider, model: this.model, inputTokens, outputTokens, totalTokens: inputTokens + outputTokens } };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async classifyEnglish(message: string): Promise<LLMGeneration> {
+    if (!this.model) throw new Error("OLLAMA_MODEL is not configured.");
+    const messages = buildEnglishClassificationMessages(message);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    timeout.unref();
+    try {
+      const response = await fetch(`${this.baseUrl.replace(/\/$/, "")}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({ model: this.model, stream: false, messages, options: { temperature: 0, num_predict: 20 } })
+      });
+      if (!response.ok) throw new Error(`Ollama returned ${response.status}.`);
+      const body = await response.json() as { message?: { content?: string }; prompt_eval_count?: number; eval_count?: number };
       const text = body.message?.content?.trim() ?? "";
       const inputTokens = usageToken(body.prompt_eval_count, estimateMessageTokens(messages));
       const outputTokens = usageToken(body.eval_count, estimateTokens(text));
@@ -106,11 +137,11 @@ export class CloudflareWorkersAIProvider implements LLMProvider {
     private readonly timeoutMs = 8_000
   ) {}
 
-  async generateResponse(profile: VirtualUserProfile, context: ConversationContext, message: string): Promise<LLMGeneration> {
+  async generateResponse(profile: VirtualUserProfile, context: ConversationContext, message: string, sentenceCount: 1 | 2 = 1): Promise<LLMGeneration> {
     if (!this.accountId) throw new Error("CLOUDFLARE_ACCOUNT_ID is not configured.");
     if (!this.apiToken) throw new Error("CLOUDFLARE_AI_API_TOKEN is not configured.");
     if (!this.model) throw new Error("LLM_MODEL is not configured.");
-    const messages = buildLLMMessages(profile, context, message);
+    const messages = buildLLMMessages(profile, context, message, sentenceCount);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
     timeout.unref();
@@ -124,7 +155,7 @@ export class CloudflareWorkersAIProvider implements LLMProvider {
             "Content-Type": "application/json"
           },
           signal: controller.signal,
-          body: JSON.stringify({ messages, temperature: 0.7, max_tokens: 120 })
+          body: JSON.stringify({ messages, temperature: 0.7, max_tokens: sentenceCount === 1 ? 48 : 80 })
         }
       );
       const body = await response.json() as {
@@ -154,6 +185,43 @@ export class CloudflareWorkersAIProvider implements LLMProvider {
           totalTokens: usageToken(usage?.total_tokens, inputTokens + outputTokens)
         }
       };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  async classifyEnglish(message: string): Promise<LLMGeneration> {
+    if (!this.accountId) throw new Error("CLOUDFLARE_ACCOUNT_ID is not configured.");
+    if (!this.apiToken) throw new Error("CLOUDFLARE_AI_API_TOKEN is not configured.");
+    if (!this.model) throw new Error("LLM_MODEL is not configured.");
+    const messages = buildEnglishClassificationMessages(message);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    timeout.unref();
+    try {
+      const response = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(this.accountId)}/ai/run/${this.model.replace(/^\/+/, "")}`,
+        {
+          method: "POST",
+          headers: { Authorization: `Bearer ${this.apiToken}`, "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({ messages, temperature: 0, max_tokens: 20 })
+        }
+      );
+      const body = await response.json() as {
+        success?: boolean;
+        errors?: Array<{ message?: string }>;
+        result?: { response?: string; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; input_tokens?: number; output_tokens?: number } };
+      };
+      if (!response.ok || body.success === false) {
+        const detail = body.errors?.map((error) => error.message).filter(Boolean).join("; ");
+        throw new Error(`Cloudflare Workers AI classification failed${detail ? `: ${detail}` : "."}`);
+      }
+      const text = body.result?.response?.trim() ?? "";
+      const usage = body.result?.usage;
+      const inputTokens = usageToken(usage?.prompt_tokens ?? usage?.input_tokens, estimateMessageTokens(messages));
+      const outputTokens = usageToken(usage?.completion_tokens ?? usage?.output_tokens, estimateTokens(text));
+      return { text, usage: { provider: this.provider, model: this.model, inputTokens, outputTokens, totalTokens: usageToken(usage?.total_tokens, inputTokens + outputTokens) } };
     } finally {
       clearTimeout(timeout);
     }

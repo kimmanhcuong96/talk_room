@@ -25,8 +25,9 @@ import {
 } from "../moderation/moderationRepository.js";
 import { evictGloballyBlockedUsers } from "../socket/registerSocketHandlers.js";
 import type { AppServer } from "../types/socket.js";
-import { updateVirtualUserProfile } from "../virtualUsers/virtualUserRepository.js";
+import { updateVirtualUserProfile, updateVirtualUserProfiles, type VirtualUserProfileUpdate } from "../virtualUsers/virtualUserRepository.js";
 import { applyVirtualUserProfile, getVirtualUsersForAdmin } from "../virtualUsers/virtualUserService.js";
+import { VIRTUAL_USER_IDS, type VirtualUserProfile } from "../virtualUsers/virtualUserTypes.js";
 import { getWebRtcUsageSummary } from "../usage/webrtcUsage.js";
 import { getTurnUsageStatus } from "../webrtc/turnUsage.js";
 import { getLLMUsageSummary } from "../usage/llmUsage.js";
@@ -51,6 +52,64 @@ function isValidAvatarUrl(value: string | null) {
   } catch {
     return false;
   }
+}
+
+function parseVirtualUserProfileInput(body: Record<string, unknown> | undefined, fallback?: VirtualUserProfile): VirtualUserProfileUpdate {
+  const value = body ?? {};
+  const name = typeof value.name === "string" ? value.name.trim() : fallback?.name ?? "";
+  const avatarHasValidType = value.avatarUrl === undefined
+    || value.avatarUrl === null
+    || typeof value.avatarUrl === "string";
+  const avatarInput = value.avatarUrl === undefined
+    ? fallback?.avatarUrl ?? ""
+    : value.avatarUrl === null ? "" : typeof value.avatarUrl === "string" ? value.avatarUrl.trim() : "";
+  const avatarUrl = avatarInput || null;
+  const englishLevel = typeof value.englishLevel === "string" ? value.englishLevel.trim() : fallback?.englishLevel ?? "";
+  const personality = typeof value.personality === "string" ? value.personality.trim() : fallback?.personality ?? "";
+  const interestsProvided = value.interests !== undefined;
+  const interestsAreStrings = Array.isArray(value.interests) && value.interests.every((item) => typeof item === "string");
+  const interests = interestsAreStrings
+    ? (value.interests as string[]).map((item) => item.trim()).filter(Boolean)
+    : fallback?.interests ?? [];
+  const speakingStyle = typeof value.speakingStyle === "string" ? value.speakingStyle.trim() : fallback?.speakingStyle ?? "";
+  const numberValue = (key: keyof VirtualUserProfile, defaultValue: number) => {
+    const input = value[key];
+    if (input === undefined) return Number(fallback?.[key] ?? defaultValue);
+    return typeof input === "number" ? input : Number.NaN;
+  };
+  const replyProbability = numberValue("replyProbability", 0.5);
+  const proactiveMessageProbability = numberValue("proactiveMessageProbability", 0.5);
+  const longResponseDelayMinSeconds = numberValue("longResponseDelayMinSeconds", 5);
+  const longResponseDelayMaxSeconds = numberValue("longResponseDelayMaxSeconds", 15);
+  const singleSentenceProbability = numberValue("singleSentenceProbability", 70);
+  const twoSentenceProbability = numberValue("twoSentenceProbability", 30);
+  const leaveWhenRejectedProbability = numberValue("leaveWhenRejectedProbability", 70);
+  const nonEnglishReminderCooldownSeconds = numberValue("nonEnglishReminderCooldownSeconds", 60);
+  const enabled = typeof value.enabled === "boolean" ? value.enabled : fallback?.enabled;
+
+  if (!name || name.length > 80 || !avatarHasValidType || !isValidAvatarUrl(avatarUrl)
+    || !englishLevel || englishLevel.length > 40 || !personality || personality.length > 1_000
+    || (interestsProvided ? !interestsAreStrings : !fallback) || interests.length > 20 || interests.some((item) => item.length > 40)
+    || !speakingStyle || speakingStyle.length > 1_000
+    || !Number.isFinite(replyProbability) || replyProbability < 0 || replyProbability > 1
+    || !Number.isFinite(proactiveMessageProbability) || proactiveMessageProbability < 0 || proactiveMessageProbability > 1
+    || !Number.isInteger(longResponseDelayMinSeconds) || longResponseDelayMinSeconds < 1 || longResponseDelayMinSeconds > 120
+    || !Number.isInteger(longResponseDelayMaxSeconds) || longResponseDelayMaxSeconds < 1 || longResponseDelayMaxSeconds > 120
+    || longResponseDelayMinSeconds > longResponseDelayMaxSeconds
+    || !Number.isInteger(singleSentenceProbability) || singleSentenceProbability < 0 || singleSentenceProbability > 100
+    || !Number.isInteger(twoSentenceProbability) || twoSentenceProbability < 0 || twoSentenceProbability > 100
+    || singleSentenceProbability + twoSentenceProbability !== 100
+    || !Number.isInteger(leaveWhenRejectedProbability) || leaveWhenRejectedProbability < 0 || leaveWhenRejectedProbability > 100
+    || !Number.isInteger(nonEnglishReminderCooldownSeconds) || nonEnglishReminderCooldownSeconds < 0 || nonEnglishReminderCooldownSeconds > 3_600
+    || typeof enabled !== "boolean") {
+    throw new HttpError(400, "Invalid virtual user profile.");
+  }
+  return {
+    name, avatarUrl, englishLevel, personality, interests, speakingStyle, replyProbability,
+    proactiveMessageProbability, longResponseDelayMinSeconds, longResponseDelayMaxSeconds,
+    singleSentenceProbability, twoSentenceProbability, leaveWhenRejectedProbability,
+    nonEnglishReminderCooldownSeconds, enabled
+  };
 }
 
 export const adminRouter = Router();
@@ -139,40 +198,43 @@ adminRouter.get("/virtual-users", requireAdmin, async (_request, response, next)
   }
 });
 
+adminRouter.put("/virtual-users", requireAdmin, async (request, response, next) => {
+  try {
+    const imported = request.body?.profiles;
+    if (!Array.isArray(imported) || imported.length !== VIRTUAL_USER_IDS.length) {
+      throw new HttpError(400, "Import must contain all 15 virtual user profiles.");
+    }
+    const currentProfiles = new Map(getVirtualUsersForAdmin().map((item) => [item.profile.id, item.profile]));
+    const seenIds = new Set<string>();
+    const updates = imported.map((value: unknown) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) throw new HttpError(400, "Invalid virtual user import.");
+      const body = value as Record<string, unknown>;
+      const requiredFields = [
+        "id", "name", "avatarUrl", "englishLevel", "personality", "interests", "speakingStyle",
+        "replyProbability", "proactiveMessageProbability", "longResponseDelayMinSeconds",
+        "longResponseDelayMaxSeconds", "enabled"
+      ];
+      if (requiredFields.some((field) => !(field in body))) throw new HttpError(400, "Import is missing required profile fields.");
+      const id = typeof body.id === "string" ? body.id : "";
+      const fallback = currentProfiles.get(id);
+      if (!VIRTUAL_USER_IDS.includes(id) || !fallback || seenIds.has(id)) throw new HttpError(400, "Invalid or duplicate virtual user ID.");
+      seenIds.add(id);
+      return { id, input: parseVirtualUserProfileInput(body, fallback) };
+    });
+    if (VIRTUAL_USER_IDS.some((id) => !seenIds.has(id))) throw new HttpError(400, "Import is missing virtual user profiles.");
+    const profiles = await updateVirtualUserProfiles(getRequestAdmin(request).id, updates);
+    const io = request.app.get("io") as AppServer | undefined;
+    if (io) profiles.forEach((profile) => applyVirtualUserProfile(io, profile));
+    response.json({ virtualUsers: getVirtualUsersForAdmin() });
+  } catch (error) {
+    next(error);
+  }
+});
+
 adminRouter.patch("/virtual-users/:id", requireAdmin, async (request, response, next) => {
   try {
-    const name = typeof request.body?.name === "string" ? request.body.name.trim() : "";
-    const avatarInput = request.body?.avatarUrl == null ? "" : String(request.body.avatarUrl).trim();
-    const avatarUrl = avatarInput || null;
-    const englishLevel = typeof request.body?.englishLevel === "string" ? request.body.englishLevel.trim() : "";
-    const personality = typeof request.body?.personality === "string" ? request.body.personality.trim() : "";
-    const interestsAreStrings = Array.isArray(request.body?.interests)
-      && request.body.interests.every((value: unknown) => typeof value === "string");
-    const interests = interestsAreStrings
-      ? request.body.interests.map((value: string) => value.trim()).filter(Boolean)
-      : [];
-    const speakingStyle = typeof request.body?.speakingStyle === "string" ? request.body.speakingStyle.trim() : "";
-    const replyProbability = Number(request.body?.replyProbability);
-    const proactiveMessageProbability = Number(request.body?.proactiveMessageProbability);
-    const longResponseDelayMinSeconds = Number(request.body?.longResponseDelayMinSeconds);
-    const longResponseDelayMaxSeconds = Number(request.body?.longResponseDelayMaxSeconds);
-    const enabled = request.body?.enabled;
-    if (!name || name.length > 80 || !isValidAvatarUrl(avatarUrl)
-      || !englishLevel || englishLevel.length > 40 || !personality || personality.length > 1_000
-      || !interestsAreStrings || interests.length > 20 || interests.some((value: string) => value.length > 40)
-      || !speakingStyle || speakingStyle.length > 1_000
-      || !Number.isFinite(replyProbability) || replyProbability < 0 || replyProbability > 1
-      || !Number.isFinite(proactiveMessageProbability) || proactiveMessageProbability < 0 || proactiveMessageProbability > 1
-      || !Number.isInteger(longResponseDelayMinSeconds) || longResponseDelayMinSeconds < 1 || longResponseDelayMinSeconds > 120
-      || !Number.isInteger(longResponseDelayMaxSeconds) || longResponseDelayMaxSeconds < 1 || longResponseDelayMaxSeconds > 120
-      || longResponseDelayMinSeconds > longResponseDelayMaxSeconds
-      || typeof enabled !== "boolean") {
-      throw new HttpError(400, "Invalid virtual user profile.");
-    }
-    const profile = await updateVirtualUserProfile(getRequestAdmin(request).id, request.params.id, {
-      name, avatarUrl, englishLevel, personality, interests, speakingStyle, replyProbability, proactiveMessageProbability,
-      longResponseDelayMinSeconds, longResponseDelayMaxSeconds, enabled
-    });
+    const input = parseVirtualUserProfileInput(request.body);
+    const profile = await updateVirtualUserProfile(getRequestAdmin(request).id, request.params.id, input);
     if (!profile) throw new HttpError(404, "Virtual user not found.");
     const io = request.app.get("io") as AppServer | undefined;
     if (io) applyVirtualUserProfile(io, profile);

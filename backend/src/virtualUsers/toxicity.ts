@@ -55,3 +55,26 @@ export function classifyHumanMessage(text: string): ToxicityLevel {
   if (rudePatterns.some((pattern) => pattern.test(clean))) return "rude";
   return "none";
 }
+
+const leaveRequestPatterns = [
+  /^(?:(?:please|just)\s+)?(?:go away|leave(?:\s+(?:the\s+)?room)?|get out)\b/u,
+  /\b(?:can|could|would|will)\s+you\s+(?:please\s+)?(?:leave|go away)\b/u,
+  /\b(?:we|i)\s+(?:do not|don't)\s+(?:need|want)\s+you\b/u,
+  /\b(?:leave me alone|stop (?:talking|chatting) (?:to|with) me)\b/u,
+];
+
+export function isUserRejectingBot(text: string) {
+  const clean = normalizeMessage(text);
+  return leaveRequestPatterns.some((pattern) => pattern.test(clean));
+}
+
+const rejectionResponses = [
+  "Okay, I'll give you some space.",
+  "Alright, I'll head out.",
+  "No problem, I'll leave you to it.",
+  "Got it, I'll step away."
+] as const;
+
+export function getRejectionResponse(random = Math.random) {
+  return rejectionResponses[Math.min(rejectionResponses.length - 1, Math.floor(random() * rejectionResponses.length))]!;
+}

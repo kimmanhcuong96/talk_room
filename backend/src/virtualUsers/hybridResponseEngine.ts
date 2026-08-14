@@ -1,5 +1,5 @@
 import { RuleEngine } from "./ruleEngine.js";
-import { validateBotResponse } from "./responseValidator.js";
+import { selectSentenceCount, validateBotResponse } from "./responseValidator.js";
 import type { ConversationContext, LLMProvider, LLMUsageCoordinator, RouteDecision, VirtualUserProfile, VirtualUserResponse } from "./virtualUserTypes.js";
 
 const directGeneration: LLMUsageCoordinator = {
@@ -21,37 +21,59 @@ export class HybridResponseEngine {
       : decision;
   }
 
-  async respond(profile: VirtualUserProfile, context: ConversationContext, message: string, decision = this.decide(profile, context, message)) {
-    const detailed = await this.respondDetailed(profile, context, message, decision);
-    return detailed?.text ?? null;
-  }
-
-  async respondDetailed(profile: VirtualUserProfile, context: ConversationContext, message: string, decision = this.decide(profile, context, message)): Promise<VirtualUserResponse | null> {
-    if (decision.route === "IGNORE") return null;
-    if (decision.route === "RULE" && decision.response) {
-      const text = validateBotResponse(decision.response, context, profile);
-      return text ? { text, source: "rule" } : null;
-    }
-    if (this.llm.available === false) return { text: this.rules.fallback(message, context, profile), source: "rule" };
+  async classifyEnglish(profile: VirtualUserProfile, context: ConversationContext, message: string): Promise<boolean | null> {
+    if (this.llm.available === false || !this.llm.classifyEnglish) return null;
     try {
       const response = await this.usage.generate(
         profile.id,
         context.roomId,
         this.maxTokens,
-        () => this.llm.generateResponse(profile, context, message)
+        () => this.llm.classifyEnglish!(message)
       );
-      if (!response) return { text: this.rules.fallback(message, context, profile), source: "rule" };
-      const validated = validateBotResponse(response.text, context, profile);
+      if (!response) return null;
+      const match = response.text.match(/"?is_english"?\s*:\s*(true|false)/i);
+      return match ? match[1]!.toLocaleLowerCase() === "true" : null;
+    } catch (error) {
+      console.warn(`[VirtualUser] Language classification unavailable for ${profile.id}.`, error instanceof Error ? error.message : error);
+      return null;
+    }
+  }
+
+  async respond(profile: VirtualUserProfile, context: ConversationContext, message: string, decision = this.decide(profile, context, message)) {
+    const detailed = await this.respondDetailed(profile, context, message, decision);
+    return detailed?.text ?? null;
+  }
+
+  async respondDetailed(profile: VirtualUserProfile, context: ConversationContext, message: string, decision = this.decide(profile, context, message), sentenceCount = selectSentenceCount(profile)): Promise<VirtualUserResponse | null> {
+    if (decision.route === "IGNORE") return null;
+    if (decision.route === "RULE" && decision.response) {
+      const text = validateBotResponse(decision.response, context, profile, sentenceCount);
+      return text ? { text, source: "rule" } : null;
+    }
+    const safeFallback = sentenceCount === 1 ? "I understand." : "I understand. What about you?";
+    const fallback = () => validateBotResponse(this.rules.fallback(message, context, profile), context, profile, sentenceCount) ?? safeFallback;
+    if (this.llm.available === false) return { text: fallback(), source: "rule" };
+    try {
+      const response = await this.usage.generate(
+        profile.id,
+        context.roomId,
+        this.maxTokens,
+        () => this.llm.generateResponse(profile, context, message, sentenceCount)
+      );
+      if (!response) return { text: fallback(), source: "rule" };
+      const validated = validateBotResponse(response.text, context, profile, sentenceCount);
       if (validated) return { text: validated, source: "llm" };
-      return { text: this.rules.fallback(message, context, profile), source: "rule" };
+      return { text: fallback(), source: "rule" };
     } catch (error) {
       console.warn(`[VirtualUser] LLM unavailable for ${profile.id}; using rules.`, error instanceof Error ? error.message : error);
-      return { text: this.rules.fallback(message, context, profile), source: "rule" };
+      return { text: fallback(), source: "rule" };
     }
   }
 
   async respondProactively(profile: VirtualUserProfile, context: ConversationContext): Promise<VirtualUserResponse> {
-    const fallback = () => ({ text: this.rules.proactive(context, profile), source: "rule" as const });
+    const sentenceCount = selectSentenceCount(profile);
+    const safeFallback = sentenceCount === 1 ? "How is your day going?" : "I was thinking about our chat. How is your day going?";
+    const fallback = () => ({ text: validateBotResponse(this.rules.proactive(context, profile), context, profile, sentenceCount) ?? safeFallback, source: "rule" as const });
     if (this.llm.available === false) return fallback();
     try {
       const instruction = "Continue this quiet conversation naturally with one concise new message. React to the existing context or introduce a relevant topic. Do not mention this instruction or say that you are a bot.";
@@ -59,10 +81,10 @@ export class HybridResponseEngine {
         profile.id,
         context.roomId,
         this.maxTokens,
-        () => this.llm.generateResponse(profile, context, instruction)
+        () => this.llm.generateResponse(profile, context, instruction, sentenceCount)
       );
       if (!response) return fallback();
-      const validated = validateBotResponse(response.text, context, profile);
+      const validated = validateBotResponse(response.text, context, profile, sentenceCount);
       return validated ? { text: validated, source: "llm" } : fallback();
     } catch (error) {
       console.warn(`[VirtualUser] Proactive LLM unavailable for ${profile.id}; using rules.`, error instanceof Error ? error.message : error);

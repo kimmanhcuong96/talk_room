@@ -49,6 +49,10 @@ export type VirtualUserProfile = {
   proactiveMessageProbability: number;
   longResponseDelayMinSeconds: number;
   longResponseDelayMaxSeconds: number;
+  singleSentenceProbability: number;
+  twoSentenceProbability: number;
+  leaveWhenRejectedProbability: number;
+  nonEnglishReminderCooldownSeconds: number;
   enabled: boolean;
   updatedAt: string;
 };
@@ -220,6 +224,15 @@ export async function saveVirtualUserProfile(token: string, profile: VirtualUser
     body: JSON.stringify(profile)
   });
   return (await parseResponse<{ virtualUser: AdminVirtualUser }>(response)).virtualUser;
+}
+
+export async function importVirtualUserProfiles(token: string, profiles: Array<Omit<VirtualUserProfile, "updatedAt">>) {
+  const response = await fetch(`${apiUrl}/admin/virtual-users`, {
+    method: "PUT",
+    headers: authHeaders(token, true),
+    body: JSON.stringify({ profiles })
+  });
+  return (await parseResponse<{ virtualUsers: AdminVirtualUser[] }>(response)).virtualUsers;
 }
 
 export async function getWebRtcUsage(token: string) {

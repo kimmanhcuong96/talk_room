@@ -1,6 +1,6 @@
 import { buildCommonEnglishFallback } from "./commonEnglishPhraseBank.js";
 import { assessEnglishMessage } from "./languageDetection.js";
-import type { ConversationContext, RouteDecision, VirtualUserProfile } from "./virtualUserTypes.js";
+import type { ConversationContext, RouteDecision, SentenceCount, VirtualUserProfile } from "./virtualUserTypes.js";
 
 const normalizedReactionPattern = /^(?:ha(?:ha)+|lol+|lmao|rofl|[\p{Extended_Pictographic}\uFE0F\s]+)$/iu;
 const greetingPattern = /^(?:hi|hello|hey|hiya|good (?:morning|afternoon|evening))[!.\s]*$/i;
@@ -61,8 +61,9 @@ function makeDefaultProfile(): VirtualUserProfile {
     proactiveMessageProbability: 0.5,
     longResponseDelayMinSeconds: 5,
     longResponseDelayMaxSeconds: 15,
-    singleSentenceProbability: 70,
+    singleSentenceProbability: 60,
     twoSentenceProbability: 30,
+    threeSentenceProbability: 10,
     leaveWhenRejectedProbability: 70,
     nonEnglishReminderCooldownSeconds: 60,
     enabled: true,
@@ -70,7 +71,7 @@ function makeDefaultProfile(): VirtualUserProfile {
   };
 }
 
-export function getVoicePromptResponse(sentenceCount: 1 | 2 = 2) {
+export function getVoicePromptResponse(sentenceCount: SentenceCount = 2) {
   return pick(sentenceCount === 1 ? singleSentenceVoicePromptResponses : voicePromptResponses);
 }
 

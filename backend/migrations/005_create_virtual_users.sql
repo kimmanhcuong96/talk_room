@@ -16,8 +16,9 @@ CREATE TABLE IF NOT EXISTS virtual_user_profiles (
   proactive_message_probability NUMERIC(4,3) NOT NULL DEFAULT 0.500 CHECK (proactive_message_probability BETWEEN 0 AND 1),
   long_response_delay_min_seconds INTEGER NOT NULL DEFAULT 5 CHECK (long_response_delay_min_seconds BETWEEN 1 AND 120),
   long_response_delay_max_seconds INTEGER NOT NULL DEFAULT 15 CHECK (long_response_delay_max_seconds BETWEEN 1 AND 120),
-  single_sentence_probability INTEGER NOT NULL DEFAULT 70 CHECK (single_sentence_probability BETWEEN 0 AND 100),
+  single_sentence_probability INTEGER NOT NULL DEFAULT 60 CHECK (single_sentence_probability BETWEEN 0 AND 100),
   two_sentence_probability INTEGER NOT NULL DEFAULT 30 CHECK (two_sentence_probability BETWEEN 0 AND 100),
+  three_sentence_probability INTEGER NOT NULL DEFAULT 10 CHECK (three_sentence_probability BETWEEN 0 AND 100),
   leave_when_rejected_probability INTEGER NOT NULL DEFAULT 70 CHECK (leave_when_rejected_probability BETWEEN 0 AND 100),
   non_english_reminder_cooldown_seconds INTEGER NOT NULL DEFAULT 60 CHECK (non_english_reminder_cooldown_seconds BETWEEN 0 AND 3600),
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
@@ -26,7 +27,7 @@ CREATE TABLE IF NOT EXISTS virtual_user_profiles (
   CONSTRAINT virtual_user_response_delay_bounds
     CHECK (long_response_delay_min_seconds <= long_response_delay_max_seconds),
   CONSTRAINT virtual_user_sentence_probability_total
-    CHECK (single_sentence_probability + two_sentence_probability = 100)
+    CHECK (single_sentence_probability + two_sentence_probability + three_sentence_probability = 100)
 );
 
 ALTER TABLE virtual_user_profiles
@@ -36,14 +37,22 @@ ALTER TABLE virtual_user_profiles
     CHECK (long_response_delay_min_seconds BETWEEN 1 AND 120),
   ADD COLUMN IF NOT EXISTS long_response_delay_max_seconds INTEGER NOT NULL DEFAULT 15
     CHECK (long_response_delay_max_seconds BETWEEN 1 AND 120),
-  ADD COLUMN IF NOT EXISTS single_sentence_probability INTEGER NOT NULL DEFAULT 70
+  ADD COLUMN IF NOT EXISTS single_sentence_probability INTEGER NOT NULL DEFAULT 60
     CHECK (single_sentence_probability BETWEEN 0 AND 100),
   ADD COLUMN IF NOT EXISTS two_sentence_probability INTEGER NOT NULL DEFAULT 30
     CHECK (two_sentence_probability BETWEEN 0 AND 100),
+  ADD COLUMN IF NOT EXISTS three_sentence_probability INTEGER NOT NULL DEFAULT 10
+    CHECK (three_sentence_probability BETWEEN 0 AND 100),
   ADD COLUMN IF NOT EXISTS leave_when_rejected_probability INTEGER NOT NULL DEFAULT 70
     CHECK (leave_when_rejected_probability BETWEEN 0 AND 100),
   ADD COLUMN IF NOT EXISTS non_english_reminder_cooldown_seconds INTEGER NOT NULL DEFAULT 60
     CHECK (non_english_reminder_cooldown_seconds BETWEEN 0 AND 3600);
+
+ALTER TABLE virtual_user_profiles
+  ALTER COLUMN single_sentence_probability SET DEFAULT 60,
+  ALTER COLUMN two_sentence_probability SET DEFAULT 30,
+  ALTER COLUMN three_sentence_probability SET DEFAULT 10,
+  DROP CONSTRAINT IF EXISTS virtual_user_sentence_probability_total;
 
 UPDATE virtual_user_profiles
 SET long_response_delay_min_seconds = 5,
@@ -51,9 +60,17 @@ SET long_response_delay_min_seconds = 5,
 WHERE long_response_delay_min_seconds > long_response_delay_max_seconds;
 
 UPDATE virtual_user_profiles
-SET single_sentence_probability = 70,
-    two_sentence_probability = 30
-WHERE single_sentence_probability + two_sentence_probability <> 100;
+SET single_sentence_probability = 60,
+    two_sentence_probability = 30,
+    three_sentence_probability = 10
+WHERE single_sentence_probability = 70
+  AND two_sentence_probability = 30
+  AND three_sentence_probability = 10;
+
+-- Preserve custom legacy 1/2-sentence ratios; they opt into 3 sentences when edited in admin.
+UPDATE virtual_user_profiles
+SET three_sentence_probability = 0
+WHERE single_sentence_probability + two_sentence_probability + three_sentence_probability <> 100;
 
 DO $$
 BEGIN
@@ -80,7 +97,7 @@ BEGIN
   ) THEN
     ALTER TABLE virtual_user_profiles
       ADD CONSTRAINT virtual_user_sentence_probability_total
-      CHECK (single_sentence_probability + two_sentence_probability = 100);
+      CHECK (single_sentence_probability + two_sentence_probability + three_sentence_probability = 100);
   END IF;
 END;
 $$;

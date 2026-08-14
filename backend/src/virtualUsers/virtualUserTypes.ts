@@ -16,6 +16,7 @@ export type VirtualUserProfile = {
   longResponseDelayMaxSeconds: number;
   singleSentenceProbability: number;
   twoSentenceProbability: number;
+  threeSentenceProbability: number;
   leaveWhenRejectedProbability: number;
   nonEnglishReminderCooldownSeconds: number;
   enabled: boolean;
@@ -63,9 +64,11 @@ export type VirtualUserResponse = {
   source: "rule" | "llm";
 };
 
+export type SentenceCount = 1 | 2 | 3;
+
 export interface LLMProvider {
   readonly available?: boolean;
-  generateResponse(profile: VirtualUserProfile, context: ConversationContext, message: string, sentenceCount?: 1 | 2): Promise<LLMGeneration>;
+  generateResponse(profile: VirtualUserProfile, context: ConversationContext, message: string, sentenceCount?: SentenceCount): Promise<LLMGeneration>;
   classifyEnglish?(message: string): Promise<LLMGeneration>;
 }
 

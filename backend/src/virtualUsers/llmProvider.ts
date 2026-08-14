@@ -1,4 +1,4 @@
-import type { ConversationContext, LLMGeneration, LLMProvider, VirtualUserProfile } from "./virtualUserTypes.js";
+import type { ConversationContext, LLMGeneration, LLMProvider, SentenceCount, VirtualUserProfile } from "./virtualUserTypes.js";
 
 function estimateTokens(text: string) {
   return Math.max(1, Math.ceil(text.length / 4));
@@ -12,7 +12,7 @@ function usageToken(value: unknown, fallback: number) {
   return typeof value === "number" && Number.isFinite(value) && value >= 0 ? Math.ceil(value) : fallback;
 }
 
-export function buildSystemPrompt(profile: VirtualUserProfile, sentenceCount: 1 | 2 = 1) {
+export function buildSystemPrompt(profile: VirtualUserProfile, sentenceCount: SentenceCount = 1) {
   return `You are ${profile.name}, a natural English conversation partner.
 English level: ${profile.englishLevel}
 Personality: ${profile.personality}
@@ -35,7 +35,7 @@ Rules:
 - Use emojis rarely.`;
 }
 
-export function buildLLMMessages(profile: VirtualUserProfile, context: ConversationContext, message: string, sentenceCount: 1 | 2 = 1) {
+export function buildLLMMessages(profile: VirtualUserProfile, context: ConversationContext, message: string, sentenceCount: SentenceCount = 1) {
   const recent = context.recentMessages.slice(-10).map((item) => ({
     role: item.senderType === "virtual_user" ? "assistant" : "user",
     content: item.text
@@ -55,7 +55,7 @@ export const buildOllamaMessages = buildLLMMessages;
 
 function buildEnglishClassificationMessages(message: string) {
   return [
-    { role: "system", content: "Classify whether the user's message is English. Reply with JSON only: {\"is_english\":true} or {\"is_english\":false}. Names, URLs, numbers, emojis, and common short chat expressions such as hi, yes, no, ok, and thanks count as English." },
+    { role: "system", content: "Classify the language of the user's chat message. Return exactly one JSON object and no other text: {\"is_english\":true} or {\"is_english\":false}. Use true only when the meaningful conversational text is primarily English. Names, place names, URLs, numbers, emojis, and common short English chat expressions such as hi, yes, no, ok, and thanks count as English. A message containing substantial non-English text is false even if it also contains a few English words. Transliteration of a non-English language is false. Do not answer or translate the message." },
     { role: "user", content: message.slice(0, 500) }
   ];
 }
@@ -69,7 +69,7 @@ export class OllamaProvider implements LLMProvider {
     private readonly timeoutMs = 8_000
   ) {}
 
-  async generateResponse(profile: VirtualUserProfile, context: ConversationContext, message: string, sentenceCount: 1 | 2 = 1): Promise<LLMGeneration> {
+  async generateResponse(profile: VirtualUserProfile, context: ConversationContext, message: string, sentenceCount: SentenceCount = 1): Promise<LLMGeneration> {
     if (!this.model) throw new Error("OLLAMA_MODEL is not configured.");
     const messages = buildLLMMessages(profile, context, message, sentenceCount);
     const controller = new AbortController();
@@ -84,7 +84,7 @@ export class OllamaProvider implements LLMProvider {
           model: this.model,
           stream: false,
           messages,
-          options: { temperature: 0.75, num_predict: sentenceCount === 1 ? 48 : 80 }
+          options: { temperature: 0.75, num_predict: sentenceCount === 1 ? 48 : sentenceCount === 2 ? 80 : 112 }
         })
       });
       if (!response.ok) throw new Error(`Ollama returned ${response.status}.`);
@@ -137,7 +137,7 @@ export class CloudflareWorkersAIProvider implements LLMProvider {
     private readonly timeoutMs = 8_000
   ) {}
 
-  async generateResponse(profile: VirtualUserProfile, context: ConversationContext, message: string, sentenceCount: 1 | 2 = 1): Promise<LLMGeneration> {
+  async generateResponse(profile: VirtualUserProfile, context: ConversationContext, message: string, sentenceCount: SentenceCount = 1): Promise<LLMGeneration> {
     if (!this.accountId) throw new Error("CLOUDFLARE_ACCOUNT_ID is not configured.");
     if (!this.apiToken) throw new Error("CLOUDFLARE_AI_API_TOKEN is not configured.");
     if (!this.model) throw new Error("LLM_MODEL is not configured.");
@@ -155,7 +155,7 @@ export class CloudflareWorkersAIProvider implements LLMProvider {
             "Content-Type": "application/json"
           },
           signal: controller.signal,
-          body: JSON.stringify({ messages, temperature: 0.7, max_tokens: sentenceCount === 1 ? 48 : 80 })
+          body: JSON.stringify({ messages, temperature: 0.7, max_tokens: sentenceCount === 1 ? 48 : sentenceCount === 2 ? 80 : 112 })
         }
       );
       const body = await response.json() as {

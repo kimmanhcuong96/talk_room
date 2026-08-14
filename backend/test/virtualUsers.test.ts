@@ -18,7 +18,7 @@ const makeProfile = (id: string, enabled = true): VirtualUserProfile => ({
   id, name: id, avatarUrl: null, englishLevel: "B1", personality: "Friendly",
   interests: ["travel"], speakingStyle: "Casual", replyProbability: 1, proactiveMessageProbability: 0.5,
   longResponseDelayMinSeconds: 5, longResponseDelayMaxSeconds: 15, enabled,
-  singleSentenceProbability: 70, twoSentenceProbability: 30,
+  singleSentenceProbability: 60, twoSentenceProbability: 30, threeSentenceProbability: 10,
   leaveWhenRejectedProbability: 70, nonEnglishReminderCooldownSeconds: 60,
   updatedAt: new Date(0).toISOString()
 });
@@ -89,7 +89,8 @@ test("an uncertain rule decision is escalated to the LLM", async () => {
   const response = await engine.respond({
     ...makeProfile("bot-01"),
     singleSentenceProbability: 100,
-    twoSentenceProbability: 0
+    twoSentenceProbability: 0,
+    threeSentenceProbability: 0
   }, makeContext(), "ambiguous");
   assert.equal(response, "Contextual response.");
   assert.equal(llmCalls, 1);
@@ -175,6 +176,9 @@ test("Cloudflare provider sends chat context and uses returned token counts", as
     assert.equal(requestBody.max_tokens, 48);
     assert.equal(requestBody.messages?.at(-1)?.content, "Where did you travel?");
     assert.deepEqual(result.usage, { provider: "cloudflare", model: "@cf/meta/llama-3.1-8b-instruct-fast", inputTokens: 21, outputTokens: 7, totalTokens: 28 });
+    await provider.generateResponse(makeProfile("bot-01"), makeContext(), "Where did you travel?", 3);
+    assert.equal(requestBody.max_tokens, 112);
+    assert.match(requestBody.messages?.[0]?.content ?? "", /exactly 3 short sentences/);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -239,22 +243,31 @@ test("response validation rejects empty, oversized, duplicate, malformed, assist
   assert.equal(validateBotResponse("That sounds fun!", context, profile), "That sounds fun!");
 });
 
-test("sentence selection follows profile probabilities and response fitting never calls the LLM", () => {
+test("sentence selection follows 60/30/10 probabilities and response fitting never calls the LLM", () => {
   const profile = makeProfile("bot-01");
-  assert.equal(selectSentenceCount({ ...profile, singleSentenceProbability: 100, twoSentenceProbability: 0 }, () => 0.99), 1);
-  assert.equal(selectSentenceCount({ ...profile, singleSentenceProbability: 0, twoSentenceProbability: 100 }, () => 0), 2);
+  assert.equal(selectSentenceCount(profile, () => 0.59), 1);
+  assert.equal(selectSentenceCount(profile, () => 0.6), 2);
+  assert.equal(selectSentenceCount(profile, () => 0.89), 2);
+  assert.equal(selectSentenceCount(profile, () => 0.9), 3);
   assert.equal(fitBotResponseToSentenceCount("One. Two. Three.", 1), "One.");
   const twoSentences = fitBotResponseToSentenceCount("That sounds fun!", 2);
   assert.equal(countBotResponseSentences(twoSentences), 2);
+  const threeSentences = fitBotResponseToSentenceCount("That sounds fun!", 3);
+  assert.equal(countBotResponseSentences(threeSentences), 3);
 });
 
 test("language heuristic skips safe short chat and flags likely non-English text", () => {
   for (const message of ["Hi", "Yes", "No", "OK", "Thanks", "😊", "123", "https://example.com", "Alice"]) {
     assert.equal(assessEnglishMessage(message).needsClassification, false, message);
   }
+  for (const message of ["hola", "bonjour", "como estas", "que tal", "ca va", "gracias", "xin chao", "ni hao", "konnichiwa"]) {
+    assert.equal(assessEnglishMessage(message).needsClassification, true, message);
+  }
   assert.deepEqual(assessEnglishMessage("Bạn khỏe không?"), { needsClassification: true, stronglyNonEnglish: true });
   assert.equal(assessEnglishMessage("Como estas amigo").needsClassification, true);
   assert.equal(assessEnglishMessage("How are you today?").needsClassification, false);
+  assert.equal(assessEnglishMessage("Please ban this user").stronglyNonEnglish, false);
+  assert.equal(assessEnglishMessage("no quiero hablar contigo ahora").needsClassification, true);
 });
 
 test("language classification uses the existing provider only when explicitly requested", async () => {
@@ -467,14 +480,68 @@ test("strong non-English messages receive one reminder during the per-user coold
   assert.equal(addUserToRoom(room.id, human).ok, true);
   reconcileVirtualUserForRoom(io, room.id);
 
-  await handleHumanChatMessage(io, makeMessage(room.id, "Bạn khỏe không?", 1));
-  await handleHumanChatMessage(io, makeMessage(room.id, "Mình khỏe, cảm ơn.", 2));
-  const reminders = getRoomMessages(room.id).filter((message) => message.senderType === "virtual_user" && message.id.includes("language"));
-  assert.equal(reminders.length, 1);
-  assert.equal(virtualUserInternals.pendingMessages.has(room.id), false);
+  const originalClassifier = virtualUserInternals.responseEngine.classifyEnglish;
+  let classificationCalls = 0;
+  virtualUserInternals.responseEngine.classifyEnglish = async () => {
+    classificationCalls += 1;
+    return false;
+  };
+  try {
+    await handleHumanChatMessage(io, makeMessage(room.id, "Bạn khỏe không?", 1));
+    await handleHumanChatMessage(io, makeMessage(room.id, "Mình khỏe, cảm ơn.", 2));
+    const reminders = getRoomMessages(room.id).filter((message) => message.senderType === "virtual_user" && message.id.includes("language"));
+    assert.equal(reminders.length, 1);
+    assert.equal(classificationCalls, 2);
+    assert.equal(virtualUserInternals.pendingMessages.has(room.id), false);
+  } finally {
+    virtualUserInternals.responseEngine.classifyEnglish = originalClassifier;
+    releaseVirtualUser(io, room.id);
+    removeUser(socketId);
+  }
+});
 
-  releaseVirtualUser(io, room.id);
-  removeUser(socketId);
+test("language classification preserves message order and never lets an uncertain message reach normal generation", async () => {
+  process.env.DATABASE_URL ||= "postgres://test:test@localhost:5432/test";
+  process.env.GOOGLE_CLIENT_ID ||= "test.apps.googleusercontent.com";
+  process.env.JWT_SECRET ||= "test-secret-that-is-long-enough";
+  const { enqueueHumanChatMessage, reconcileVirtualUserForRoom, releaseVirtualUser, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
+  const room = createRoom("Language Ordering Test", "en", "any", null, "00000000-0000-0000-0000-000000000000", 4);
+  const socketId = `human-${room.id}`;
+  const human = { socketId, nickname: "Human", avatar: "🙂", role: "unverified" as const, micEnabled: false, cameraEnabled: false, screenSharing: false, screenTrackId: null, senderType: "human" as const };
+  const io = { to: () => ({ emit: () => undefined }), emit: () => undefined } as never;
+  virtualUserInternals.pool.replaceProfiles([{ ...makeProfile("bot-01"), singleSentenceProbability: 100, twoSentenceProbability: 0, threeSentenceProbability: 0 }]);
+  assert.equal(addUserToRoom(room.id, human).ok, true);
+  reconcileVirtualUserForRoom(io, room.id);
+
+  const originalClassifier = virtualUserInternals.responseEngine.classifyEnglish;
+  let resolveClassification!: (value: boolean | null) => void;
+  let markClassificationStarted!: () => void;
+  const classificationStarted = new Promise<void>((resolve) => { markClassificationStarted = resolve; });
+  virtualUserInternals.responseEngine.classifyEnglish = async () => new Promise<boolean | null>((resolve) => {
+    resolveClassification = resolve;
+    markClassificationStarted();
+  });
+
+  try {
+    const first = enqueueHumanChatMessage(io, makeMessage(room.id, "hola", 1));
+    const second = enqueueHumanChatMessage(io, makeMessage(room.id, "How are you?", 2));
+    await classificationStarted;
+    resolveClassification(false);
+    await Promise.all([first, second]);
+
+    const reminders = getRoomMessages(room.id).filter((message) => message.senderType === "virtual_user" && message.id.includes("language"));
+    assert.equal(reminders.length, 1);
+    assert.deepEqual(virtualUserInternals.pendingMessages.get(room.id)?.messages.map((message) => message.text), ["How are you?"]);
+
+    virtualUserInternals.responseEngine.classifyEnglish = async () => null;
+    await enqueueHumanChatMessage(io, makeMessage(room.id, "bonjour", 3));
+    assert.equal(virtualUserInternals.pendingMessages.has(room.id), false);
+    assert.equal(getRoomMessages(room.id).filter((message) => message.senderType === "virtual_user").length, 1);
+  } finally {
+    virtualUserInternals.responseEngine.classifyEnglish = originalClassifier;
+    releaseVirtualUser(io, room.id);
+    removeUser(socketId);
+  }
 });
 
 test("a severe targeted message makes the bot leave and prevents reassignment during cooldown", async () => {
@@ -505,11 +572,11 @@ test("a severe targeted message makes the bot leave and prevents reassignment du
   const departureIndex = events.findIndex(({ event, payload }) =>
     event === "receive-message" && typeof payload === "object" && payload !== null
     && "senderType" in payload && payload.senderType === "virtual_user"
-    && "text" in payload && /disrespectful|rude|respectful/i.test(String(payload.text))
+    && "id" in payload && String(payload.id).includes("-moderation-")
   );
   assert.ok(departureIndex >= 0);
   assert.equal(events.findIndex(({ event }) => event === "user-left"), -1);
-  assert.match(getRoomMessages(room.id).at(-1)?.text ?? "", /disrespectful|rude|respectful/i);
+  assert.match(getRoomMessages(room.id).at(-1)?.id ?? "", /-moderation-/);
 
   const delayed = virtualUserInternals.pendingLeaveTimers.get(room.id);
   if (delayed) clearTimeout(delayed.timer);

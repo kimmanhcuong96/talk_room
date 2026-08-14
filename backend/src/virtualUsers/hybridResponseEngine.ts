@@ -50,7 +50,11 @@ export class HybridResponseEngine {
       const text = validateBotResponse(decision.response, context, profile, sentenceCount);
       return text ? { text, source: "rule" } : null;
     }
-    const safeFallback = sentenceCount === 1 ? "I understand." : "I understand. What about you?";
+    const safeFallback = sentenceCount === 1
+      ? "I understand."
+      : sentenceCount === 2
+        ? "I understand. What about you?"
+        : "I understand. What about you? I'm curious to hear your take.";
     const fallback = () => validateBotResponse(this.rules.fallback(message, context, profile), context, profile, sentenceCount) ?? safeFallback;
     if (this.llm.available === false) return { text: fallback(), source: "rule" };
     try {
@@ -72,7 +76,11 @@ export class HybridResponseEngine {
 
   async respondProactively(profile: VirtualUserProfile, context: ConversationContext): Promise<VirtualUserResponse> {
     const sentenceCount = selectSentenceCount(profile);
-    const safeFallback = sentenceCount === 1 ? "How is your day going?" : "I was thinking about our chat. How is your day going?";
+    const safeFallback = sentenceCount === 1
+      ? "How is your day going?"
+      : sentenceCount === 2
+        ? "I was thinking about our chat. How is your day going?"
+        : "I was thinking about our chat. It has been quiet for a while. How is your day going?";
     const fallback = () => ({ text: validateBotResponse(this.rules.proactive(context, profile), context, profile, sentenceCount) ?? safeFallback, source: "rule" as const });
     if (this.llm.available === false) return fallback();
     try {

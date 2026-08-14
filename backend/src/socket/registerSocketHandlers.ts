@@ -34,7 +34,7 @@ import {
   findActiveGlobalBlock,
   reportReasons
 } from "../moderation/moderationRepository.js";
-import { handleHumanChatMessage, handleHumanVoiceAttempt, reconcileVirtualUserForRoom } from "../virtualUsers/virtualUserService.js";
+import { enqueueHumanChatMessage, handleHumanVoiceAttempt, reconcileVirtualUserForRoom } from "../virtualUsers/virtualUserService.js";
 import { getYouTubeRecommendations, validateYouTubeVideoForEmbed, YouTubeServiceError } from "../youtube/youtubeRecommendationService.js";
 import { finishUserRoomSession, startUserRoomSession } from "../usage/userRoomTime.js";
 import { finishWebRtcConnection, recordWebRtcTransport } from "../usage/webrtcUsage.js";
@@ -768,7 +768,7 @@ export function registerSocketHandlers(io: AppServer) {
 
       if (message) {
         io.to(roomId).emit("receive-message", message);
-        void handleHumanChatMessage(io, message);
+        void enqueueHumanChatMessage(io, message);
         if (socket.data.userId) {
           void recordQualityChatMessage({
             userId: socket.data.userId, roomId, messageId: message.id, text: message.text, timestamp: message.timestamp

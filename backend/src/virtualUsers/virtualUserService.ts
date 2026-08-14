@@ -53,6 +53,7 @@ const WITHDRAWAL_COOLDOWN_MS = 5 * 60_000;
 type LeaveReason = "rude" | "rejected" | "second_user";
 const pendingLeaveTimers = new Map<string, { botId: string; reason: LeaveReason; timer: ReturnType<typeof setTimeout> }>();
 const lastNonEnglishReminderAt = new Map<string, number>();
+const humanMessagePipelines = new Map<string, Promise<void>>();
 let proactiveCheckTimer: ReturnType<typeof setInterval> | null = null;
 
 function createLLMProvider() {
@@ -387,7 +388,7 @@ function sendImmediateRuleResponse(io: AppServer, roomId: string, profile: Virtu
   const context = conversations.get(roomId, profile.id);
   const sentenceCount = selectSentenceCount(profile);
   const response = validateBotResponse(text, context, profile, sentenceCount);
-  if (!response) return;
+  if (!response) return false;
   const now = Date.now();
   const botMessage: ChatMessage = {
     id: `${profile.id}-${suffix}-${now}`,
@@ -400,12 +401,13 @@ function sendImmediateRuleResponse(io: AppServer, roomId: string, profile: Virtu
     text: response,
     timestamp: now
   };
-  if (!addRoomMessage(botMessage)) return;
+  if (!addRoomMessage(botMessage)) return false;
   conversations.remember(context, botMessage);
   io.to(roomId).emit("receive-message", botMessage);
   void recordVirtualUserResponse(profile.id, roomId, "rule").catch((error) => {
     console.warn(`[VirtualUser] Unable to record ${suffix} response.`, error instanceof Error ? error.message : error);
   });
+  return true;
 }
 
 export async function handleHumanChatMessage(io: AppServer, message: ChatMessage) {
@@ -420,16 +422,22 @@ export async function handleHumanChatMessage(io: AppServer, message: ChatMessage
   if (language.needsClassification) {
     const reminderKey = `${message.roomId}:${message.senderId}`;
     const reminderCooldownMs = profile.nonEnglishReminderCooldownSeconds * 1_000;
-    if (language.stronglyNonEnglish && Date.now() - (lastNonEnglishReminderAt.get(reminderKey) ?? 0) < reminderCooldownMs) return;
     const context = conversations.get(message.roomId, profile.id);
     const isEnglish = await responseEngine.classifyEnglish(profile, context, message.text);
     if (getRoomHumanCount(message.roomId) !== 1 || getRoomVirtualUser(message.roomId)?.virtualUserId !== profile.id) return;
-    if (isEnglish === false || (isEnglish === null && language.stronglyNonEnglish)) {
+    if (isEnglish !== true) {
       interruptPendingResponse(io, message.roomId, profile.id, profile.name);
+      if (isEnglish === null) return;
       const now = Date.now();
       if (now - (lastNonEnglishReminderAt.get(reminderKey) ?? 0) >= reminderCooldownMs) {
-        lastNonEnglishReminderAt.set(reminderKey, now);
-        sendImmediateRuleResponse(io, message.roomId, profile, nonEnglishReminders[Math.floor(Math.random() * nonEnglishReminders.length)]!, "language");
+        const start = Math.floor(Math.random() * nonEnglishReminders.length);
+        for (let offset = 0; offset < nonEnglishReminders.length; offset += 1) {
+          const reminder = nonEnglishReminders[(start + offset) % nonEnglishReminders.length]!;
+          if (sendImmediateRuleResponse(io, message.roomId, profile, reminder, "language")) {
+            lastNonEnglishReminderAt.set(reminderKey, now);
+            break;
+          }
+        }
       }
       return;
     }
@@ -478,6 +486,19 @@ export async function handleHumanChatMessage(io: AppServer, message: ChatMessage
   const timer = setTimeout(() => void flushMessages(io, message.roomId), BATCH_DELAY_MS);
   timer.unref();
   pendingMessages.set(message.roomId, { messages, timer });
+}
+
+export function enqueueHumanChatMessage(io: AppServer, message: ChatMessage) {
+  const previous = humanMessagePipelines.get(message.roomId) ?? Promise.resolve();
+  const current = previous
+    .catch(() => undefined)
+    .then(() => handleHumanChatMessage(io, message));
+  humanMessagePipelines.set(message.roomId, current);
+  const cleanup = () => {
+    if (humanMessagePipelines.get(message.roomId) === current) humanMessagePipelines.delete(message.roomId);
+  };
+  void current.then(cleanup, cleanup);
+  return current;
 }
 
 export async function checkProactiveMessages(io: AppServer, now = Date.now(), random = Math.random) {
@@ -550,7 +571,11 @@ export function handleHumanVoiceAttempt(io: AppServer, roomId: string, humanSock
   const sentenceCount = selectSentenceCount(profile);
   const voicePrompt = getVoicePromptResponse(sentenceCount);
   const response = validateBotResponse(voicePrompt, context, profile, sentenceCount)
-    ?? (sentenceCount === 1 ? "Please type your message here." : "I cannot use the mic here. Please type your message.");
+    ?? (sentenceCount === 1
+      ? "Please type your message here."
+      : sentenceCount === 2
+        ? "I cannot use the mic here. Please type your message."
+        : "I cannot use the mic here. I cannot use the camera either. Please type your message.");
   const message: ChatMessage = {
     id: `${profile.id}-voice-${now}`,
     roomId,
@@ -622,4 +647,6 @@ export const virtualUserInternals = {
   lastDepartureMessageByBot,
   pendingLeaveTimers,
   lastNonEnglishReminderAt,
+  humanMessagePipelines,
+  responseEngine,
 };

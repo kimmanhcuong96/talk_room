@@ -82,8 +82,13 @@ function parseVirtualUserProfileInput(body: Record<string, unknown> | undefined,
   const proactiveMessageProbability = numberValue("proactiveMessageProbability", 0.5);
   const longResponseDelayMinSeconds = numberValue("longResponseDelayMinSeconds", 5);
   const longResponseDelayMaxSeconds = numberValue("longResponseDelayMaxSeconds", 15);
-  const singleSentenceProbability = numberValue("singleSentenceProbability", 70);
+  const singleSentenceProbability = numberValue("singleSentenceProbability", 60);
   const twoSentenceProbability = numberValue("twoSentenceProbability", 30);
+  const threeSentenceProbability = value.threeSentenceProbability === undefined
+    && typeof value.singleSentenceProbability === "number"
+    && typeof value.twoSentenceProbability === "number"
+    ? 100 - singleSentenceProbability - twoSentenceProbability
+    : numberValue("threeSentenceProbability", 10);
   const leaveWhenRejectedProbability = numberValue("leaveWhenRejectedProbability", 70);
   const nonEnglishReminderCooldownSeconds = numberValue("nonEnglishReminderCooldownSeconds", 60);
   const enabled = typeof value.enabled === "boolean" ? value.enabled : fallback?.enabled;
@@ -99,7 +104,8 @@ function parseVirtualUserProfileInput(body: Record<string, unknown> | undefined,
     || longResponseDelayMinSeconds > longResponseDelayMaxSeconds
     || !Number.isInteger(singleSentenceProbability) || singleSentenceProbability < 0 || singleSentenceProbability > 100
     || !Number.isInteger(twoSentenceProbability) || twoSentenceProbability < 0 || twoSentenceProbability > 100
-    || singleSentenceProbability + twoSentenceProbability !== 100
+    || !Number.isInteger(threeSentenceProbability) || threeSentenceProbability < 0 || threeSentenceProbability > 100
+    || singleSentenceProbability + twoSentenceProbability + threeSentenceProbability !== 100
     || !Number.isInteger(leaveWhenRejectedProbability) || leaveWhenRejectedProbability < 0 || leaveWhenRejectedProbability > 100
     || !Number.isInteger(nonEnglishReminderCooldownSeconds) || nonEnglishReminderCooldownSeconds < 0 || nonEnglishReminderCooldownSeconds > 3_600
     || typeof enabled !== "boolean") {
@@ -108,7 +114,7 @@ function parseVirtualUserProfileInput(body: Record<string, unknown> | undefined,
   return {
     name, avatarUrl, englishLevel, personality, interests, speakingStyle, replyProbability,
     proactiveMessageProbability, longResponseDelayMinSeconds, longResponseDelayMaxSeconds,
-    singleSentenceProbability, twoSentenceProbability, leaveWhenRejectedProbability,
+    singleSentenceProbability, twoSentenceProbability, threeSentenceProbability, leaveWhenRejectedProbability,
     nonEnglishReminderCooldownSeconds, enabled
   };
 }

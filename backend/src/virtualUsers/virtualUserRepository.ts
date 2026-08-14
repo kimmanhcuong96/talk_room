@@ -17,6 +17,7 @@ type ProfileRow = QueryResultRow & {
   long_response_delay_max_seconds: number;
   single_sentence_probability: number;
   two_sentence_probability: number;
+  three_sentence_probability: number;
   leave_when_rejected_probability: number;
   non_english_reminder_cooldown_seconds: number;
   enabled: boolean;
@@ -38,6 +39,7 @@ function toProfile(row: ProfileRow): VirtualUserProfile {
     longResponseDelayMaxSeconds: Number(row.long_response_delay_max_seconds),
     singleSentenceProbability: Number(row.single_sentence_probability),
     twoSentenceProbability: Number(row.two_sentence_probability),
+    threeSentenceProbability: Number(row.three_sentence_probability),
     leaveWhenRejectedProbability: Number(row.leave_when_rejected_probability),
     nonEnglishReminderCooldownSeconds: Number(row.non_english_reminder_cooldown_seconds),
     enabled: row.enabled,
@@ -49,7 +51,7 @@ export async function listVirtualUserProfiles() {
   const result = await getPool().query<ProfileRow>(
     `SELECT id, name, avatar_url, english_level, personality, interests, speaking_style,
        reply_probability, proactive_message_probability, long_response_delay_min_seconds,
-       long_response_delay_max_seconds, single_sentence_probability, two_sentence_probability,
+       long_response_delay_max_seconds, single_sentence_probability, two_sentence_probability, three_sentence_probability,
        leave_when_rejected_probability, non_english_reminder_cooldown_seconds, enabled, updated_at
      FROM virtual_user_profiles ORDER BY id`
   );
@@ -57,7 +59,7 @@ export async function listVirtualUserProfiles() {
 }
 
 export type VirtualUserProfileUpdate = Pick<VirtualUserProfile,
-  "name" | "avatarUrl" | "englishLevel" | "personality" | "interests" | "speakingStyle" | "replyProbability" | "proactiveMessageProbability" | "longResponseDelayMinSeconds" | "longResponseDelayMaxSeconds" | "singleSentenceProbability" | "twoSentenceProbability" | "leaveWhenRejectedProbability" | "nonEnglishReminderCooldownSeconds" | "enabled"
+  "name" | "avatarUrl" | "englishLevel" | "personality" | "interests" | "speakingStyle" | "replyProbability" | "proactiveMessageProbability" | "longResponseDelayMinSeconds" | "longResponseDelayMaxSeconds" | "singleSentenceProbability" | "twoSentenceProbability" | "threeSentenceProbability" | "leaveWhenRejectedProbability" | "nonEnglishReminderCooldownSeconds" | "enabled"
 >;
 
 export async function updateVirtualUserProfile(actorAdminId: string, id: string, input: VirtualUserProfileUpdate) {
@@ -70,17 +72,18 @@ export async function updateVirtualUserProfile(actorAdminId: string, id: string,
          personality = $5, interests = $6, speaking_style = $7, reply_probability = $8,
          proactive_message_probability = $9, long_response_delay_min_seconds = $10,
          long_response_delay_max_seconds = $11, single_sentence_probability = $12,
-         two_sentence_probability = $13, leave_when_rejected_probability = $14,
-         non_english_reminder_cooldown_seconds = $15, enabled = $16, updated_by = $17, updated_at = NOW()
+         two_sentence_probability = $13, three_sentence_probability = $14,
+         leave_when_rejected_probability = $15, non_english_reminder_cooldown_seconds = $16,
+         enabled = $17, updated_by = $18, updated_at = NOW()
        WHERE id = $1
        RETURNING id, name, avatar_url, english_level, personality, interests, speaking_style,
          reply_probability, proactive_message_probability, long_response_delay_min_seconds,
-         long_response_delay_max_seconds, single_sentence_probability, two_sentence_probability,
+         long_response_delay_max_seconds, single_sentence_probability, two_sentence_probability, three_sentence_probability,
          leave_when_rejected_probability, non_english_reminder_cooldown_seconds, enabled, updated_at`,
       [id, input.name, input.avatarUrl, input.englishLevel, input.personality, input.interests,
         input.speakingStyle, input.replyProbability, input.proactiveMessageProbability,
         input.longResponseDelayMinSeconds, input.longResponseDelayMaxSeconds,
-        input.singleSentenceProbability, input.twoSentenceProbability, input.leaveWhenRejectedProbability,
+        input.singleSentenceProbability, input.twoSentenceProbability, input.threeSentenceProbability, input.leaveWhenRejectedProbability,
         input.nonEnglishReminderCooldownSeconds, input.enabled, actorAdminId]
     );
     if (!result.rows[0]) {
@@ -109,17 +112,18 @@ export async function updateVirtualUserProfiles(actorAdminId: string, profiles: 
            personality = $5, interests = $6, speaking_style = $7, reply_probability = $8,
            proactive_message_probability = $9, long_response_delay_min_seconds = $10,
            long_response_delay_max_seconds = $11, single_sentence_probability = $12,
-           two_sentence_probability = $13, leave_when_rejected_probability = $14,
-           non_english_reminder_cooldown_seconds = $15, enabled = $16, updated_by = $17, updated_at = NOW()
+           two_sentence_probability = $13, three_sentence_probability = $14,
+           leave_when_rejected_probability = $15, non_english_reminder_cooldown_seconds = $16,
+           enabled = $17, updated_by = $18, updated_at = NOW()
          WHERE id = $1
          RETURNING id, name, avatar_url, english_level, personality, interests, speaking_style,
            reply_probability, proactive_message_probability, long_response_delay_min_seconds,
-           long_response_delay_max_seconds, single_sentence_probability, two_sentence_probability,
+           long_response_delay_max_seconds, single_sentence_probability, two_sentence_probability, three_sentence_probability,
            leave_when_rejected_probability, non_english_reminder_cooldown_seconds, enabled, updated_at`,
         [id, input.name, input.avatarUrl, input.englishLevel, input.personality, input.interests,
           input.speakingStyle, input.replyProbability, input.proactiveMessageProbability,
           input.longResponseDelayMinSeconds, input.longResponseDelayMaxSeconds,
-          input.singleSentenceProbability, input.twoSentenceProbability, input.leaveWhenRejectedProbability,
+          input.singleSentenceProbability, input.twoSentenceProbability, input.threeSentenceProbability, input.leaveWhenRejectedProbability,
           input.nonEnglishReminderCooldownSeconds, input.enabled, actorAdminId]
       );
       if (!result.rows[0]) throw new Error(`Virtual user ${id} was not found.`);

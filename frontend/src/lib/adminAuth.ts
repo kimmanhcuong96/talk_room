@@ -58,6 +58,7 @@ export type VirtualUserProfile = {
   longResponseDelayMaxSeconds: number;
   singleSentenceProbability: number;
   twoSentenceProbability: number;
+  threeSentenceProbability: number;
   leaveWhenRejectedProbability: number;
   nonEnglishReminderCooldownSeconds: number;
   enabled: boolean;

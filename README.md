@@ -146,7 +146,7 @@ Each Virtual User profile has separate reply and proactive-message probabilities
 
 When at most five rooms contain human participants, the backend keeps five randomly selected available Virtual Users waiting across five random empty system rooms. Waiting bots do not consume human room capacity. Bot assignment to a room with a human is also randomized; when more than five rooms contain humans, bots that are only waiting in empty rooms are released back to the pool.
 
-Virtual User responses are constrained to one or two sentences using per-profile probabilities. Non-English detection uses a local heuristic first and only uses the configured LLM for uncertain classification. Rude, rejected, and second-user departures share one cancellable delayed-leave timer. Admins can edit these settings and import or export all 15 editable profiles as JSON from `/admin/virtual-users`.
+Virtual User responses are constrained to one, two, or three sentences using per-profile probabilities (60% / 30% / 10% by default). Non-English detection uses a local heuristic first and only uses the configured LLM for uncertain classification. Rude, rejected, and second-user departures share one cancellable delayed-leave timer. Admins can edit these settings and import or export all 15 editable profiles as JSON from `/admin/virtual-users`.
 
 Open `/admin/analytics` to view:
 

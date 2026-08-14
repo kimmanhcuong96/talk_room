@@ -17,7 +17,7 @@ Me2talk (Me to talk) is a realtime language-practice application built around sm
 - Room-level block/report moderation and administrator review.
 - 15 configurable Virtual User profiles, including editable avatar URLs, rule-based chat fallback, and optional LLM chat.
 - Admin dashboard for user roles, admin accounts, moderation reports, Virtual Users, LLM usage, cumulative room time, and STUN/TURN analytics.
-- Auditable user points for room activity, qualified referrals, and favorites, with anti-abuse limits and idempotent rewards.
+- Auditable reward points for eligible (`verified` or `supporter`) users, covering room activity, quality conversation, referrals, favorites, useful room hosting, and 3/7-day activity streaks.
 - Empty custom rooms are deleted after 60 seconds; empty rooms reset temporary topic, YouTube, language, and message state.
 
 ## Requirements
@@ -60,6 +60,8 @@ VITE_SITE_URL=http://localhost:5173
 Run every SQL file in `backend/migrations` against Neon in numeric order. `005_create_virtual_users.sql` contains the complete Virtual User schema and seed data, including response tracking, proactive-message probability, and configurable long-response delays. Do this before starting the backend with a production database.
 
 Migration `012_create_user_points.sql` adds referral codes, favorites, daily activity buckets, and the immutable point ledger. Apply it before deploying the points feature.
+
+Migration `013_extend_reward_system.sql` upgrades existing ledger event names without changing earned balances, then adds chat/join idempotency, eligibility history, qualifying active days, and persistent streak milestones. If `012` is already installed, run only `013` next; do not rerun `012`.
 
 To enable Cloudflare Workers AI chat locally, copy `.env.example` to `.env`, fill in `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_AI_API_TOKEN`, then set `LLM_PROVIDER=cloudflare` and `LLM_MODEL=@cf/meta/llama-3.1-8b-instruct-fast`. Apply `005_create_virtual_users.sql` before starting the backend. The key must stay in the backend `.env`; do not add it to `frontend/.env.local` or commit it.
 

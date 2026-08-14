@@ -137,6 +137,12 @@ export function HomePage({
   const languageMenuRef = useRef<HTMLDivElement | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
+  const rewardEventLabels: Record<string, string> = {
+    ROOM_TIME_REWARD: t("activityPoints"), QUALITY_CHAT_REWARD: t("qualityChatPoints"),
+    LIKE_RECEIVED_REWARD: t("favoritePoints"), REFERRAL_REWARD: t("referralPoints"),
+    ROOM_PARTICIPANT_JOINED_REWARD: t("roomOwnerPoints"), STREAK_3_DAYS_REWARD: t("streakPoints"),
+    STREAK_7_DAYS_REWARD: t("streakPoints"), ADMIN_ADJUSTMENT: t("points"),
+  };
   const selectedLanguage = languages.find((option) => option.value === language) ?? languages[0];
   const canCreateRoom = hasPermission(user?.role ?? "unverified", "create_room");
   const roleLabel = user ? t(user.role === "supporter" ? "roleSupporter" : user.role === "verified" ? "roleVerified" : "roleUnverified") : "";
@@ -305,12 +311,22 @@ export function HomePage({
                             <span className="flex items-center gap-2 font-medium text-white/75"><Sparkles size={16} className="text-[#ffd84d]" />{t("points")}</span>
                             <strong className="text-lg text-[#ffd84d]">{rewards.totalPoints.toLocaleString()}</strong>
                           </div>
-                          <div className="mt-2 grid grid-cols-3 gap-1 text-center text-[11px] text-white/55">
+                          {!rewards.eligible ? <p className="mt-2 text-xs leading-5 text-white/60">{t("rewardEligibleOnly")}</p> : <>
+                          <div className="mt-2 grid grid-cols-2 gap-1 text-center text-[11px] text-white/55">
                             <span>{t("activityPoints")}<strong className="mt-0.5 block text-white/85">{rewards.activityPoints}</strong></span>
                             <span>{t("referralPoints")}<strong className="mt-0.5 block text-white/85">{rewards.referralPoints}</strong></span>
                             <span>{t("favoritePoints")}<strong className="mt-0.5 block text-white/85">{rewards.favoritePoints}</strong></span>
+                            <span>{t("qualityChatPoints")}<strong className="mt-0.5 block text-white/85">{rewards.qualityChatPoints}</strong></span>
+                            <span>{t("roomOwnerPoints")}<strong className="mt-0.5 block text-white/85">{rewards.roomOwnerPoints}</strong></span>
+                            <span>{t("streakPoints")}<strong className="mt-0.5 block text-white/85">{rewards.streakPoints}</strong></span>
                           </div>
                           <p className="mt-2 flex items-center justify-center gap-1 text-[11px] text-white/50"><Heart size={12} />{t("favoritesReceived", { count: rewards.favoriteCount })}</p>
+                          <div className="mt-2 grid grid-cols-2 gap-2 rounded-md bg-black/10 p-2 text-[11px] text-white/55">
+                            <span>{t("currentStreak")}<strong className="block text-white/85">{rewards.currentStreakDays}d</strong></span>
+                            <span>{t("highestStreak")}<strong className="block text-white/85">{rewards.highestStreakDays}d</strong></span>
+                            {rewards.nextStreakMilestone ? <span className="col-span-2">{t("nextStreakMilestone", { days: rewards.nextStreakMilestone })}<span className="mt-1 block h-1 overflow-hidden rounded bg-white/10"><span className="block h-full rounded bg-[#ffd84d]" style={{ width: `${Math.min(100, rewards.currentStreakDays / rewards.nextStreakMilestone * 100)}%` }} /></span></span> : null}
+                          </div>
+                          {rewards.recentTransactions.length ? <details className="mt-2 text-[11px] text-white/60"><summary className="cursor-pointer">{t("recentRewards")}</summary><ul className="mt-1 max-h-28 space-y-1 overflow-auto">{rewards.recentTransactions.map((item) => <li key={item.id} className="flex justify-between gap-2"><span className="truncate">{rewardEventLabels[item.eventType] ?? t("points")}</span><strong className="text-[#ffd84d]">{item.points > 0 ? "+" : ""}{item.points}</strong></li>)}</ul></details> : null}
                           <button
                             type="button"
                             onClick={async () => {
@@ -327,6 +343,7 @@ export function HomePage({
                           >
                             <Copy size={14} />{referralCopied ? t("referralCopied") : t("copyReferralLink")}
                           </button>
+                          </>}
                         </div>
                       ) : null}
                       <button

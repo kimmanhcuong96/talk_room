@@ -12,6 +12,7 @@ import {
   getRoomMessages,
   getPublicRoomUsers,
   getRoomSummary,
+  getRoomRewardContext,
   getRoomSummaries,
   getRoomUsers,
   isUserCreatedRoomEmpty,
@@ -37,7 +38,7 @@ import { handleHumanChatMessage, handleHumanVoiceAttempt, reconcileVirtualUserFo
 import { getYouTubeRecommendations, validateYouTubeVideoForEmbed, YouTubeServiceError } from "../youtube/youtubeRecommendationService.js";
 import { finishUserRoomSession, startUserRoomSession } from "../usage/userRoomTime.js";
 import { finishWebRtcConnection, recordWebRtcTransport } from "../usage/webrtcUsage.js";
-import { listFavoriteUserIds, toggleFavorite } from "../rewards/rewardRepository.js";
+import { listFavoriteUserIds, recordQualityChatMessage, recordRoomOwnerJoinReward, toggleFavorite } from "../rewards/rewardRepository.js";
 
 const avatars = ["🐣", "🐼", "🐰", "🦊", "🐨", "🐥", "🐧", "🐸", "🦄", "🐙", "🐢", "🐹"];
 
@@ -377,7 +378,7 @@ export function registerSocketHandlers(io: AppServer) {
       socket.data.role = role;
       socket.data.userId = authenticatedUser?.id;
   socket.data.identityKey = identityKey;
-      startUserRoomSession(socket.id, socket.data.userId, roomId);
+      startUserRoomSession(socket.id, socket.data.userId, roomId, role);
       reconcileVirtualUserForRoom(io, roomId, humanCountBeforeJoin);
       cancelEmptyRoomDeletion(roomId);
       socket.join(roomId);
@@ -396,6 +397,10 @@ export function registerSocketHandlers(io: AppServer) {
       emitRoomModerationPermissions(io, roomId);
       emitRoomTopicPermissions(io, roomId);
       emitRoomYouTubePermissions(io, roomId);
+      const rewardContext = getRoomRewardContext(roomId);
+      if (rewardContext?.source === "user") {
+        void recordRoomOwnerJoinReward(roomId, rewardContext.creatorUserId, authenticatedUser?.id);
+      }
     });
 
     socket.on("update-room-languages", ({ roomId, primaryLanguage, primaryLanguageLevel, secondaryLanguage }) => {
@@ -764,6 +769,11 @@ export function registerSocketHandlers(io: AppServer) {
       if (message) {
         io.to(roomId).emit("receive-message", message);
         void handleHumanChatMessage(io, message);
+        if (socket.data.userId) {
+          void recordQualityChatMessage({
+            userId: socket.data.userId, roomId, messageId: message.id, text: message.text, timestamp: message.timestamp
+          });
+        }
       }
     });
 

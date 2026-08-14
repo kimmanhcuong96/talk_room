@@ -6,6 +6,7 @@ import {
   createAdminInvite,
   getAdminMe,
   getAdminUsers,
+  getAdminRewardOverview,
   getManagedUsers,
   readAdminToken,
   refreshAdminSession,
@@ -17,7 +18,8 @@ import {
   type AdminRole,
   type AdminSession,
   type AdminStatus,
-  type ManagedUser
+  type ManagedUser,
+  type AdminRewardOverview
 } from "../../lib/adminAuth";
 import { readStoredToken, storeApplicationToken } from "../../lib/auth";
 import { adminTranslate, type AdminTranslationKey } from "../../lib/adminI18n";
@@ -141,13 +143,15 @@ function UsersPage({ session, language, t }: { session: AdminSession; language: 
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [rewardOverview, setRewardOverview] = useState<AdminRewardOverview | null>(null);
   const pages = Math.max(1, Math.ceil(total / 20));
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const result = await getManagedUsers(session.token, { page, search, role });
+      const [result, overview] = await Promise.all([getManagedUsers(session.token, { page, search, role }), getAdminRewardOverview(session.token)]);
       setUsers(result.items); setTotal(result.total);
+      setRewardOverview(overview);
     } catch (loadError) { setError(localizeAdminError(loadError, t)); }
     finally { setLoading(false); }
   }, [page, role, search, session.token]);
@@ -172,13 +176,18 @@ function UsersPage({ session, language, t }: { session: AdminSession; language: 
       </form>
       <div className="flex justify-end"><AdminReloadButton language={language} loading={loading} onClick={() => void load()} /></div>
       <ErrorNotice error={error} />
+      {rewardOverview ? <section className="grid gap-3 rounded-lg border border-white/10 bg-panel p-4 lg:grid-cols-3">
+        <div><p className="text-xs uppercase tracking-wide text-white/45">{t("pointsToday")}</p><strong className="mt-1 block text-2xl text-[#ffd84d]">{rewardOverview.daily[rewardOverview.daily.length - 1]?.points ?? 0}</strong></div>
+        <div><p className="text-xs uppercase tracking-wide text-white/45">{t("rewardByType")}</p><div className="mt-2 flex flex-wrap gap-2">{rewardOverview.byType.map(item => <span key={item.eventType} className="rounded bg-white/5 px-2 py-1 text-xs">{item.eventType.replace(/_REWARD$/, "").replace(/_/g, " ")}: <strong>{item.points}</strong></span>)}</div></div>
+        <div><p className="text-xs uppercase tracking-wide text-white/45">{t("topEarners")}</p><ol className="mt-2 space-y-1 text-xs text-white/65">{rewardOverview.topEarners.map(item => <li key={item.userId} className="flex justify-between gap-2"><span className="truncate">{item.displayName || item.email}</span><strong className="text-[#ffd84d]">{item.points}</strong></li>)}</ol></div>
+      </section> : null}
       <div className="overflow-x-auto rounded-lg border border-white/10 bg-panel">
         <table className="w-full min-w-[850px] text-left text-sm">
-          <thead className="border-b border-white/10 bg-white/[0.03] text-xs uppercase tracking-wide text-white/45"><tr><th className="px-4 py-3">{t("account")}</th><th className="px-4 py-3">{t("role")}</th><th className="px-4 py-3">{adminAnalyticsCopy(language).totalRoomTime}</th><th className="px-4 py-3">{t("createdAt")}</th><th className="px-4 py-3">{t("lastLogin")}</th></tr></thead>
+          <thead className="border-b border-white/10 bg-white/[0.03] text-xs uppercase tracking-wide text-white/45"><tr><th className="px-4 py-3">{t("account")}</th><th className="px-4 py-3">{t("role")}</th><th className="px-4 py-3">{adminAnalyticsCopy(language).totalRoomTime}</th><th className="px-4 py-3">{t("rewardPoints")} / {t("rewardStreak")}</th><th className="px-4 py-3">{t("createdAt")}</th><th className="px-4 py-3">{t("lastLogin")}</th></tr></thead>
           <tbody className="divide-y divide-white/8">
-            {loading ? <tr><td colSpan={5} className="px-4 py-10 text-center text-white/50"><LoaderCircle className="mr-2 inline animate-spin" size={17} />{t("loading")}</td></tr> : null}
-            {!loading && users.length === 0 ? <tr><td colSpan={5} className="px-4 py-10 text-center text-white/50">{t("noUsers")}</td></tr> : null}
-            {!loading && users.map((user) => <tr key={user.id} className="hover:bg-white/[0.025]"><td className="px-4 py-3"><div className="font-medium">{user.displayName}</div><div className="mt-1 text-xs text-white/45">{user.email}</div></td><td className="px-4 py-3"><select value={user.role} onChange={(event) => void updateRole(user, event.target.value as UserRole)} className="h-9 rounded-md border border-white/10 bg-field px-2 outline-none focus:border-mint">{userRoles.map((value) => <option key={value} value={value}>{userRoleLabel(value, t)}</option>)}</select></td><td className="px-4 py-3 font-semibold text-mint">{formatRoomDuration(user.totalRoomSeconds)}</td><td className="px-4 py-3 text-white/60">{formatDate(user.createdAt, language)}</td><td className="px-4 py-3 text-white/60">{formatDate(user.lastLogin, language)}</td></tr>)}
+            {loading ? <tr><td colSpan={6} className="px-4 py-10 text-center text-white/50"><LoaderCircle className="mr-2 inline animate-spin" size={17} />{t("loading")}</td></tr> : null}
+            {!loading && users.length === 0 ? <tr><td colSpan={6} className="px-4 py-10 text-center text-white/50">{t("noUsers")}</td></tr> : null}
+            {!loading && users.map((user) => <tr key={user.id} className="hover:bg-white/[0.025]"><td className="px-4 py-3"><div className="font-medium">{user.displayName}</div><div className="mt-1 text-xs text-white/45">{user.email}</div></td><td className="px-4 py-3"><select value={user.role} onChange={(event) => void updateRole(user, event.target.value as UserRole)} className="h-9 rounded-md border border-white/10 bg-field px-2 outline-none focus:border-mint">{userRoles.map((value) => <option key={value} value={value}>{userRoleLabel(value, t)}</option>)}</select></td><td className="px-4 py-3 font-semibold text-mint">{formatRoomDuration(user.totalRoomSeconds)}</td><td className="px-4 py-3"><strong className="text-[#ffd84d]">{user.totalPoints}</strong><span className="ml-2 text-xs text-white/45">{user.currentStreakDays}d</span></td><td className="px-4 py-3 text-white/60">{formatDate(user.createdAt, language)}</td><td className="px-4 py-3 text-white/60">{formatDate(user.lastLogin, language)}</td></tr>)}
           </tbody>
         </table>
       </div>

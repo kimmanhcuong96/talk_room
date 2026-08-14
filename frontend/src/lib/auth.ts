@@ -26,13 +26,22 @@ export type AuthSession = {
 };
 
 export type RewardSummary = {
+  eligible: boolean;
   totalPoints: number;
   activityPoints: number;
   referralPoints: number;
   favoritePoints: number;
+  qualityChatPoints: number;
+  roomOwnerPoints: number;
+  streakPoints: number;
   favoriteCount: number;
   qualifiedReferrals: number;
   referralCode: string;
+  currentStreakDays: number;
+  highestStreakDays: number;
+  nextStreakMilestone: 3 | 7 | null;
+  canonicalTimeZone: string;
+  recentTransactions: Array<{ id: string; points: number; eventType: string; createdAt: string }>;
 };
 
 export class AuthRequestError extends Error {

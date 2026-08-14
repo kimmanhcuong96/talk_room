@@ -107,6 +107,11 @@ export function getRoomSummary(roomId: string): RoomSummary | undefined {
   };
 }
 
+export function getRoomRewardContext(roomId: string) {
+  const room = rooms.get(roomId);
+  return room ? { source: room.source, creatorUserId: room.creatorUserId } : null;
+}
+
 export function createRoom(
   name: string,
   primaryLanguage: RoomLanguage,

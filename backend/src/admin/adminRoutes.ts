@@ -32,6 +32,7 @@ import { getWebRtcUsageSummary } from "../usage/webrtcUsage.js";
 import { getTurnUsageStatus } from "../webrtc/turnUsage.js";
 import { getLLMUsageSummary } from "../usage/llmUsage.js";
 import { getResponseUsageSummary } from "../usage/responseUsage.js";
+import { getAdminRewardOverview } from "../rewards/rewardRepository.js";
 
 const userRoles = new Set<UserRole>(["unverified", "verified", "supporter"]);
 const adminRoles = new Set<AdminRole>(["owner", "admin"]);
@@ -161,6 +162,10 @@ adminRouter.get("/users", requireAdmin, async (request, response, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+adminRouter.get("/rewards", requireAdmin, async (_request, response, next) => {
+  try { response.json(await getAdminRewardOverview()); } catch (error) { next(error); }
 });
 
 adminRouter.get("/webrtc-usage", requireAdmin, async (_request, response, next) => {

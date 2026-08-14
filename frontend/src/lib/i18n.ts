@@ -48,6 +48,14 @@ export type TranslationKey =
   | "favoritesReceived"
   | "copyReferralLink"
   | "referralCopied"
+  | "rewardEligibleOnly"
+  | "currentStreak"
+  | "highestStreak"
+  | "nextStreakMilestone"
+  | "recentRewards"
+  | "qualityChatPoints"
+  | "roomOwnerPoints"
+  | "streakPoints"
   | "favoriteUser"
   | "unfavoriteUser"
   | "favoriteUpdated"
@@ -174,6 +182,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     favoritesReceived: "{count} favorites received",
     copyReferralLink: "Copy invitation link",
     referralCopied: "Invitation link copied",
+    rewardEligibleOnly: "Points are available to Verified users and Supporters.", currentStreak: "Current streak", highestStreak: "Best streak", nextStreakMilestone: "Next reward at {days} days", recentRewards: "Recent rewards", qualityChatPoints: "Quality chat", roomOwnerPoints: "Room owner", streakPoints: "Streak bonus",
     favoriteUser: "Add to favorites",
     unfavoriteUser: "Remove from favorites",
     favoriteUpdated: "Favorites updated.",
@@ -284,6 +293,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     favoritesReceived: "Đã nhận {count} lượt yêu thích",
     copyReferralLink: "Sao chép liên kết mời",
     referralCopied: "Đã sao chép liên kết mời",
+    rewardEligibleOnly: "Điểm chỉ dành cho tài khoản Verified và Supporter.", currentStreak: "Chuỗi hiện tại", highestStreak: "Chuỗi cao nhất", nextStreakMilestone: "Phần thưởng tiếp theo ở {days} ngày", recentRewards: "Điểm gần đây", qualityChatPoints: "Chat chất lượng", roomOwnerPoints: "Chủ phòng", streakPoints: "Thưởng chuỗi",
     favoriteUser: "Thêm vào yêu thích",
     unfavoriteUser: "Bỏ khỏi yêu thích",
     favoriteUpdated: "Đã cập nhật yêu thích.",
@@ -394,6 +404,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     favoritesReceived: "收到 {count} 个收藏",
     copyReferralLink: "复制邀请链接",
     referralCopied: "邀请链接已复制",
+    rewardEligibleOnly: "积分仅适用于 Verified 和 Supporter 用户。", currentStreak: "当前连续天数", highestStreak: "最高连续天数", nextStreakMilestone: "下一个奖励为 {days} 天", recentRewards: "最近奖励", qualityChatPoints: "优质聊天", roomOwnerPoints: "房主", streakPoints: "连续奖励",
     favoriteUser: "添加到收藏",
     unfavoriteUser: "取消收藏",
     favoriteUpdated: "收藏已更新。",
@@ -504,6 +515,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     favoritesReceived: "お気に入り {count} 件",
     copyReferralLink: "招待リンクをコピー",
     referralCopied: "招待リンクをコピーしました",
+    rewardEligibleOnly: "ポイントは Verified と Supporter のみ対象です。", currentStreak: "現在の連続日数", highestStreak: "最高連続日数", nextStreakMilestone: "次の報酬は {days} 日", recentRewards: "最近の報酬", qualityChatPoints: "質の高いチャット", roomOwnerPoints: "ルームオーナー", streakPoints: "連続ボーナス",
     favoriteUser: "お気に入りに追加",
     unfavoriteUser: "お気に入りから削除",
     favoriteUpdated: "お気に入りを更新しました。",

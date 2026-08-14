@@ -29,6 +29,8 @@ type ManagedUserRow = QueryResultRow & {
   created_at: Date;
   last_login: Date;
   total_seconds: string | number;
+  total_points: string | number;
+  current_streak_days: string | number;
 };
 
 const adminColumns = "id, google_id, email, display_name, avatar_url, role, status, invited_by, created_at, activated_at, last_login";
@@ -58,7 +60,9 @@ function toManagedUser(row: ManagedUserRow) {
     role: row.role,
     createdAt: row.created_at.toISOString(),
     lastLogin: row.last_login.toISOString()
-    ,totalRoomSeconds: Number(row.total_seconds ?? 0)
+    ,totalRoomSeconds: Number(row.total_seconds ?? 0),
+    totalPoints: Number(row.total_points ?? 0),
+    currentStreakDays: Number(row.current_streak_days ?? 0)
   };
 }
 
@@ -165,8 +169,13 @@ export async function listManagedUsers(options: { page: number; limit: number; s
   params.push(options.limit, offset);
   const rows = await getPool().query<ManagedUserRow>(
     `SELECT u.id, u.email, u.display_name, u.avatar_url, u.role, u.created_at, u.last_login,
-            COALESCE(t.total_seconds, 0)::bigint AS total_seconds
-     FROM users u LEFT JOIN user_room_time_totals t ON t.user_id = u.id ${where.replace(/\b(email|display_name|role)\b/g, "u.$1")}
+            COALESCE(t.total_seconds, 0)::bigint AS total_seconds,
+            COALESCE(p.total_points, 0)::bigint AS total_points,
+            COALESCE(CASE WHEN s.last_qualified_activity_date >= (NOW() AT TIME ZONE 'UTC')::date - 1
+              THEN s.current_streak_days ELSE 0 END, 0)::integer AS current_streak_days
+     FROM users u LEFT JOIN user_room_time_totals t ON t.user_id = u.id
+     LEFT JOIN (SELECT user_id, SUM(points) AS total_points FROM user_point_ledger GROUP BY user_id) p ON p.user_id = u.id
+     LEFT JOIN user_reward_streaks s ON s.user_id = u.id ${where.replace(/\b(email|display_name|role)\b/g, "u.$1")}
      ORDER BY created_at DESC
      LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params
@@ -186,9 +195,18 @@ export async function updateManagedUserRole(actorAdminId: string, userId: string
     const updated = await client.query<ManagedUserRow>(
       `UPDATE users SET role = $2 WHERE id = $1
        RETURNING id, email, display_name, avatar_url, role, created_at, last_login,
-         COALESCE((SELECT total_seconds FROM user_room_time_totals WHERE user_id = users.id), 0)::bigint AS total_seconds`,
+         COALESCE((SELECT total_seconds FROM user_room_time_totals WHERE user_id = users.id), 0)::bigint AS total_seconds,
+         COALESCE((SELECT SUM(points) FROM user_point_ledger WHERE user_id = users.id), 0)::bigint AS total_points,
+         COALESCE((SELECT CASE WHEN last_qualified_activity_date >= (NOW() AT TIME ZONE 'UTC')::date - 1
+           THEN current_streak_days ELSE 0 END FROM user_reward_streaks WHERE user_id = users.id), 0)::integer AS current_streak_days`,
       [userId, role]
     );
+    if (current.rows[0].role !== role) {
+      await client.query(
+        `INSERT INTO user_reward_eligibility_history (user_id, eligible)
+         VALUES ($1, $2)`, [userId, role === "verified" || role === "supporter"]
+      );
+    }
     await writeAudit(client, actorAdminId, "user.role_updated", { userId }, { from: current.rows[0].role, to: role });
     await client.query("COMMIT");
     return toManagedUser(updated.rows[0]);

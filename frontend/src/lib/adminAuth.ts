@@ -26,6 +26,13 @@ export type ManagedUser = {
   createdAt: string;
   lastLogin: string;
   totalRoomSeconds: number;
+  totalPoints: number;
+  currentStreakDays: number;
+};
+export type AdminRewardOverview = {
+  daily: Array<{ date: string; points: number }>;
+  byType: Array<{ eventType: string; points: number; transactions: number }>;
+  topEarners: Array<{ userId: string; displayName: string; email: string; points: number }>;
 };
 
 export type ReportStatus = "pending" | "blocked" | "dismissed";
@@ -154,6 +161,11 @@ export async function getManagedUsers(token: string, options: { page: number; se
   if (options.role) params.set("role", options.role);
   const response = await fetch(`${apiUrl}/admin/users?${params}`, { headers: authHeaders(token) });
   return parseResponse<{ items: ManagedUser[]; total: number; page: number; limit: number }>(response);
+}
+
+export async function getAdminRewardOverview(token: string) {
+  const response = await fetch(`${apiUrl}/admin/rewards`, { headers: authHeaders(token) });
+  return parseResponse<AdminRewardOverview>(response);
 }
 
 export async function setManagedUserRole(token: string, userId: string, role: UserRole) {

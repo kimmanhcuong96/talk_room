@@ -79,7 +79,8 @@ Client responsibilities:
 - Local nickname persistence in `localStorage`.
 - Local language preference persistence in `localStorage`.
 - Client-side i18n rendering.
-- User points are earned from eligible room activity (1 point per 5 minutes, capped at 2 hours per day), qualified referrals, and unique favorites. Rewards use an auditable, idempotent ledger; referral rewards require 30 minutes of activity and favorite rewards are issued only from established users.
+- Reward points are available only to `verified` and `supporter` users. The server awards points for eligible room-time segments, qualified referrals, unique favorites from established users, meaningful chat participation, real participants joining user-created rooms, and 3/7-day qualifying activity streaks. Exact chat qualification thresholds remain internal. Every award uses the existing auditable ledger with database idempotency, centralized limits, UTC daily boundaries, and no retroactive credit for activity performed while ineligible.
+- Eligible users can see their balance, category totals, recent transactions, current/highest streak, and the next streak milestone. Ineligible users retain normal app access and see an eligibility explanation. Admin user management includes point/streak values plus lightweight 7/30-day reward monitoring.
 - Local media capture and device availability checks.
 - Screen sharing capture when supported by the browser.
 - WebRTC peer connection management.

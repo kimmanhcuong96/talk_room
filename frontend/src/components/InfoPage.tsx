@@ -1,6 +1,6 @@
 import { ArrowLeft, BookOpen, HeartHandshake, Languages, Mail, MessageCircle, ShieldCheck, Sparkles, Users } from "lucide-react";
 import type { ReactNode } from "react";
-import { type InfoPageCopy, type Language, infoPageCopies, translate } from "../lib/i18n";
+import { type InfoPageCopy, type Language, infoPageCopies, privacyContentResponsibility, privacyEnforcementNotice, privacyEnforcementSummary, translate } from "../lib/i18n";
 import type { InfoPage as InfoPageName } from "../lib/routes";
 
 type InfoPageProps = {
@@ -11,11 +11,11 @@ type InfoPageProps = {
 
 const email = "me2talk.support@gmail.com";
 
-function PrivacyContent({ copy }: { copy: NonNullable<InfoPageCopy["privacy"]> }) {
+function PrivacyContent({ copy, language }: { copy: NonNullable<InfoPageCopy["privacy"]>; language: Language }) {
   return (
     <>
       <div className="rounded-lg border border-mint/20 bg-mint/10 p-4 text-sm leading-6 text-white/80">
-        <strong className="text-mint">{copy.summaryLabel}</strong> {copy.summary}
+        <strong className="text-mint">{copy.summaryLabel}</strong> {copy.summary} {privacyEnforcementSummary[language]}
       </div>
       <p className="mt-5 text-sm text-white/45">{copy.updated}</p>
       <div className="mt-8 grid gap-8">
@@ -25,6 +25,14 @@ function PrivacyContent({ copy }: { copy: NonNullable<InfoPageCopy["privacy"]> }
             <p className="mt-3 leading-7 text-white/68">{body}</p>
           </section>
         ))}
+        <section>
+          <h2 className="text-xl font-semibold text-white">{privacyContentResponsibility[language].heading}</h2>
+          <p className="mt-3 leading-7 text-white/68">{privacyContentResponsibility[language].body}</p>
+        </section>
+        <section>
+          <h2 className="text-xl font-semibold text-white">{privacyEnforcementNotice[language].heading}</h2>
+          <p className="mt-3 leading-7 text-white/68">{privacyEnforcementNotice[language].body}</p>
+        </section>
       </div>
     </>
   );
@@ -91,9 +99,9 @@ function AboutContent({ copy }: { copy: NonNullable<InfoPageCopy["about"]> }) {
   );
 }
 
-function renderContent(page: InfoPageName, copy: InfoPageCopy): ReactNode {
+function renderContent(page: InfoPageName, copy: InfoPageCopy, language: Language): ReactNode {
   if (page === "privacy" && copy.privacy) {
-    return <PrivacyContent copy={copy.privacy} />;
+    return <PrivacyContent copy={copy.privacy} language={language} />;
   }
 
   if (page === "contact" && copy.contact) {
@@ -125,7 +133,7 @@ export function InfoPage({ page, language, onBack }: InfoPageProps) {
         <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">{current.title}</h1>
         <p className="mt-5 max-w-3xl text-lg leading-8 text-white/68">{current.intro}</p>
       </header>
-      <div className="py-10">{renderContent(page, current)}</div>
+      <div className="py-10">{renderContent(page, current, language)}</div>
     </main>
   );
 }

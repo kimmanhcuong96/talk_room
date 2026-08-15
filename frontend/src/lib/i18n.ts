@@ -691,6 +691,27 @@ export type InfoPageCopy = {
   };
 };
 
+export const privacyContentResponsibility: Record<Language, { heading: string; body: string }> = {
+  en: { heading: "9. User content and responsibility", body: "You are solely responsible for the messages, statements, media, and other content you share through me2talk. Do not post unlawful, harmful, abusive, misleading, or rights-infringing content. The Me2Talk community and service team do not endorse user content and are not responsible for user statements, interactions, or consequences arising from them. Use your own judgment, protect your personal information, and report content that violates these expectations." },
+  vi: { heading: "9. Trách nhiệm về nội dung của người dùng", body: "Bạn hoàn toàn chịu trách nhiệm về tin nhắn, phát ngôn, hình ảnh, video và các nội dung khác mình chia sẻ trên Me2Talk. Không đăng nội dung trái pháp luật, gây hại, lăng mạ, gây hiểu lầm hoặc xâm phạm quyền của người khác. Cộng đồng và đội ngũ Me2Talk không đại diện cho nội dung của người dùng và được miễn trừ trách nhiệm đối với phát ngôn, tương tác hoặc hậu quả phát sinh từ đó. Hãy tự đánh giá, bảo vệ thông tin cá nhân và báo cáo nội dung vi phạm." },
+  zh: { heading: "9. 用户内容与责任", body: "您对通过 Me2Talk 分享的消息、言论、媒体和其他内容承担全部责任。请勿发布违法、有害、辱骂、误导性或侵犯他人权益的内容。Me2Talk 社区和服务团队不代表用户内容，并对用户言论、互动或由此产生的后果不承担责任。请自行判断，保护个人信息，并举报违规内容。" },
+  ja: { heading: "9. ユーザーコンテンツと責任", body: "Me2Talk を通じて共有するメッセージ、発言、メディア、その他のコンテンツについては、ユーザーが単独で責任を負います。違法、有害、侮辱的、誤解を招く内容や、他者の権利を侵害する内容を投稿しないでください。Me2Talk のコミュニティと運営チームはユーザーコンテンツを承認するものではなく、ユーザーの発言、交流、またはそれらから生じる結果について責任を負いません。ご自身で判断し、個人情報を守り、違反コンテンツを報告してください。" }
+};
+
+export const privacyEnforcementNotice: Record<Language, { heading: string; body: string }> = {
+  en: { heading: "10. Safety enforcement and account restrictions", body: "To protect the community and comply with applicable law, Me2Talk may review reports and take proportionate action, including removing content, limiting features, removing users from rooms, suspending, or permanently blocking accounts that violate our standards, ethical expectations, or the law. These actions may be taken immediately and without prior notice when we consider it necessary for safety, security, or legal compliance." },
+  vi: { heading: "10. Xử lý an toàn và hạn chế tài khoản", body: "Để bảo vệ cộng đồng và tuân thủ pháp luật hiện hành, Me2Talk có thể xem xét các báo cáo và áp dụng biện pháp phù hợp, bao gồm xóa nội dung, hạn chế tính năng, đưa người dùng ra khỏi phòng, tạm ngưng hoặc chặn vĩnh viễn tài khoản vi phạm tiêu chuẩn của chúng tôi, chuẩn mực đạo đức hoặc pháp luật. Các biện pháp này có thể được thực hiện ngay và không cần báo trước khi Me2Talk xét thấy cần thiết cho an toàn, bảo mật hoặc tuân thủ pháp luật." },
+  zh: { heading: "10. 安全处理与账户限制", body: "为保护社区并遵守适用法律，Me2Talk 可以审查举报并采取适当措施，包括删除内容、限制功能、将用户移出房间、暂停或永久封禁违反平台标准、道德规范或法律的账户。在安全、保障或法律合规需要时，这些措施可以立即执行，且不一定提前通知。" },
+  ja: { heading: "10. 安全のための対応とアカウント制限", body: "コミュニティを保護し、適用される法律を遵守するため、Me2Talk は報告を確認し、コンテンツの削除、機能の制限、ルームからの退出、アカウントの一時停止または永久的なブロックなど、必要かつ相当な措置を講じることがあります。安全、セキュリティ、法令遵守のために必要と判断した場合、これらの措置は事前の通知なく直ちに実施されることがあります。" }
+};
+
+export const privacyEnforcementSummary: Record<Language, string> = {
+  en: "We may restrict or block accounts that violate community standards, ethical expectations, or the law, without prior notice when necessary.",
+  vi: "Me2Talk có thể hạn chế hoặc chặn tài khoản vi phạm tiêu chuẩn cộng đồng, chuẩn mực đạo đức hoặc pháp luật mà không cần báo trước khi cần thiết.",
+  zh: "如有必要，我们可以在不事先通知的情况下限制或封禁违反社区标准、道德规范或法律的账户。",
+  ja: "必要に応じて、コミュニティ基準、倫理規範、または法律に違反するアカウントを事前通知なく制限またはブロックすることがあります。"
+};
+
 export const infoPageCopies: Record<Language, Record<"privacy" | "contact" | "about", InfoPageCopy>> = {
   en: {
     privacy: {

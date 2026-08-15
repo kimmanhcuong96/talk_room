@@ -52,6 +52,7 @@ const TOXICITY_WINDOW_MS = 10 * 60_000;
 const WITHDRAWAL_COOLDOWN_MS = 5 * 60_000;
 type LeaveReason = "rude" | "rejected" | "second_user";
 const pendingLeaveTimers = new Map<string, { botId: string; reason: LeaveReason; timer: ReturnType<typeof setTimeout> }>();
+const pendingInitialJoinTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const lastNonEnglishReminderAt = new Map<string, number>();
 const humanMessagePipelines = new Map<string, Promise<void>>();
 let proactiveCheckTimer: ReturnType<typeof setInterval> | null = null;
@@ -125,6 +126,9 @@ function shuffled<T>(items: readonly T[], random = Math.random) {
 }
 
 function assignVirtualUser(io: AppServer, roomId: string, random = Math.random) {
+  const pendingJoin = pendingInitialJoinTimers.get(roomId);
+  if (pendingJoin) clearTimeout(pendingJoin);
+  pendingInitialJoinTimers.delete(roomId);
   if ((withdrawnRooms.get(roomId) ?? 0) > Date.now()) return null;
   const profile = pool.assign(roomId, random);
   if (!profile) return null;
@@ -207,6 +211,7 @@ function rememberHumanMessage(message: ChatMessage) {
 }
 
 export function releaseVirtualUser(io: AppServer, roomId: string) {
+  cancelInitialVirtualUserJoin(roomId);
   const profile = pool.releaseRoom(roomId);
   const roomBot = getRoomVirtualUser(roomId);
   const botId = profile?.id ?? roomBot?.virtualUserId;
@@ -232,6 +237,25 @@ export function releaseVirtualUser(io: AppServer, roomId: string) {
 
 function randomDelay(minimumMs: number, maximumMs: number, random = Math.random) {
   return minimumMs + Math.floor(random() * (maximumMs - minimumMs + 1));
+}
+
+function cancelInitialVirtualUserJoin(roomId: string) {
+  const timer = pendingInitialJoinTimers.get(roomId);
+  if (timer) clearTimeout(timer);
+  pendingInitialJoinTimers.delete(roomId);
+}
+
+function scheduleInitialVirtualUserJoin(io: AppServer, roomId: string, random = Math.random) {
+  if (pendingInitialJoinTimers.has(roomId) || getRoomVirtualUser(roomId) || getRoomHumanCount(roomId) !== 1) return false;
+  const timer = setTimeout(() => {
+    pendingInitialJoinTimers.delete(roomId);
+    if (getRoomHumanCount(roomId) !== 1 || getRoomVirtualUser(roomId)) return;
+    assignVirtualUser(io, roomId, random);
+    rebalanceWaitingVirtualUsers(io, random);
+  }, randomDelay(3_000, 10_000, random));
+  timer.unref();
+  pendingInitialJoinTimers.set(roomId, timer);
+  return true;
 }
 
 export function scheduleVirtualUserLeave(
@@ -278,21 +302,25 @@ function scheduleWithdrawalExpiry(io: AppServer, roomId: string, expiresAt: numb
   withdrawalTimers.set(roomId, timer);
 }
 
-export function reconcileVirtualUserForRoom(io: AppServer, roomId: string, previousHumanCount?: number) {
+export function reconcileVirtualUserForRoom(io: AppServer, roomId: string, previousHumanCount?: number, delayInitialAssignment = false) {
   if ((withdrawnRooms.get(roomId) ?? 0) <= Date.now()) withdrawnRooms.delete(roomId);
   const humanCount = getRoomHumanCount(roomId);
   const existing = getRoomVirtualUser(roomId);
   if (humanCount >= 2) {
+    cancelInitialVirtualUserJoin(roomId);
     if (existing && (previousHumanCount ?? humanCount - 1) === 1) {
       scheduleVirtualUserLeave(io, roomId, "second_user", 10_000, 60_000);
     }
   } else if (humanCount === 1 && !existing) {
     cancelSecondUserLeave(roomId);
-    assignVirtualUser(io, roomId);
+    if (delayInitialAssignment) scheduleInitialVirtualUserJoin(io, roomId);
+    else assignVirtualUser(io, roomId);
   } else if (humanCount === 0 && !existing && pool.list().some((item) => item.runtime.roomId === roomId)) {
+    cancelInitialVirtualUserJoin(roomId);
     cancelSecondUserLeave(roomId);
     pool.releaseRoom(roomId);
   } else if (humanCount <= 1) {
+    if (humanCount === 0) cancelInitialVirtualUserJoin(roomId);
     cancelSecondUserLeave(roomId);
   }
   rebalanceWaitingVirtualUsers(io);
@@ -646,6 +674,7 @@ export const virtualUserInternals = {
   withdrawalTimers,
   lastDepartureMessageByBot,
   pendingLeaveTimers,
+  pendingInitialJoinTimers,
   lastNonEnglishReminderAt,
   humanMessagePipelines,
   responseEngine,

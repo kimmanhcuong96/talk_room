@@ -379,7 +379,7 @@ export function registerSocketHandlers(io: AppServer) {
       socket.data.userId = authenticatedUser?.id;
   socket.data.identityKey = identityKey;
       startUserRoomSession(socket.id, socket.data.userId, roomId, role);
-      reconcileVirtualUserForRoom(io, roomId, humanCountBeforeJoin);
+      reconcileVirtualUserForRoom(io, roomId, humanCountBeforeJoin, true);
       cancelEmptyRoomDeletion(roomId);
       socket.join(roomId);
 

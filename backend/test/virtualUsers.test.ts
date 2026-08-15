@@ -349,6 +349,26 @@ test("room lifecycle delays the second-user leave and cancels it if the room ret
   removeUser("human-a");
 });
 
+test("initial bot join is delayed only for a socket user join and is cancelled when the user leaves", async () => {
+  process.env.DATABASE_URL ||= "postgres://test:test@localhost:5432/test";
+  process.env.GOOGLE_CLIENT_ID ||= "test.apps.googleusercontent.com";
+  process.env.JWT_SECRET ||= "test-secret-that-is-long-enough";
+  const { reconcileVirtualUserForRoom, virtualUserInternals } = await import("../src/virtualUsers/virtualUserService.js");
+  virtualUserInternals.pool.replaceProfiles([makeProfile("bot-01")]);
+  const io = { to: () => ({ emit: () => undefined }), emit: () => undefined } as never;
+  const room = createRoom("Delayed bot join test", "en", "any", null, "00000000-0000-0000-0000-000000000000", 4);
+  const human = { socketId: "human-delayed", nickname: "Human", avatar: "🙂", role: "unverified" as const, micEnabled: false, cameraEnabled: false, screenSharing: false, screenTrackId: null, senderType: "human" as const };
+
+  assert.equal(addUserToRoom(room.id, human).ok, true);
+  reconcileVirtualUserForRoom(io, room.id, 0, true);
+  assert.equal(getRoomVirtualUser(room.id), undefined);
+  assert.equal(virtualUserInternals.pendingInitialJoinTimers.has(room.id), true);
+
+  removeUser("human-delayed");
+  reconcileVirtualUserForRoom(io, room.id);
+  assert.equal(virtualUserInternals.pendingInitialJoinTimers.has(room.id), false);
+});
+
 test("low activity distributes five distinct random bots across five empty system rooms", async () => {
   process.env.DATABASE_URL ||= "postgres://test:test@localhost:5432/test";
   process.env.GOOGLE_CLIENT_ID ||= "test.apps.googleusercontent.com";

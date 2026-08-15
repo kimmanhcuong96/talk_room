@@ -1,12 +1,13 @@
 type AvatarBadgeProps = {
   avatar: string;
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "room";
 };
 
 const sizeClass = {
   sm: "h-7 w-7 text-base",
   md: "h-10 w-10 text-xl",
-  lg: "h-24 w-24 text-5xl"
+  lg: "h-24 w-24 text-5xl",
+  room: "h-16 w-16 text-3xl"
 };
 
 export function AvatarBadge({ avatar, size = "md" }: AvatarBadgeProps) {

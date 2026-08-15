@@ -762,7 +762,7 @@ export function HomePage({
                       language={language}
                     />
                   </div>
-                  <div className="mt-3 flex min-h-10 items-center justify-between gap-3">
+                  <div className="mt-3 flex min-h-16 items-center justify-between gap-3">
                     <div className="flex items-center gap-2 text-sm text-white/65">
                       <Users size={17} />
                       <span>

@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="72" y1="72" x2="440" y2="440" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22D3EE"/>
+      <stop offset="0.52" stop-color="#4F7CFF"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="300" y1="100" x2="430" y2="240" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFD84D"/>
+      <stop offset="1" stop-color="#FF8A3D"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Main rounded app tile -->
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#bg)"/>
+
+  <!-- Main speech bubble -->
+  <path d="M126 132
+           C96 132 72 156 72 186
+           V310
+           C72 340 96 364 126 364
+           H210
+           L174 414
+           L264 364
+           H328
+           C358 364 382 340 382 310
+           V186
+           C382 156 358 132 328 132
+           Z"
+        fill="#FFFFFF"/>
+
+  <!-- Secondary speech bubble for 'talk' / two-way conversation -->
+  <path d="M315 100
+           H390
+           C421 100 446 125 446 156
+           V214
+           C446 245 421 270 390 270
+           H363
+           L392 306
+           L328 270
+           H315
+           C284 270 259 245 259 214
+           V156
+           C259 125 284 100 315 100
+           Z"
+        fill="url(#accent)"/>
+
+  <!-- Stylized number 2 -->
+  <path d="M142 236
+           C147 194 180 168 225 168
+           C272 168 304 193 304 230
+           C304 261 285 280 255 299
+           L205 331
+           H307
+           V362
+           H141
+           V336
+           L230 278
+           C253 263 265 251 265 233
+           C265 214 250 202 226 202
+           C202 202 185 216 181 238
+           Z"
+        fill="#5B5CF6"/>
+
+  <!-- Friendly spark/dot -->
+  <circle cx="362" cy="178" r="15" fill="#FFFFFF"/>
+  <circle cx="404" cy="178" r="15" fill="#FFFFFF"/>
+</svg>

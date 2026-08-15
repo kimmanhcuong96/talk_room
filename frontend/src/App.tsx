@@ -442,7 +442,7 @@ export function App() {
   }
 
   if (routeInfoPage) {
-    return <><Seo language={language} page={routeInfoPage === "rewards" ? "about" : routeInfoPage} /><InfoPage page={routeInfoPage} language={language} onBack={handleCloseInfoPage} /></>;
+    return <><Seo language={language} page={routeInfoPage} /><InfoPage page={routeInfoPage} language={language} onBack={handleCloseInfoPage} /></>;
   }
 
   return (

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import type { Language } from "../lib/i18n";
 import { infoPagePath } from "../lib/routes";
 
-type SeoPage = "home" | "privacy" | "contact" | "about" | "room";
+type SeoPage = "home" | "privacy" | "contact" | "about" | "rewards" | "room";
 
 type SeoCopy = {
   homeTitle: string;
@@ -15,6 +15,8 @@ type SeoCopy = {
   aboutDescription: string;
   roomTitle: string;
   roomDescription: string;
+  rewardsTitle: string;
+  rewardsDescription: string;
 };
 
 const seoCopies: Record<Language, SeoCopy> = {
@@ -27,6 +29,8 @@ const seoCopies: Record<Language, SeoCopy> = {
     contactDescription: "Contact the me2talk team for support, feedback, feature ideas, room reports, or partnership enquiries.",
     aboutTitle: "About me2talk | Me to talk",
     aboutDescription: "Discover me2talk, a welcoming space for language practice, meaningful conversations, and genuine connection.",
+    rewardsTitle: "Reward Points Policy | me2talk",
+    rewardsDescription: "Learn how me2talk points are earned through room activity, referrals, favorites, quality conversations, and community contribution.",
     roomTitle: "Conversation Room | me2talk",
     roomDescription: "Join a live Talking Room conversation to practice speaking, listen, chat, and connect with other language learners."
   },
@@ -39,6 +43,8 @@ const seoCopies: Record<Language, SeoCopy> = {
     contactDescription: "Liên hệ đội ngũ me2talk để được hỗ trợ, góp ý tính năng, báo cáo vấn đề trong phòng hoặc trao đổi hợp tác.",
     aboutTitle: "Về me2talk | Me to talk",
     aboutDescription: "Khám phá me2talk, không gian thân thiện để luyện tập ngôn ngữ, trò chuyện chân thành và tạo nên những kết nối ý nghĩa.",
+    rewardsTitle: "Chính sách tích điểm | me2talk",
+    rewardsDescription: "Tìm hiểu cách nhận điểm me2talk qua hoạt động trong phòng, giới thiệu bạn bè, lượt yêu thích, trò chuyện chất lượng và đóng góp cộng đồng.",
     roomTitle: "Phòng trò chuyện | me2talk",
     roomDescription: "Tham gia phòng Talking Room trực tiếp để luyện nói, lắng nghe, nhắn tin và kết nối với những người học ngôn ngữ khác."
   },
@@ -51,6 +57,8 @@ const seoCopies: Record<Language, SeoCopy> = {
     contactDescription: "联系 me2talk 团队，获取支持、提出功能建议、报告房间问题或洽谈合作。",
     aboutTitle: "关于 me2talk | Me to talk",
     aboutDescription: "了解 me2talk：一个用于语言练习、真诚交流和建立有意义联系的友好空间。",
+    rewardsTitle: "积分奖励政策 | me2talk",
+    rewardsDescription: "了解如何通过房间活动、好友邀请、用户喜爱、优质对话和社区贡献获得 me2talk 积分。",
     roomTitle: "在线会话房 | me2talk",
     roomDescription: "加入 Talking Room 实时会话，练习口语、倾听、聊天并与其他语言学习者建立联系。"
   },
@@ -63,6 +71,8 @@ const seoCopies: Record<Language, SeoCopy> = {
     contactDescription: "サポート、機能提案、ルーム内の問題報告、提携のご相談は me2talk チームへお問い合わせください。",
     aboutTitle: "me2talk について | Me to talk",
     aboutDescription: "me2talk は、語学練習、心の通う会話、有意義なつながりのための親しみやすい空間です。",
+    rewardsTitle: "ポイントポリシー | me2talk",
+    rewardsDescription: "ルームでの活動、友達紹介、お気に入り、質の高い会話、コミュニティへの貢献で me2talk ポイントを獲得する方法をご案内します。",
     roomTitle: "会話ルーム | me2talk",
     roomDescription: "Talking Room のライブ会話に参加して、スピーキング、リスニング、チャットを楽しみ、語学学習者とつながりましょう。"
   }
@@ -96,6 +106,8 @@ export function Seo({ language, page, roomName }: { language: Language; page: Se
           ? copy.contactTitle
           : page === "about"
             ? copy.aboutTitle
+            : page === "rewards"
+              ? copy.rewardsTitle
             : roomName
               ? `${roomName} | me2talk`
               : copy.roomTitle;
@@ -105,9 +117,11 @@ export function Seo({ language, page, roomName }: { language: Language; page: Se
         ? copy.privacyDescription
         : page === "contact"
           ? copy.contactDescription
-          : page === "about"
-            ? copy.aboutDescription
-            : copy.roomDescription;
+      : page === "about"
+        ? copy.aboutDescription
+        : page === "rewards"
+          ? copy.rewardsDescription
+        : copy.roomDescription;
     const configuredSiteUrl = import.meta.env.VITE_SITE_URL?.trim();
     const siteOrigin = configuredSiteUrl ? new URL(configuredSiteUrl).origin : window.location.origin;
     const canonicalUrl = new URL(window.location.pathname, siteOrigin).toString();
@@ -167,7 +181,8 @@ export function Seo({ language, page, roomName }: { language: Language; page: Se
             itemListElement: [
               { "@type": "SiteNavigationElement", position: 1, name: "About Us", url: new URL(infoPagePath("about"), siteOrigin).toString() },
               { "@type": "SiteNavigationElement", position: 2, name: "Privacy Policy", url: new URL(infoPagePath("privacy"), siteOrigin).toString() },
-              { "@type": "SiteNavigationElement", position: 3, name: "Contact Us", url: new URL(infoPagePath("contact"), siteOrigin).toString() }
+              { "@type": "SiteNavigationElement", position: 3, name: "Contact Us", url: new URL(infoPagePath("contact"), siteOrigin).toString() },
+              { "@type": "SiteNavigationElement", position: 4, name: "Reward Points Policy", url: new URL(infoPagePath("rewards"), siteOrigin).toString() }
             ]
           }
         ]

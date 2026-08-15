@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
-Disallow: /admin
-Disallow: /room/
+
+Sitemap: https://me2talk.com/sitemap.xml

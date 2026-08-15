@@ -136,6 +136,7 @@ export function HomePage({
   const [roomCapacity, setRoomCapacity] = useState(2);
   const cleanNewRoomNameLength = newRoomName.trim().length;
   const hasShortRoomName = newRoomName.length > 0 && cleanNewRoomNameLength < 3;
+  const canSetRoomName = user?.role === "verified" || user?.role === "supporter";
   const languageMenuRef = useRef<HTMLDivElement | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const t = (key: Parameters<typeof translate>[1], values?: Parameters<typeof translate>[2]) => translate(language, key, values);
@@ -508,12 +509,12 @@ export function HomePage({
                 onSubmit={(event) => {
                   event.preventDefault();
                   const cleanName = newRoomName.trim();
-                  if (cleanName.length >= 3) {
+                  if (!cleanName || cleanName.length >= 3) {
                     onCreateRoom(cleanName, primaryLanguage, primaryLanguageLevel, secondaryLanguage || null, roomCapacity);
                   }
                 }}
               >
-                <label htmlFor="new-room-name" className="text-sm font-medium text-white/75">{t("createRoomName")}</label>
+                <label htmlFor="new-room-name" className="text-sm font-medium text-white/75">{t("createRoomName")} <span className="font-normal text-white/40">({t("optional")})</span></label>
                 <input
                   id="new-room-name"
                   aria-describedby="new-room-name-help"
@@ -522,15 +523,16 @@ export function HomePage({
                   maxLength={60}
                   autoFocus
                   onChange={(event) => setNewRoomName(event.target.value)}
+                  disabled={!canSetRoomName}
                   placeholder={t("createRoomNamePlaceholder")}
-                  className={`mt-2 h-11 w-full rounded-md border bg-field px-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-mint ${hasShortRoomName ? "border-coral/70" : "border-white/10"}`}
+                  className={`mt-2 h-11 w-full rounded-md border bg-field px-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-mint disabled:cursor-not-allowed disabled:opacity-45 ${hasShortRoomName ? "border-coral/70" : "border-white/10"}`}
                 />
                 <p
                   id="new-room-name-help"
                   role={hasShortRoomName ? "alert" : undefined}
                   className={`mt-2 text-xs ${hasShortRoomName ? "text-coral" : "text-white/45"}`}
                 >
-                  {t("createRoomNameTooShort")}
+                  {hasShortRoomName ? t("createRoomNameTooShort") : !canSetRoomName ? t("createRoomVerifiedOnly") : ""}
                 </p>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <label className="text-sm font-medium text-white/75" htmlFor="room-primary-language">
@@ -604,7 +606,7 @@ export function HomePage({
                   <button type="button" onClick={() => setCreateRoomOpen(false)} className="h-10 rounded-md bg-white/5 px-4 text-sm text-white/75 hover:bg-white/10">
                     {t("cancel")}
                   </button>
-                  <button type="submit" disabled={cleanNewRoomNameLength < 3} className="h-10 rounded-md bg-[#258ff4] px-4 text-sm font-semibold text-white hover:bg-[#1d7edb] disabled:cursor-not-allowed disabled:opacity-40">
+                  <button type="submit" disabled={hasShortRoomName} className="h-10 rounded-md bg-[#258ff4] px-4 text-sm font-semibold text-white hover:bg-[#1d7edb] disabled:cursor-not-allowed disabled:opacity-40">
                     {t("createRoom")}
                   </button>
                 </div>

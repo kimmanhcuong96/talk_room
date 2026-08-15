@@ -252,7 +252,12 @@ export function registerSocketHandlers(io: AppServer) {
         return;
       }
 
-      if (cleanName.length < 3) {
+      if (cleanName && !["verified", "supporter"].includes(user.role)) {
+        socket.emit("create-room-error", "ROOM_NAME_PERMISSION_DENIED");
+        return;
+      }
+
+      if (cleanName.length > 0 && cleanName.length < 3) {
         socket.emit("create-room-error", "ROOM_NAME_TOO_SHORT");
         return;
       }
@@ -283,7 +288,7 @@ export function registerSocketHandlers(io: AppServer) {
         return;
       }
 
-      const room = createRoom(cleanName, primaryLanguage, primaryLanguageLevel, cleanSecondaryLanguage, user.id, cleanCapacity);
+      const room = createRoom(cleanName || "Talking Room", primaryLanguage, primaryLanguageLevel, cleanSecondaryLanguage, user.id, cleanCapacity);
       socket.emit("room-created", room);
       emitRoomList(io);
       scheduleEmptyRoomDeletion(io, room.id);

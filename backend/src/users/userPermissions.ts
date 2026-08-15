@@ -3,7 +3,7 @@ import type { UserRole } from "./userRepository.js";
 export type UserPermission = "create_room" | "use_camera" | "favorite_user";
 
 const rolePermissions: Record<UserRole, ReadonlySet<UserPermission>> = {
-  unverified: new Set(),
+  unverified: new Set(["create_room"]),
   verified: new Set(["create_room", "favorite_user"]),
   supporter: new Set(["create_room", "use_camera", "favorite_user"])
 };

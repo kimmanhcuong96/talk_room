@@ -129,6 +129,8 @@ export function App() {
       }
       const errorKey = message === "ROOM_NAME_TOO_SHORT"
         ? "createRoomNameTooShort"
+        : message === "ROOM_NAME_PERMISSION_DENIED"
+          ? "createRoomVerifiedOnly"
         : message === "ROOM_CAPACITY_INVALID"
           ? "roomCapacityInvalid"
           : message === "ROOM_PRIMARY_LANGUAGE_REQUIRED"

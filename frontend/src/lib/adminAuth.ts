@@ -186,6 +186,13 @@ export async function reviewVerificationRequest(token: string, requestId: string
   return (await parseResponse<{ request: AdminVerificationRequest }>(response)).request;
 }
 
+export async function reviewVerificationRequests(token: string, requestIds: string[], decision: "approved" | "rejected") {
+  const response = await fetch(`${apiUrl}/admin/verification-requests/bulk`, {
+    method: "PATCH", headers: authHeaders(token, true), body: JSON.stringify({ requestIds, decision })
+  });
+  return (await parseResponse<{ requests: AdminVerificationRequest[] }>(response)).requests;
+}
+
 export async function setManagedUserRole(token: string, userId: string, role: UserRole) {
   const response = await fetch(`${apiUrl}/admin/users/${userId}/role`, {
     method: "PATCH",

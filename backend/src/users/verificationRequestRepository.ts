@@ -104,3 +104,39 @@ export async function reviewVerificationRequest(adminId: string, requestId: stri
   const result = await getPool().query<RequestRow>(`${requestSelect} WHERE r.id = $1`, [requestId]);
   return result.rows[0] ? toRequest(result.rows[0]) : null;
 }
+
+export async function reviewVerificationRequests(adminId: string, requestIds: string[], decision: "approved" | "rejected") {
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+    const pending = await client.query<{ id: string; user_id: string }>(
+      "SELECT id, user_id FROM verification_requests WHERE id = ANY($1::uuid[]) AND status = 'pending' FOR UPDATE",
+      [requestIds]
+    );
+    if (pending.rows.length !== requestIds.length) throw new HttpError(409, "One or more requests have already been reviewed.");
+    if (decision === "approved") {
+      for (const row of pending.rows) {
+        const updated = await client.query("UPDATE users SET role = 'verified' WHERE id = $1 AND role = 'unverified'", [row.user_id]);
+        if (updated.rowCount === 1) await client.query("INSERT INTO user_reward_eligibility_history (user_id, eligible) VALUES ($1, TRUE)", [row.user_id]);
+      }
+    }
+    await client.query(
+      "UPDATE verification_requests SET status = $2, reviewed_by = $3, reviewed_at = NOW(), updated_at = NOW() WHERE id = ANY($1::uuid[])",
+      [requestIds, decision, adminId]
+    );
+    for (const row of pending.rows) {
+      await client.query(
+        `INSERT INTO admin_audit_logs (id, actor_admin_id, action, target_user_id, metadata)
+         VALUES ($1, $2, $3, $4, $5::jsonb)`,
+        [randomUUID(), adminId, `verification_request.${decision}`, row.user_id, JSON.stringify({ requestId: row.id, bulk: true })]
+      );
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+  return listVerificationRequests("pending");
+}

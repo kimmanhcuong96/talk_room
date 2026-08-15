@@ -33,7 +33,7 @@ import { getTurnUsageStatus } from "../webrtc/turnUsage.js";
 import { getLLMUsageSummary } from "../usage/llmUsage.js";
 import { getResponseUsageSummary } from "../usage/responseUsage.js";
 import { getAdminRewardOverview } from "../rewards/rewardRepository.js";
-import { listVerificationRequests, reviewVerificationRequest, type VerificationRequestStatus } from "../users/verificationRequestRepository.js";
+import { listVerificationRequests, reviewVerificationRequest, reviewVerificationRequests, type VerificationRequestStatus } from "../users/verificationRequestRepository.js";
 
 const userRoles = new Set<UserRole>(["unverified", "verified", "supporter"]);
 const adminRoles = new Set<AdminRole>(["owner", "admin"]);
@@ -180,6 +180,16 @@ adminRouter.get("/verification-requests", requireAdmin, async (request, response
     const status = String(request.query.status ?? "pending") as VerificationRequestStatus;
     if (!["pending", "approved", "rejected"].includes(status)) throw new HttpError(400, "Invalid verification request status.");
     response.json({ requests: await listVerificationRequests(status) });
+  } catch (error) { next(error); }
+});
+
+adminRouter.patch("/verification-requests/bulk", requireAdmin, async (request, response, next) => {
+  try {
+    const requestIds = Array.isArray(request.body?.requestIds) ? request.body.requestIds.map((value: unknown) => typeof value === "string" ? requireUuid(value) : "") : [];
+    const decision = request.body?.decision as "approved" | "rejected";
+    if (!requestIds.length || requestIds.length > 100 || requestIds.some((value: string) => !value)) throw new HttpError(400, "Select between 1 and 100 requests.");
+    if (decision !== "approved" && decision !== "rejected") throw new HttpError(400, "Invalid verification request decision.");
+    response.json({ requests: await reviewVerificationRequests(getRequestAdmin(request).id, requestIds, decision) });
   } catch (error) { next(error); }
 });
 

@@ -61,7 +61,7 @@ authRouter.post("/verification-request", async (request, response, next) => {
   try {
     const message = typeof request.body?.message === "string" ? request.body.message.trim() : "";
     const communityCommitment = request.body?.communityCommitment === true;
-    if (message.length < 20 || message.length > 2_000) throw new HttpError(400, "The request message must be between 20 and 2000 characters.");
+    if (message.length < 1 || message.length > 2_000) throw new HttpError(400, "The request message is required and must be no longer than 2000 characters.");
     if (!communityCommitment) throw new HttpError(400, "Community commitment is required.");
     response.status(201).json({ request: await createVerificationRequest(requireApplicationUser(request), message, communityCommitment) });
   } catch (error) { next(error); }

@@ -5,9 +5,9 @@
       <stop offset="0.52" stop-color="#36C9A0"/>
       <stop offset="1" stop-color="#258FF4"/>
     </linearGradient>
-    <linearGradient id="accent" x1="300" y1="100" x2="430" y2="240" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#1D2633"/>
-      <stop offset="1" stop-color="#141A23"/>
+    <linearGradient id="message" x1="286" y1="112" x2="434" y2="278" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#00B2FF"/>
+      <stop offset="1" stop-color="#006AFF"/>
     </linearGradient>
   </defs>
 
@@ -40,7 +40,7 @@
            V156
            C259 125 284 100 315 100
            Z"
-        fill="url(#accent)"/>
+        fill="url(#message)"/>
 
   <path d="M142 236
            C147 194 180 168 225 168
@@ -56,7 +56,8 @@
            C265 214 250 202 226 202
            C202 202 185 216 181 238
            Z"
-        fill="#258FF4"/>
+        fill="#258FF4"
+        transform="matrix(1.17 0 0 1.11 -38.08 -34.15)"/>
 
   <circle cx="362" cy="178" r="15" fill="#FFFFFF"/>
   <circle cx="404" cy="178" r="15" fill="#FFFFFF"/>

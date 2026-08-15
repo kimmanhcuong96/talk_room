@@ -1,20 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="bg" x1="72" y1="72" x2="440" y2="440" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#22D3EE"/>
-      <stop offset="0.52" stop-color="#4F7CFF"/>
-      <stop offset="1" stop-color="#8B5CF6"/>
+      <stop offset="0" stop-color="#45D483"/>
+      <stop offset="0.52" stop-color="#36C9A0"/>
+      <stop offset="1" stop-color="#258FF4"/>
     </linearGradient>
     <linearGradient id="accent" x1="300" y1="100" x2="430" y2="240" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FFD84D"/>
-      <stop offset="1" stop-color="#FF8A3D"/>
+      <stop offset="0" stop-color="#1D2633"/>
+      <stop offset="1" stop-color="#141A23"/>
     </linearGradient>
   </defs>
 
-  <!-- Main rounded app tile -->
   <rect x="32" y="32" width="448" height="448" rx="112" fill="url(#bg)"/>
 
-  <!-- Main speech bubble -->
   <path d="M126 132
            C96 132 72 156 72 186
            V310
@@ -29,7 +27,6 @@
            Z"
         fill="#FFFFFF"/>
 
-  <!-- Secondary speech bubble for 'talk' / two-way conversation -->
   <path d="M315 100
            H390
            C421 100 446 125 446 156
@@ -45,7 +42,6 @@
            Z"
         fill="url(#accent)"/>
 
-  <!-- Stylized number 2 -->
   <path d="M142 236
            C147 194 180 168 225 168
            C272 168 304 193 304 230
@@ -60,9 +56,8 @@
            C265 214 250 202 226 202
            C202 202 185 216 181 238
            Z"
-        fill="#5B5CF6"/>
+        fill="#258FF4"/>
 
-  <!-- Friendly spark/dot -->
   <circle cx="362" cy="178" r="15" fill="#FFFFFF"/>
   <circle cx="404" cy="178" r="15" fill="#FFFFFF"/>
 </svg>

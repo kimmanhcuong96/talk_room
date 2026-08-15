@@ -537,7 +537,6 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
               localUser={localUser}
               language={language}
               remotePeers={remotePeers}
-              canFavorite={Boolean(authToken) && hasPermission(role, "favorite_user")}
               favoritedIds={favoritedUserIds}
               onToggleFavorite={handleToggleFavorite}
               stageContent={youtubeOnStage && youtubeVideo

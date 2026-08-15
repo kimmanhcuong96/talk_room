@@ -2,33 +2,18 @@ import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { getPool } from "../db/pool.js";
 import { qualifyReferralIfEligible, recordActivityPoints } from "../rewards/rewardRepository.js";
-import { isRewardEligibleRole } from "../rewards/rewardConfig.js";
-import type { UserRole } from "../users/userRepository.js";
-import { buildEligibleSegments } from "../rewards/rewardPolicy.js";
 
-type ActiveSession = { userId: string; roomId: string; startedAt: number; eligibleAtStart: boolean };
+type ActiveSession = { userId: string; roomId: string; startedAt: number };
 const active = new Map<string, ActiveSession>();
 
-export function startUserRoomSession(socketId: string, userId: string | undefined, roomId: string, role: UserRole) {
+export function startUserRoomSession(socketId: string, userId: string | undefined, roomId: string) {
   if (!userId) return;
   const now = Date.now();
-  active.set(socketId, { userId, roomId, startedAt: now, eligibleAtStart: isRewardEligibleRole(role) });
+  active.set(socketId, { userId, roomId, startedAt: now });
 }
 
-async function getEligibleSegments(client: PoolClient, session: ActiveSession, endedAt: number) {
-  const initial = await client.query<{ eligible: boolean }>(
-    `SELECT eligible FROM user_reward_eligibility_history
-     WHERE user_id = $1 AND changed_at <= to_timestamp($2 / 1000.0)
-     ORDER BY changed_at DESC, id DESC LIMIT 1`, [session.userId, session.startedAt]
-  );
-  const changes = await client.query<{ eligible: boolean; changed_at_ms: string }>(
-    `SELECT eligible, (EXTRACT(EPOCH FROM changed_at) * 1000)::bigint::text AS changed_at_ms
-     FROM user_reward_eligibility_history
-     WHERE user_id = $1 AND changed_at > to_timestamp($2 / 1000.0) AND changed_at < to_timestamp($3 / 1000.0)
-     ORDER BY changed_at, id`, [session.userId, session.startedAt, endedAt]
-  );
-  return buildEligibleSegments(session.startedAt, endedAt, initial.rows[0]?.eligible ?? session.eligibleAtStart,
-    changes.rows.map(change => ({ changedAt: Number(change.changed_at_ms), eligible: change.eligible })));
+function getEligibleSegments(session: ActiveSession, endedAt: number) {
+  return [{ startedAt: session.startedAt, endedAt }];
 }
 
 export async function finishUserRoomSession(socketId: string) {
@@ -53,7 +38,7 @@ export async function finishUserRoomSession(socketId: string) {
          ON CONFLICT (user_id) DO UPDATE SET total_seconds = user_room_time_totals.total_seconds + EXCLUDED.total_seconds, updated_at = NOW()`,
         [session.userId, durationSeconds]
       );
-      const rewardSegments = await getEligibleSegments(client, session, endedAt);
+      const rewardSegments = getEligibleSegments(session, endedAt);
       for (const [index, segment] of rewardSegments.entries()) {
         await recordActivityPoints(client, session.userId, `${sessionId}:${index}`, segment.startedAt, segment.endedAt);
       }

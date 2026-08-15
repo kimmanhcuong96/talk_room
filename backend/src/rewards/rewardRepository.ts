@@ -5,14 +5,9 @@ import { HttpError } from "../errors/httpError.js";
 import { rewardConfig, type RewardEventType } from "./rewardConfig.js";
 import { calculateActivityPointUpdate, isQualityChatMessage, splitActivityByUtcDate } from "./rewardPolicy.js";
 
-const eligibleRoles = ["verified", "supporter"] as const;
-
 async function isEligible(client: PoolClient, userId: string) {
-  const result = await client.query<{ eligible: boolean }>(
-    `SELECT role = ANY($2::text[]) AS eligible FROM users WHERE id = $1`,
-    [userId, eligibleRoles]
-  );
-  return result.rows[0]?.eligible === true;
+  const result = await client.query(`SELECT 1 FROM users WHERE id = $1`, [userId]);
+  return result.rowCount === 1;
 }
 
 async function insertLedger(
@@ -275,7 +270,7 @@ export async function getRewardSummary(userId: string) {
   const current = row.last_qualified_activity_date === today || row.last_qualified_activity_date === yesterdayDate.toISOString().slice(0, 10)
     ? Number(row.current_streak_days) : 0;
   return {
-    eligible: eligibleRoles.includes(row.role as typeof eligibleRoles[number]),
+    eligible: true,
     totalPoints: Number(row.total_points), activityPoints: Number(row.activity_points), referralPoints: Number(row.referral_points),
     favoritePoints: Number(row.favorite_points), qualityChatPoints: Number(row.quality_chat_points), roomOwnerPoints: Number(row.room_owner_points),
     streakPoints: Number(row.streak_points), favoriteCount: Number(row.favorite_count), qualifiedReferrals: Number(row.qualified_referrals),

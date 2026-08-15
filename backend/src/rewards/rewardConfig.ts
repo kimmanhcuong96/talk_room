@@ -22,7 +22,3 @@ export const rewardEventTypes = [
 ] as const;
 
 export type RewardEventType = typeof rewardEventTypes[number];
-
-export function isRewardEligibleRole(role: string) {
-  return role === "verified" || role === "supporter";
-}

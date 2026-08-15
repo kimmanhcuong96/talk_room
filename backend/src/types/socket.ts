@@ -20,7 +20,7 @@ export type PublicRoomUser = RoomUser;
 
 export type RoomTopic = {
   description: string;
-  background: "slate" | "mint" | "blue" | "coral" | "violet" | "amber" | "aurora" | "sunset" | "ocean" | "nebula";
+  background: "slate" | "mint" | "blue" | "coral" | "violet" | "amber" | "aurora" | "sunset" | "ocean" | "nebula" | "prism" | "geometry" | "fluid" | "forest" | "particles" | "holographic" | "neon-grid" | "synthwave" | "circuit" | "glass-orbs" | "mesh" | "data-stream";
   font: "sans" | "serif" | "mono" | "display";
   icon: "none" | "message" | "sparkles" | "book" | "globe" | "coffee" | "game";
 };

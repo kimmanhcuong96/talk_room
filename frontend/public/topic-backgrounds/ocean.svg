@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+  <defs><linearGradient id="water" x2="0" y2="1"><stop stop-color="#082f49"/><stop offset=".6" stop-color="#0369a1"/><stop offset="1" stop-color="#0c4a6e"/></linearGradient></defs>
+  <rect width="1600" height="900" fill="url(#water)"/>
+  <g fill="none" stroke="#bae6fd" stroke-opacity=".28" stroke-width="16"><path d="M-100 260 Q220 90 540 260 T1180 260 T1780 260"/><path d="M-120 470 Q200 300 520 470 T1160 470 T1760 470"/><path d="M-140 700 Q180 530 500 700 T1140 700 T1740 700"/></g>
+  <circle cx="1320" cy="170" r="110" fill="#e0f2fe" fill-opacity=".15"/>
+</svg>

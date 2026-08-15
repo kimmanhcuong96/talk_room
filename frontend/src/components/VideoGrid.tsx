@@ -14,6 +14,7 @@ type VideoGridProps = {
   localUser: {
     nickname: string;
     avatar: string;
+    role: RoomUser["role"];
     micEnabled: boolean;
     cameraEnabled: boolean;
     screenSharing: boolean;
@@ -33,6 +34,8 @@ type Participant = {
   thumbnailStream: MediaStream | null;
   nickname: string;
   avatar: string;
+  role: RoomUser["role"];
+  senderType: RoomUser["senderType"];
   micEnabled: boolean;
   cameraEnabled: boolean;
   screenSharing: boolean;
@@ -99,6 +102,9 @@ function ParticipantVideoTile({ participant, mode, language, selected = false, o
       favoriteEnabled={canFavorite && participant.favoriteEligible}
       favorited={favorited}
       onToggleFavorite={onToggleFavorite}
+      profileRole={participant.role}
+      senderType={participant.senderType}
+      showProfile={mode === "thumbnail"}
     />
   );
 }
@@ -118,6 +124,8 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
         thumbnailStream: localCameraStream,
         nickname: `${localUser.nickname} (You)`,
         avatar: localUser.avatar,
+        role: localUser.role,
+        senderType: "human" as const,
         micEnabled: localUser.micEnabled,
         cameraEnabled: localUser.cameraEnabled,
         screenSharing: localUser.screenSharing,
@@ -131,6 +139,8 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
         thumbnailStream: peer.stream,
         nickname: peer.nickname,
         avatar: peer.avatar,
+        role: peer.role,
+        senderType: peer.senderType,
         micEnabled: peer.micEnabled,
         cameraEnabled: peer.cameraEnabled,
         screenSharing: peer.screenSharing,
@@ -139,7 +149,7 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
         favoriteEligible: peer.senderType === "human" && Boolean(peer.isAuthenticated)
       }))
     ],
-    [localCameraStream, localStream, localUser.avatar, localUser.cameraEnabled, localUser.micEnabled, localUser.nickname, localUser.screenSharing, localUser.screenTrackId, remotePeers]
+    [localCameraStream, localStream, localUser.avatar, localUser.cameraEnabled, localUser.micEnabled, localUser.nickname, localUser.role, localUser.screenSharing, localUser.screenTrackId, remotePeers]
   );
   const featuredParticipant = participants.find((participant) => participant.id === featuredParticipantId);
   const thumbnailParticipants = featuredParticipant ? participants : [];
@@ -240,6 +250,8 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
             language={language}
             muted
             onClick={() => setFeaturedParticipantId("local")}
+            profileRole={localUser.role}
+            senderType="human"
           />
         </div>
       </div>
@@ -267,6 +279,8 @@ export function VideoGrid({ localStream, localCameraStream, localUser, language,
             language={language}
             muted={participant.muted}
             onClick={() => setFeaturedParticipantId(participant.id)}
+            profileRole={participant.role}
+            senderType={participant.senderType}
             favoriteEnabled={canFavorite && participant.favoriteEligible}
             favorited={favoritedIds.has(participant.id)}
             onToggleFavorite={() => onToggleFavorite?.(participant.id)}

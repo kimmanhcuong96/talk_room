@@ -118,7 +118,7 @@ function emitRoomYouTubePermissions(io: AppServer, roomId: string) {
 }
 
 const topicBackgrounds = new Set<RoomTopic["background"]>([
-    "slate", "mint", "blue", "coral", "violet", "amber", "aurora", "sunset", "ocean", "nebula"
+    "slate", "mint", "blue", "coral", "violet", "amber", "aurora", "sunset", "ocean", "nebula", "prism", "geometry", "fluid", "forest", "particles", "holographic", "neon-grid", "synthwave", "circuit", "glass-orbs", "mesh", "data-stream"
   ]);
 const topicFonts = new Set<RoomTopic["font"]>(["sans", "serif", "mono", "display"]);
 const topicIcons = new Set<RoomTopic["icon"]>(["none", "message", "sparkles", "book", "globe", "coffee", "game"]);

@@ -1,5 +1,7 @@
 import { Heart, Mic, MicOff, Video, VideoOff } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import type { UserRole } from "../lib/auth";
 import { useSpeaking } from "../hooks/useSpeaking";
 import { type Language, translate } from "../lib/i18n";
 import { AvatarBadge } from "./AvatarBadge";
@@ -19,6 +21,9 @@ type VideoTileProps = {
   favoriteEnabled?: boolean;
   favorited?: boolean;
   onToggleFavorite?: () => void;
+  profileRole?: UserRole;
+  senderType?: "human" | "virtual_user";
+  showProfile?: boolean;
 };
 
 export function VideoTile({
@@ -36,10 +41,20 @@ export function VideoTile({
   favoriteEnabled = false,
   favorited = false,
   onToggleFavorite,
+  profileRole = "unverified",
+  senderType = "human",
+  showProfile = false,
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { isSpeaking, level } = useSpeaking(stream, micEnabled);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profilePositionReady, setProfilePositionReady] = useState(false);
+  const [profilePosition, setProfilePosition] = useState({ left: 0, top: 0 });
+  const profileId = useId();
+  const profileAnchorRef = useRef<HTMLDivElement | null>(null);
+  const profileCardRef = useRef<HTMLDivElement | null>(null);
+  const profileCloseTimerRef = useRef<number | null>(null);
   const hasLiveVideo = stream?.getVideoTracks().some((track) => track.readyState === "live") ?? false;
   const showVideo = Boolean(stream && cameraEnabled && hasLiveVideo);
 
@@ -54,15 +69,90 @@ export function VideoTile({
 
   const barLevels = [0.45, 0.75, 1];
   const t = (key: Parameters<typeof translate>[1]) => translate(language, key);
+  const roleKey = profileRole === "supporter" ? "roleSupporter" : profileRole === "verified" ? "roleVerified" : "roleUnverified";
+  const roleLabel = senderType === "virtual_user"
+    ? { en: "Virtual User", vi: "Người dùng ảo", zh: "虚拟用户", ja: "バーチャルユーザー" }[language]
+    : t(roleKey);
   const screenShareMediaFrame = compact ? "absolute inset-x-0 top-0 bottom-8" : "absolute inset-x-0 top-0 bottom-10";
+  const openProfile = () => {
+    if (profileCloseTimerRef.current !== null) window.clearTimeout(profileCloseTimerRef.current);
+    setProfileOpen(true);
+  };
+  const closeProfile = () => {
+    if (profileCloseTimerRef.current !== null) window.clearTimeout(profileCloseTimerRef.current);
+    profileCloseTimerRef.current = window.setTimeout(() => {
+      setProfileOpen(false);
+      setProfilePositionReady(false);
+    }, 120);
+  };
+  const profileCard = <div id={profileId} ref={profileCardRef} role="dialog" aria-label={nickname} onMouseEnter={openProfile} onMouseLeave={closeProfile} onFocus={openProfile} onBlur={closeProfile} style={{ left: profilePosition.left, top: profilePosition.top, maxHeight: "calc(100dvh - 16px)" }} className={`pointer-events-auto fixed z-[9999] w-[min(14rem,calc(100vw-1rem))] overflow-y-auto rounded-xl border border-white/15 bg-[#091521]/95 p-3 text-left shadow-2xl shadow-black/40 backdrop-blur-md transition-opacity duration-150 ${showProfile && profileOpen && profilePositionReady ? "visible opacity-100" : "invisible opacity-0"}`}>
+    <div className="flex items-center gap-2"><AvatarBadge avatar={avatar} size="sm" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-white">{nickname}</p><p className="text-xs text-white/55">{roleLabel}</p></div>
+      {favoriteEnabled && onToggleFavorite ? <button type="button" title={t(favorited ? "unfavoriteUser" : "favoriteUser")} aria-label={t(favorited ? "unfavoriteUser" : "favoriteUser")} aria-pressed={favorited} onClick={(event) => { event.stopPropagation(); onToggleFavorite(); }} onKeyDown={(event) => event.stopPropagation()} className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/60 ${favorited ? "border-rose-300/70 bg-rose-500/35 text-rose-100" : "border-white/20 bg-white/5 text-white/75 hover:border-rose-300/60 hover:bg-rose-500/20 hover:text-rose-100"}`}><Heart size={15} fill={favorited ? "currentColor" : "none"}/></button> : null}
+    </div>
+    <div className="mt-3 grid grid-cols-2 gap-1.5 text-[11px] text-white/65"><span className="rounded-md bg-white/5 px-2 py-1">{micEnabled ? <Mic size={13} className="mr-1 inline text-mint"/> : <MicOff size={13} className="mr-1 inline text-white/45"/>}{t(micEnabled ? "micUnmute" : "micMute")}</span><span className="rounded-md bg-white/5 px-2 py-1">{cameraEnabled ? <Video size={13} className="mr-1 inline text-mint"/> : <VideoOff size={13} className="mr-1 inline text-white/45"/>}{t(cameraEnabled ? "videoOn" : "videoOff")}</span></div>
+  </div>;
+  useLayoutEffect(() => {
+    if (!profileOpen || !profileCardRef.current) return;
+    const updatePosition = () => {
+      const card = profileCardRef.current?.getBoundingClientRect();
+      const anchor = profileAnchorRef.current?.getBoundingClientRect();
+      if (!card || !anchor) return;
+      const viewport = window.visualViewport;
+      const viewportLeft = viewport?.offsetLeft ?? 0;
+      const viewportTop = viewport?.offsetTop ?? 0;
+      const viewportWidth = viewport?.width ?? window.innerWidth;
+      const viewportHeight = viewport?.height ?? window.innerHeight;
+      const viewportRight = viewportLeft + viewportWidth;
+      const viewportBottom = viewportTop + viewportHeight;
+      const padding = 8;
+      const gap = 10;
+      const maxLeft = Math.max(viewportLeft + padding, viewportRight - card.width - padding);
+      const left = Math.min(Math.max(anchor.left + anchor.width / 2 - card.width / 2, viewportLeft + padding), maxLeft);
+      const fitsAbove = anchor.top - card.height - gap >= viewportTop + padding;
+      const fitsBelow = anchor.bottom + card.height + gap <= viewportBottom - padding;
+      const spaceAbove = anchor.top - viewportTop;
+      const spaceBelow = viewportBottom - anchor.bottom;
+      const preferredTop = fitsAbove || (!fitsBelow && spaceAbove >= spaceBelow)
+        ? anchor.top - card.height - gap
+        : anchor.bottom + gap;
+      const maxTop = Math.max(viewportTop + padding, viewportBottom - card.height - padding);
+      const top = Math.min(Math.max(preferredTop, viewportTop + padding), maxTop);
+      setProfilePosition({ left, top });
+      setProfilePositionReady(true);
+    };
+    updatePosition();
+    const resizeObserver = new ResizeObserver(updatePosition);
+    if (profileAnchorRef.current) resizeObserver.observe(profileAnchorRef.current);
+    resizeObserver.observe(profileCardRef.current);
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    window.visualViewport?.addEventListener("resize", updatePosition);
+    window.visualViewport?.addEventListener("scroll", updatePosition);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+      window.visualViewport?.removeEventListener("resize", updatePosition);
+      window.visualViewport?.removeEventListener("scroll", updatePosition);
+    };
+  }, [profileOpen]);
+  useEffect(() => () => { if (profileCloseTimerRef.current !== null) window.clearTimeout(profileCloseTimerRef.current); }, []);
 
   return (
     <div
+      ref={profileAnchorRef}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
       aria-pressed={onClick ? selected : undefined}
       aria-label={onClick ? `Focus ${nickname}` : undefined}
+      aria-controls={showProfile ? profileId : undefined}
+      aria-expanded={showProfile ? profileOpen : undefined}
+      aria-haspopup={showProfile ? "dialog" : undefined}
       onClick={onClick}
+      onMouseEnter={showProfile ? openProfile : undefined}
+      onMouseLeave={showProfile ? closeProfile : undefined}
+      onFocus={showProfile ? openProfile : undefined}
+      onBlur={showProfile ? closeProfile : undefined}
       onKeyDown={(event) => {
         if (!onClick || (event.key !== "Enter" && event.key !== " ")) {
           return;
@@ -71,7 +161,7 @@ export function VideoTile({
         event.preventDefault();
         onClick();
       }}
-      className={`relative h-full min-h-0 w-full overflow-hidden rounded-lg border bg-black transition ${
+      className={`group relative h-full min-h-0 w-full overflow-visible rounded-lg border bg-black transition ${
         onClick ? "cursor-pointer outline-none hover:border-[#258ff4]/80 focus-visible:border-[#258ff4] focus-visible:ring-2 focus-visible:ring-[#258ff4]/35" : ""
       } ${
         selected
@@ -81,28 +171,16 @@ export function VideoTile({
             : "border-white/10"
       }`}
     >
-      {favoriteEnabled && onToggleFavorite ? (
-        <button
-          type="button"
-          title={t(favorited ? "unfavoriteUser" : "favoriteUser")}
-          aria-label={t(favorited ? "unfavoriteUser" : "favoriteUser")}
-          aria-pressed={favorited}
-          onClick={(event) => { event.stopPropagation(); onToggleFavorite(); }}
-          onKeyDown={(event) => event.stopPropagation()}
-          className={`absolute z-20 grid place-items-center rounded-full border backdrop-blur transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/60 ${compact ? "right-1.5 top-1.5 h-7 w-7" : "right-3 top-3 h-9 w-9"} ${favorited ? "border-rose-300/70 bg-rose-500/35 text-rose-100 shadow-[0_0_14px_rgba(244,63,94,0.28)]" : "border-white/20 bg-black/55 text-white/80 hover:border-rose-300/60 hover:bg-rose-500/20 hover:text-rose-100"}`}
-        >
-          <Heart size={compact ? 14 : 17} fill={favorited ? "currentColor" : "none"} />
-        </button>
-      ) : null}
+      {showProfile && profileOpen ? createPortal(profileCard, document.body) : null}
       {showVideo ? (
         screenSharing ? (
-          <div className={`${screenShareMediaFrame} grid place-items-center bg-black`}>
+          <div className={`${screenShareMediaFrame} grid place-items-center overflow-hidden rounded-lg bg-black`}>
             <video
               ref={videoRef}
               autoPlay
               playsInline
               muted={muted}
-              className="h-full w-full object-contain"
+            className="h-full w-full rounded-lg object-contain"
             />
           </div>
         ) : (
@@ -111,13 +189,13 @@ export function VideoTile({
             autoPlay
             playsInline
             muted={muted}
-            className="h-full w-full scale-x-[-1] object-cover"
+            className="h-full w-full rounded-lg scale-x-[-1] object-cover"
           />
         )
       ) : (
-        <div className="grid h-full w-full place-items-center bg-field">
+        <div className="grid h-full w-full place-items-center rounded-lg bg-field">
           {stream && !muted ? <audio ref={audioRef} autoPlay playsInline /> : null}
-          <div className="relative">
+          <div className="group/avatar relative">
             <AvatarBadge avatar={avatar} size={compact ? "md" : "lg"} />
             {isSpeaking ? (
               <span className="absolute -inset-2 rounded-full border-2 border-mint opacity-80 animate-ping" />
@@ -132,7 +210,7 @@ export function VideoTile({
         </div>
       ) : null}
 
-      <div className={`absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-black/55 backdrop-blur ${compact ? "px-2 py-1.5" : "px-3 py-2"}`}>
+      <div className={`absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 rounded-b-lg bg-black/55 backdrop-blur ${compact ? "px-2 py-1.5" : "px-3 py-2"}`}>
         <span className="flex min-w-0 items-center gap-2">
           {compact ? null : <AvatarBadge avatar={avatar} size="sm" />}
           <span className={`${compact ? "text-xs" : "text-sm"} truncate font-medium text-white`}>{nickname}</span>

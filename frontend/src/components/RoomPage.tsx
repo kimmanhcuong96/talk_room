@@ -451,12 +451,13 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
     () => ({
       nickname,
       avatar: serverLocalUser?.avatar ?? avatarUrl ?? getFallbackAvatar(nickname),
+      role,
       micEnabled,
       cameraEnabled,
       screenSharing: isScreenSharing,
       screenTrackId
     }),
-    [avatarUrl, cameraEnabled, isScreenSharing, micEnabled, nickname, screenTrackId, serverLocalUser?.avatar]
+    [avatarUrl, cameraEnabled, isScreenSharing, micEnabled, nickname, role, screenTrackId, serverLocalUser?.avatar]
   );
 
   return (
@@ -518,7 +519,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
           </div>
         </header>
 
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-4">
+        <div className="relative flex min-h-0 flex-1 flex-col overflow-visible p-2 sm:p-4">
           {mediaNotice || successNotice ? (
             <div
               role="status"

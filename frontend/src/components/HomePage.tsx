@@ -274,7 +274,7 @@ export function HomePage({
                 </div>
 
                 {userMenuOpen ? (
-                  <div className="absolute left-0 z-30 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-white/10 bg-[#182635] p-4 text-white shadow-2xl shadow-black/40">
+                  <div className="absolute left-0 z-30 mt-2 w-[calc(200%+0.75rem)] max-w-[calc(100vw-2rem)] rounded-lg border border-white/10 bg-[#182635] p-4 text-white shadow-2xl shadow-black/40">
                     <div className="flex min-w-0 items-center gap-3">
                       {user.avatarUrl ? (
                         <img
@@ -294,27 +294,22 @@ export function HomePage({
                       </div>
                     </div>
                     <div className="mt-4 grid gap-2 border-t border-white/10 pt-3 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-white/55">{t("signIn")}</span>
-                        <span className="truncate font-medium text-mint">{t("google")}</span>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex min-w-0 items-center justify-start gap-1">
+                          <span className="shrink-0 text-white/55">{t("signIn")}:</span>
+                          <span className="truncate font-medium text-mint">{t("google")}</span>
+                        </div>
+                        <div className="flex min-w-0 items-center justify-start gap-1">
+                          <span className="shrink-0 text-white/55">{t("role")}:</span>
+                          <span className={`truncate rounded-full px-2 py-0.5 text-xs font-semibold ${
+                            user.role === "supporter"
+                              ? "bg-[#ffd84d]/15 text-[#ffd84d]"
+                              : user.role === "verified"
+                                ? "bg-mint/15 text-mint"
+                                : "bg-coral/15 text-coral"
+                          }`}>{roleLabel}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-white/55">{t("role")}</span>
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
-                          user.role === "supporter"
-                            ? "bg-[#ffd84d]/15 text-[#ffd84d]"
-                            : user.role === "verified"
-                              ? "bg-mint/15 text-mint"
-                              : "bg-white/8 text-white/60"
-                        }`}>{roleLabel}</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => { setUserMenuOpen(false); onOpenInfoPage("rewards"); }}
-                        className="mt-1 flex h-9 w-full items-center justify-center gap-2 rounded-md bg-[#ffd84d]/10 px-3 text-xs font-semibold text-[#ffd84d] transition hover:bg-[#ffd84d]/20"
-                      >
-                        <Sparkles size={14} />{t("points")}
-                      </button>
                       {rewards ? (
                         <div className="mt-1 rounded-lg border border-[#ffd84d]/20 bg-[#ffd84d]/8 p-3">
                           <div className="flex items-center justify-between gap-3">
@@ -322,13 +317,13 @@ export function HomePage({
                             <strong className="text-lg text-[#ffd84d]">{rewards.totalPoints.toLocaleString()}</strong>
                           </div>
                           {!rewards.eligible ? <p className="mt-2 text-xs leading-5 text-white/60">{t("rewardEligibleOnly")}</p> : <>
-                          <div className="mt-2 grid grid-cols-2 gap-1 text-center text-[11px] text-white/55">
-                            <span>{t("activityPoints")}<strong className="mt-0.5 block text-white/85">{rewards.activityPoints}</strong></span>
-                            <span>{t("referralPoints")}<strong className="mt-0.5 block text-white/85">{rewards.referralPoints}</strong></span>
-                            <span>{t("favoritePoints")}<strong className="mt-0.5 block text-white/85">{rewards.favoritePoints}</strong></span>
-                            <span>{t("qualityChatPoints")}<strong className="mt-0.5 block text-white/85">{rewards.qualityChatPoints}</strong></span>
-                            <span>{t("roomOwnerPoints")}<strong className="mt-0.5 block text-white/85">{rewards.roomOwnerPoints}</strong></span>
-                            <span>{t("streakPoints")}<strong className="mt-0.5 block text-white/85">{rewards.streakPoints}</strong></span>
+                          <div className="mt-2 grid grid-cols-3 gap-x-2 gap-y-1 text-[11px] text-white/55">
+                            <span className="flex min-w-0 items-center justify-between gap-1"><span className="truncate">{t("activityPoints")}</span><strong className="shrink-0 text-white/85">{rewards.activityPoints}</strong></span>
+                            <span className="flex min-w-0 items-center justify-between gap-1"><span className="truncate">{t("referralPoints")}</span><strong className="shrink-0 text-white/85">{rewards.referralPoints}</strong></span>
+                            <span className="flex min-w-0 items-center justify-between gap-1"><span className="truncate">{t("favoritePoints")}</span><strong className="shrink-0 text-white/85">{rewards.favoritePoints}</strong></span>
+                            <span className="flex min-w-0 items-center justify-between gap-1"><span className="truncate">{t("qualityChatPoints")}</span><strong className="shrink-0 text-white/85">{rewards.qualityChatPoints}</strong></span>
+                            <span className="flex min-w-0 items-center justify-between gap-1"><span className="truncate">{t("roomOwnerPoints")}</span><strong className="shrink-0 text-white/85">{rewards.roomOwnerPoints}</strong></span>
+                            <span className="flex min-w-0 items-center justify-between gap-1"><span className="truncate">{t("streakPoints")}</span><strong className="shrink-0 text-white/85">{rewards.streakPoints}</strong></span>
                           </div>
                           <p className="mt-2 flex items-center justify-center gap-1 text-[11px] text-white/50"><Heart size={12} />{t("favoritesReceived", { count: rewards.favoriteCount })}</p>
                           <div className="mt-2 grid grid-cols-2 gap-2 rounded-md bg-black/10 p-2 text-[11px] text-white/55">
@@ -337,6 +332,18 @@ export function HomePage({
                             {rewards.nextStreakMilestone ? <span className="col-span-2">{t("nextStreakMilestone", { days: rewards.nextStreakMilestone })}<span className="mt-1 block h-1 overflow-hidden rounded bg-white/10"><span className="block h-full rounded bg-[#ffd84d]" style={{ width: `${Math.min(100, rewards.currentStreakDays / rewards.nextStreakMilestone * 100)}%` }} /></span></span> : null}
                           </div>
                           {rewards.recentTransactions.length ? <details className="mt-2 text-[11px] text-white/60"><summary className="cursor-pointer">{t("recentRewards")}</summary><ul className="mt-1 max-h-28 space-y-1 overflow-auto">{rewards.recentTransactions.map((item) => <li key={item.id} className="flex justify-between gap-2"><span className="truncate">{rewardEventLabels[item.eventType] ?? t("points")}</span><strong className="text-[#ffd84d]">{item.points > 0 ? "+" : ""}{item.points}</strong></li>)}</ul></details> : null}
+                          </>}
+                        </div>
+                      ) : null}
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => { setUserMenuOpen(false); onOpenInfoPage("rewards"); }}
+                          className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-md bg-[#ffd84d]/10 px-2 text-xs font-semibold text-[#ffd84d] transition hover:bg-[#ffd84d]/20"
+                        >
+                          <Sparkles size={14} /><span className="truncate">{t("points")}</span>
+                        </button>
+                        {rewards ? (
                           <button
                             type="button"
                             onClick={async () => {
@@ -349,13 +356,22 @@ export function HomePage({
                                 setReferralCopied(false);
                               }
                             }}
-                            className="mt-3 flex h-9 w-full items-center justify-center gap-2 rounded-md bg-white/8 px-2 text-xs font-medium text-white/80 transition hover:bg-white/12"
+                            className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-md bg-white/8 px-2 text-xs font-medium text-white/80 transition hover:bg-white/12"
                           >
-                            <Copy size={14} />{referralCopied ? t("referralCopied") : t("copyReferralLink")}
+                            <Copy size={14} /><span className="truncate">{referralCopied ? t("referralCopied") : t("copyReferralLink")}</span>
                           </button>
-                          </>}
-                        </div>
+                        ) : <span aria-hidden="true" />}
+                      </div>
+                      {readAdminToken() ? (
+                        <a
+                          href={adminPath()}
+                          className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-mint/15 px-3 text-sm font-medium text-mint transition hover:bg-mint/25"
+                        >
+                          <ShieldCheck size={16} />
+                          <span>{t("adminArea")}</span>
+                        </a>
                       ) : null}
+                      {user.role === "unverified" ? <button type="button" onClick={() => { setUserMenuOpen(false); onOpenVerificationRequest(); }} className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-mint/15 px-3 text-sm font-medium text-mint transition hover:bg-mint/25"><ShieldCheck size={16} /><span>{t("requestVerification")}</span></button> : null}
                       <button
                         type="button"
                         onClick={() => {
@@ -367,16 +383,6 @@ export function HomePage({
                         <LogOut size={16} />
                         <span>{t("signOut")}</span>
                       </button>
-                      {readAdminToken() ? (
-                        <a
-                          href={adminPath()}
-                          className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-mint/15 px-3 text-sm font-medium text-mint transition hover:bg-mint/25"
-                        >
-                          <ShieldCheck size={16} />
-                          <span>{t("adminArea")}</span>
-                        </a>
-                      ) : null}
-                      {user.role === "unverified" ? <button type="button" onClick={() => { setUserMenuOpen(false); onOpenVerificationRequest(); }} className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-mint/15 px-3 text-sm font-medium text-mint transition hover:bg-mint/25"><ShieldCheck size={16} /><span>{t("requestVerification")}</span></button> : null}
                     </div>
                   </div>
                 ) : null}

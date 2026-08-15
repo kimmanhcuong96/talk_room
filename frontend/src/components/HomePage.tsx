@@ -308,6 +308,13 @@ export function HomePage({
                               : "bg-white/8 text-white/60"
                         }`}>{roleLabel}</span>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => { setUserMenuOpen(false); onOpenInfoPage("rewards"); }}
+                        className="mt-1 flex h-9 w-full items-center justify-center gap-2 rounded-md bg-[#ffd84d]/10 px-3 text-xs font-semibold text-[#ffd84d] transition hover:bg-[#ffd84d]/20"
+                      >
+                        <Sparkles size={14} />{t("points")}
+                      </button>
                       {rewards ? (
                         <div className="mt-1 rounded-lg border border-[#ffd84d]/20 bg-[#ffd84d]/8 p-3">
                           <div className="flex items-center justify-between gap-3">

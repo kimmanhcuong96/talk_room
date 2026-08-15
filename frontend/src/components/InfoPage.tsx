@@ -1,6 +1,6 @@
 import { ArrowLeft, BookOpen, HeartHandshake, Languages, Mail, MessageCircle, ShieldCheck, Sparkles, Users } from "lucide-react";
 import type { ReactNode } from "react";
-import { type InfoPageCopy, type Language, infoPageCopies, privacyContentResponsibility, privacyEnforcementNotice, privacyEnforcementSummary, translate } from "../lib/i18n";
+import { type InfoPageCopy, type Language, infoPageCopies, privacyContentResponsibility, privacyEnforcementNotice, privacyEnforcementSummary, rewardPolicyCopies, translate } from "../lib/i18n";
 import type { InfoPage as InfoPageName } from "../lib/routes";
 
 type InfoPageProps = {
@@ -99,7 +99,13 @@ function AboutContent({ copy }: { copy: NonNullable<InfoPageCopy["about"]> }) {
   );
 }
 
+function RewardPolicyContent({ language }: { language: Language }) {
+  const copy = rewardPolicyCopies[language];
+  return <div className="grid gap-8"><div className="rounded-lg border border-[#ffd84d]/25 bg-[#ffd84d]/10 p-4 text-sm leading-6 text-white/80"><strong className="text-[#ffd84d]">{copy.summaryLabel}</strong> {copy.summary}</div>{copy.sections.map((section, sectionIndex) => <section key={section.heading}><h2 className="text-xl font-semibold text-white">{section.heading}</h2><p className="mt-3 leading-7 text-white/68">{(sectionIndex < 2 ? section.body.split(/(\d+)/g) : [section.body]).map((part, index) => sectionIndex < 2 && /^\d+$/.test(part) ? <strong key={index} className="font-bold text-[#ffd84d]">{part}</strong> : <span key={index}>{part}</span>)}</p></section>)}</div>;
+}
+
 function renderContent(page: InfoPageName, copy: InfoPageCopy, language: Language): ReactNode {
+  if (page === "rewards") return <RewardPolicyContent language={language} />;
   if (page === "privacy" && copy.privacy) {
     return <PrivacyContent copy={copy.privacy} language={language} />;
   }
@@ -116,8 +122,8 @@ function renderContent(page: InfoPageName, copy: InfoPageCopy, language: Languag
 }
 
 export function InfoPage({ page, language, onBack }: InfoPageProps) {
-  const current = infoPageCopies[language][page];
-  const HeroIcon = page === "privacy" ? ShieldCheck : page === "contact" ? MessageCircle : BookOpen;
+  const current = page === "rewards" ? rewardPolicyCopies[language] : infoPageCopies[language][page];
+  const HeroIcon = page === "privacy" ? ShieldCheck : page === "contact" ? MessageCircle : page === "rewards" ? Sparkles : BookOpen;
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl px-4 py-8 text-white sm:px-6 lg:px-8">
@@ -133,7 +139,7 @@ export function InfoPage({ page, language, onBack }: InfoPageProps) {
         <h1 className="mt-5 text-4xl font-semibold tracking-tight sm:text-5xl">{current.title}</h1>
         <p className="mt-5 max-w-3xl text-lg leading-8 text-white/68">{current.intro}</p>
       </header>
-      <div className="py-10">{renderContent(page, current, language)}</div>
+      <div className="py-10">{renderContent(page, page === "rewards" ? infoPageCopies[language].about : current, language)}</div>
     </main>
   );
 }

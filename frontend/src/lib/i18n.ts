@@ -712,6 +712,61 @@ export const privacyEnforcementSummary: Record<Language, string> = {
   ja: "必要に応じて、コミュニティ基準、倫理規範、または法律に違反するアカウントを事前通知なく制限またはブロックすることがあります。"
 };
 
+export const rewardPolicyCopies: Record<Language, { eyebrow: string; title: string; intro: string; summaryLabel: string; summary: string; sections: Array<{ heading: string; body: string }> }> = {
+  en: {
+    eyebrow: "me2talk rewards",
+    title: "Points & Rewards Policy",
+    intro: "Understand how points are earned today and how future redemption options may work.",
+    summaryLabel: "At a glance:",
+    summary: "Signed-in users can earn points through room activity, quality conversations, referrals, and positive community participation.",
+    sections: [
+      { heading: "How points are calculated", body: "Room activity: 1 point for each 5 minutes of eligible room time, up to 24 points per day (2 hours). Quality chat: 1 point for every 3 qualifying messages, up to 10 points per day; messages must meet the quality and cooldown rules. Receiving a favorite: 5 points when the qualifying conditions are met. Room-owner participation: 2 points for a qualifying participant join, up to 20 points per day. Streaks: 10 points at 3 consecutive active days and 30 points at 7 consecutive active days." },
+      { heading: "Referral rewards", body: "Every signed-in user can share their personal referral link. After the invited user reaches 30 minutes of qualifying room activity, the inviter receives 100 points and the invitee receives 50 points. Self-referrals, duplicate accounts, manipulation, and abusive invitation activity are not eligible." },
+      { heading: "Planned redemption options", body: "The points balance is currently informational. In a future release, points may be redeemable for a Verified account upgrade, Supporter benefits, profile enhancements, room privileges, or other community rewards. Conversion rates, eligibility, limits, and availability will be announced before activation and may change." },
+      { heading: "Fair-use and adjustments", body: "Me2Talk may review suspicious activity, reverse invalid rewards, apply daily caps, or adjust the reward policy to protect fairness and service integrity. Points have no cash value and cannot currently be transferred or sold." }
+    ]
+  },
+  vi: {
+    eyebrow: "me2talk rewards",
+    title: "Chính sách tích điểm và phần thưởng",
+    intro: "Tìm hiểu cách tích điểm hiện tại và các hình thức đổi điểm dự kiến trong tương lai.",
+    summaryLabel: "Tóm tắt:",
+    summary: "Mọi user đã đăng nhập đều có thể tích điểm thông qua hoạt động trong phòng, trò chuyện chất lượng, giới thiệu và đóng góp tích cực cho cộng đồng.",
+    sections: [
+      { heading: "Cách tính điểm", body: "Hoạt động trong phòng: 1 điểm cho mỗi 5 phút hoạt động đủ điều kiện, tối đa 24 điểm mỗi ngày (2 giờ). Chat chất lượng: 1 điểm cho mỗi 3 tin nhắn đạt điều kiện, tối đa 10 điểm mỗi ngày; tin nhắn phải đáp ứng quy tắc chất lượng và thời gian chờ. Được user khác yêu thích: 5 điểm khi đạt điều kiện. Hoạt động chủ phòng: 2 điểm cho mỗi lượt tham gia đủ điều kiện, tối đa 20 điểm mỗi ngày. Chuỗi hoạt động: 10 điểm khi đạt 3 ngày liên tiếp và 30 điểm khi đạt 7 ngày liên tiếp." },
+      { heading: "Điểm giới thiệu", body: "Mọi user đã đăng nhập đều có thể chia sẻ link giới thiệu cá nhân. Khi user được mời đạt 30 phút hoạt động đủ điều kiện trong room, người mời nhận 100 điểm và người được mời nhận 50 điểm. Tự giới thiệu, tài khoản trùng lặp, gian lận hoặc lạm dụng link mời sẽ không được tính." },
+      { heading: "Các hình thức đổi điểm dự kiến", body: "Số điểm hiện chỉ mang tính thông tin. Trong phiên bản tương lai, điểm có thể được dùng để nâng cấp lên Verified, nhận quyền lợi Supporter, nâng cấp hồ sơ, quyền lợi phòng hoặc các phần thưởng cộng đồng khác. Tỷ lệ quy đổi, điều kiện, giới hạn và thời điểm áp dụng sẽ được công bố trước khi kích hoạt và có thể thay đổi." },
+      { heading: "Sử dụng công bằng và điều chỉnh", body: "Me2Talk có thể kiểm tra hoạt động đáng ngờ, thu hồi điểm không hợp lệ, áp dụng giới hạn theo ngày hoặc điều chỉnh chính sách để bảo vệ sự công bằng và tính ổn định của dịch vụ. Điểm hiện không có giá trị tiền mặt và chưa thể chuyển nhượng hoặc bán." }
+    ]
+  },
+  zh: {
+    eyebrow: "me2talk 积分奖励",
+    title: "积分与奖励政策",
+    intro: "了解当前积分规则，以及未来可能开放的兑换方式。",
+    summaryLabel: "简要说明：",
+    summary: "所有已登录用户都可以通过房间活动、优质对话、邀请和积极的社区贡献获得积分。",
+    sections: [
+      { heading: "积分如何计算", body: "房间活动：每累计 5 分钟符合条件的房间活动获得 1 分，每日最多 24 分（2 小时）。优质聊天：每 3 条符合条件的消息获得 1 分，每日最多 10 分；消息必须符合质量和冷却规则。获得收藏：满足条件时获得 5 分。房主活动：每次符合条件的参与者加入获得 2 分，每日最多 20 分。连续活动：连续 3 天获得 10 分，连续 7 天获得 30 分。" },
+      { heading: "邀请奖励", body: "所有已登录用户都可以分享个人邀请链接。受邀用户达到 30 分钟符合条件的房间活动后，邀请者获得 100 分，受邀者获得 50 分。自我邀请、重复账户、操纵或滥用邀请行为不符合资格。" },
+      { heading: "计划中的兑换方式", body: "目前积分余额仅供参考。未来积分可能用于升级 Verified、获得 Supporter 权益、完善个人资料、获得房间权限或其他社区奖励。兑换比例、资格、限制和开放时间将在启用前公布，并可能调整。" },
+      { heading: "公平使用与调整", body: "Me2Talk 可以审查可疑活动、撤销无效奖励、设置每日上限或调整奖励政策，以维护公平和服务完整性。积分目前没有现金价值，也不能转让或出售。" }
+    ]
+  },
+  ja: {
+    eyebrow: "me2talk リワード",
+    title: "ポイントと報酬ポリシー",
+    intro: "現在のポイント獲得方法と、将来予定されている交換方法を説明します。",
+    summaryLabel: "概要：",
+    summary: "すべてのログインユーザーは、ルームでの活動、質の高い会話、紹介、コミュニティへの貢献によってポイントを獲得できます。",
+    sections: [
+      { heading: "ポイントの計算方法", body: "ルーム活動：条件を満たす活動 5 分ごとに 1 ポイント、1 日最大 24 ポイント（2 時間）。質の高いチャット：条件を満たすメッセージ 3 件ごとに 1 ポイント、1 日最大 10 ポイント。お気に入りを受け取る：条件を満たす場合 5 ポイント。ルームオーナー活動：条件を満たす参加者の入室ごとに 2 ポイント、1 日最大 20 ポイント。継続活動：3 日連続で 10 ポイント、7 日連続で 30 ポイント。" },
+      { heading: "紹介報酬", body: "すべてのログインユーザーが個人紹介リンクを共有できます。招待されたユーザーが条件を満たすルーム活動を 30 分行うと、招待者に 100 ポイント、招待されたユーザーに 50 ポイントが付与されます。自己紹介、重複アカウント、不正または悪用された招待は対象外です。" },
+      { heading: "予定されている交換方法", body: "現在、ポイント残高は情報表示のみです。将来的には Verified へのアップグレード、Supporter 特典、プロフィール強化、ルーム権限、その他のコミュニティ報酬に交換できる可能性があります。交換率、条件、上限、提供時期は有効化前に告知され、変更される場合があります。" },
+      { heading: "公正利用と調整", body: "Me2Talk は公正さとサービスの健全性を守るため、不審な活動の確認、無効な報酬の取り消し、日次上限の適用、報酬ポリシーの調整を行うことがあります。ポイントに現在、現金価値はなく、譲渡や販売はできません。" }
+    ]
+  }
+};
+
 export const infoPageCopies: Record<Language, Record<"privacy" | "contact" | "about", InfoPageCopy>> = {
   en: {
     privacy: {

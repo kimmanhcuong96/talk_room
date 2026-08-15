@@ -85,10 +85,9 @@ export async function reviewVerificationRequest(adminId: string, requestId: stri
         await client.query("INSERT INTO user_reward_eligibility_history (user_id, eligible) VALUES ($1, TRUE)", [request.rows[0].user_id]);
       }
     }
-    await client.query(
-      "UPDATE verification_requests SET status = $2, reviewed_by = $3, reviewed_at = NOW(), updated_at = NOW() WHERE id = $1",
-      [requestId, decision, adminId]
-    );
+    // Reviewed requests are removed from the active request store. Approval is
+    // represented by the user's verified role; rejection allows a fresh request.
+    await client.query("DELETE FROM verification_requests WHERE id = $1", [requestId]);
     await client.query(
       `INSERT INTO admin_audit_logs (id, actor_admin_id, action, target_user_id, metadata)
        VALUES ($1, $2, $3, $4, $5::jsonb)`,
@@ -120,10 +119,8 @@ export async function reviewVerificationRequests(adminId: string, requestIds: st
         if (updated.rowCount === 1) await client.query("INSERT INTO user_reward_eligibility_history (user_id, eligible) VALUES ($1, TRUE)", [row.user_id]);
       }
     }
-    await client.query(
-      "UPDATE verification_requests SET status = $2, reviewed_by = $3, reviewed_at = NOW(), updated_at = NOW() WHERE id = ANY($1::uuid[])",
-      [requestIds, decision, adminId]
-    );
+    // Remove both approved and rejected requests from the active request store.
+    await client.query("DELETE FROM verification_requests WHERE id = ANY($1::uuid[])", [requestIds]);
     for (const row of pending.rows) {
       await client.query(
         `INSERT INTO admin_audit_logs (id, actor_admin_id, action, target_user_id, metadata)

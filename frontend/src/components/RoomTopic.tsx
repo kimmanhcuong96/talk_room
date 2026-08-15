@@ -21,7 +21,7 @@ export function RoomTopicEditor({ topic, language, error, saving, onClose, onSav
   const [description, setDescription] = useState(topic?.description ?? "");
   const [background, setBackground] = useState<RoomTopicValue["background"]>(topic?.background ?? "blue");
   const [font, setFont] = useState<RoomTopicValue["font"]>(topic?.font ?? "sans");
-  const [icon, setIcon] = useState<RoomTopicValue["icon"]>(topic?.icon ?? "message");
+  const [icon, setIcon] = useState<RoomTopicValue["icon"]>(topic?.icon ?? topicIcons[0].value);
   const [localError, setLocalError] = useState<string | null>(null);
   const t = (key: Parameters<typeof roomTopicTranslate>[1]) => roomTopicTranslate(language, key);
   const preview = { description: description.trim() || t("placeholder"), background, font, icon };

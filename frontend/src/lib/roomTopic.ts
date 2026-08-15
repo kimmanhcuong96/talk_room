@@ -7,7 +7,11 @@ export const topicBackgrounds: Array<{ value: RoomTopic["background"]; swatch: s
   { value: "blue", swatch: "bg-blue-400", banner: "border-blue-300/25 bg-blue-500/15" },
   { value: "coral", swatch: "bg-orange-400", banner: "border-orange-300/25 bg-orange-500/15" },
   { value: "violet", swatch: "bg-violet-400", banner: "border-violet-300/25 bg-violet-500/15" },
-  { value: "amber", swatch: "bg-amber-400", banner: "border-amber-300/25 bg-amber-400/15" }
+  { value: "amber", swatch: "bg-amber-400", banner: "border-amber-300/25 bg-amber-400/15" },
+  { value: "aurora", swatch: "bg-gradient-to-br from-emerald-300 via-cyan-400 to-blue-600", banner: "border-cyan-200/30 bg-gradient-to-br from-emerald-400/30 via-cyan-500/20 to-blue-700/35" },
+  { value: "sunset", swatch: "bg-gradient-to-br from-amber-300 via-orange-500 to-rose-600", banner: "border-orange-200/30 bg-gradient-to-br from-amber-500/30 via-orange-500/25 to-rose-600/35" },
+  { value: "ocean", swatch: "bg-gradient-to-br from-sky-300 via-blue-500 to-indigo-800", banner: "border-sky-200/30 bg-gradient-to-br from-sky-500/30 via-blue-600/25 to-indigo-900/40" },
+  { value: "nebula", swatch: "bg-gradient-to-br from-fuchsia-400 via-violet-600 to-slate-900", banner: "border-fuchsia-200/30 bg-gradient-to-br from-fuchsia-500/25 via-violet-600/30 to-slate-900/55" }
 ];
 
 export const topicFonts: Array<{ value: RoomTopic["font"]; className: string }> = [

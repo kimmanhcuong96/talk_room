@@ -33,6 +33,7 @@ import { getTurnUsageStatus } from "../webrtc/turnUsage.js";
 import { getLLMUsageSummary } from "../usage/llmUsage.js";
 import { getResponseUsageSummary } from "../usage/responseUsage.js";
 import { getAdminRewardOverview } from "../rewards/rewardRepository.js";
+import { listVerificationRequests, reviewVerificationRequest, type VerificationRequestStatus } from "../users/verificationRequestRepository.js";
 
 const userRoles = new Set<UserRole>(["unverified", "verified", "supporter"]);
 const adminRoles = new Set<AdminRole>(["owner", "admin"]);
@@ -172,6 +173,22 @@ adminRouter.get("/users", requireAdmin, async (request, response, next) => {
 
 adminRouter.get("/rewards", requireAdmin, async (_request, response, next) => {
   try { response.json(await getAdminRewardOverview()); } catch (error) { next(error); }
+});
+
+adminRouter.get("/verification-requests", requireAdmin, async (request, response, next) => {
+  try {
+    const status = String(request.query.status ?? "pending") as VerificationRequestStatus;
+    if (!["pending", "approved", "rejected"].includes(status)) throw new HttpError(400, "Invalid verification request status.");
+    response.json({ requests: await listVerificationRequests(status) });
+  } catch (error) { next(error); }
+});
+
+adminRouter.patch("/verification-requests/:id", requireAdmin, async (request, response, next) => {
+  try {
+    const decision = request.body?.decision as "approved" | "rejected";
+    if (decision !== "approved" && decision !== "rejected") throw new HttpError(400, "Invalid verification request decision.");
+    response.json({ request: await reviewVerificationRequest(getRequestAdmin(request).id, requireUuid(request.params.id), decision) });
+  } catch (error) { next(error); }
 });
 
 adminRouter.get("/webrtc-usage", requireAdmin, async (_request, response, next) => {

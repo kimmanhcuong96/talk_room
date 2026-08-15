@@ -44,6 +44,19 @@ export type RewardSummary = {
   recentTransactions: Array<{ id: string; points: number; eventType: string; createdAt: string }>;
 };
 
+export type VerificationRequest = {
+  id: string;
+  userId: string;
+  displayName: string;
+  email: string;
+  message: string;
+  communityCommitment: boolean;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+  reviewedAt: string | null;
+  reviewerEmail: string | null;
+};
+
 export class AuthRequestError extends Error {
   constructor(message: string, readonly status: number) {
     super(message);
@@ -134,6 +147,24 @@ export async function getRewardSummary(token: string): Promise<RewardSummary> {
   const body = (await response.json().catch(() => ({}))) as RewardSummary & { error?: string };
   if (!response.ok) throw new AuthRequestError(body.error ?? "LOAD_REWARDS_FAILED", response.status);
   return body;
+}
+
+export async function getVerificationRequest(token: string) {
+  const response = await fetch(`${apiUrl}/auth/verification-request`, { headers: { Authorization: `Bearer ${token}` } });
+  const body = (await response.json().catch(() => ({}))) as { request?: VerificationRequest | null; error?: string };
+  if (!response.ok) throw new AuthRequestError(body.error ?? "LOAD_VERIFICATION_REQUEST_FAILED", response.status);
+  return body.request ?? null;
+}
+
+export async function submitVerificationRequest(token: string, message: string, communityCommitment: boolean) {
+  const response = await fetch(`${apiUrl}/auth/verification-request`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ message, communityCommitment })
+  });
+  const body = (await response.json().catch(() => ({}))) as { request?: VerificationRequest; error?: string };
+  if (!response.ok || !body.request) throw new AuthRequestError(body.error ?? "SUBMIT_VERIFICATION_REQUEST_FAILED", response.status);
+  return body.request;
 }
 
 export async function getCurrentUser(token: string): Promise<AuthSession> {

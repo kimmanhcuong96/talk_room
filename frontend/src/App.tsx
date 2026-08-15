@@ -13,6 +13,7 @@ import { Seo } from "./components/Seo";
 import type { RoomLanguage, RoomLanguageLevel } from "./lib/roomLanguages";
 import { getOrCreateGuestId } from "./lib/guestIdentity";
 import { moderationTranslate } from "./lib/moderationI18n";
+import { VerificationRequestDialog } from "./components/VerificationRequestDialog";
 
 const NICKNAME_STORAGE_KEY = "me2talk:nickname";
 const LANGUAGE_STORAGE_KEY = "me2talk:language";
@@ -80,6 +81,7 @@ export function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(() => Boolean(readStoredToken()));
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [createRoomError, setCreateRoomError] = useState<string | null>(null);
+  const [verificationRequestOpen, setVerificationRequestOpen] = useState(false);
 
   const routeRoom = useMemo(() => (routeRoomId ? rooms.find((room) => room.id === routeRoomId) : undefined), [rooms, routeRoomId]);
   const selectedRoom = useMemo(() => (activeRoom ? rooms.find((room) => room.id === activeRoom.roomId) : undefined), [activeRoom, rooms]);
@@ -347,6 +349,8 @@ export function App() {
     setAuthError(null);
   };
 
+  const openVerificationRequest = useCallback(() => setVerificationRequestOpen(true), []);
+
   const handleCreateRoom = (
     name: string,
     primaryLanguage: RoomLanguage,
@@ -413,7 +417,8 @@ export function App() {
         language={language}
         role={authSession?.user.role ?? "unverified"}
         onLeave={handleLeave}
-      /></>
+        onOpenVerificationRequest={openVerificationRequest}
+      /><VerificationRequestDialog open={verificationRequestOpen} token={authSession?.token} language={language} onClose={() => setVerificationRequestOpen(false)} onSubmitted={() => undefined} /></>
     );
   }
 
@@ -456,6 +461,7 @@ export function App() {
       onCreateRoom={handleCreateRoom}
       createRoomError={createRoomError}
       onOpenInfoPage={handleOpenInfoPage}
-    /></>
+      onOpenVerificationRequest={openVerificationRequest}
+    /><VerificationRequestDialog open={verificationRequestOpen} token={authSession?.token} language={language} onClose={() => setVerificationRequestOpen(false)} onSubmitted={() => undefined} /></>
   );
 }

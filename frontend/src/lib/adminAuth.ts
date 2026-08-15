@@ -34,6 +34,11 @@ export type AdminRewardOverview = {
   byType: Array<{ eventType: string; points: number; transactions: number }>;
   topEarners: Array<{ userId: string; displayName: string; email: string; points: number }>;
 };
+export type AdminVerificationRequest = {
+  id: string; userId: string; displayName: string; email: string; message: string;
+  communityCommitment: boolean; status: "pending" | "approved" | "rejected";
+  createdAt: string; reviewedAt: string | null; reviewerEmail: string | null;
+};
 
 export type ReportStatus = "pending" | "blocked" | "dismissed";
 export type ModerationReport = {
@@ -167,6 +172,18 @@ export async function getManagedUsers(token: string, options: { page: number; se
 export async function getAdminRewardOverview(token: string) {
   const response = await fetch(`${apiUrl}/admin/rewards`, { headers: authHeaders(token) });
   return parseResponse<AdminRewardOverview>(response);
+}
+
+export async function getVerificationRequests(token: string, status = "pending") {
+  const response = await fetch(`${apiUrl}/admin/verification-requests?status=${status}`, { headers: authHeaders(token) });
+  return (await parseResponse<{ requests: AdminVerificationRequest[] }>(response)).requests;
+}
+
+export async function reviewVerificationRequest(token: string, requestId: string, decision: "approved" | "rejected") {
+  const response = await fetch(`${apiUrl}/admin/verification-requests/${requestId}`, {
+    method: "PATCH", headers: authHeaders(token, true), body: JSON.stringify({ decision })
+  });
+  return (await parseResponse<{ request: AdminVerificationRequest }>(response)).request;
 }
 
 export async function setManagedUserRole(token: string, userId: string, role: UserRole) {

@@ -13,6 +13,8 @@ type ToolbarProps = {
   onToggleMic: () => void;
   onToggleCamera: () => void;
   onLeave: () => void;
+  onOpenVerificationRequest: () => void;
+  canRequestVerification: boolean;
 };
 
 export function Toolbar({
@@ -24,7 +26,9 @@ export function Toolbar({
   language,
   onToggleMic,
   onToggleCamera,
-  onLeave
+  onLeave,
+  onOpenVerificationRequest,
+  canRequestVerification
 }: ToolbarProps) {
   const [cameraPopoverOpen, setCameraPopoverOpen] = useState(false);
   const t = (key: Parameters<typeof translate>[1]) => translate(language, key);
@@ -50,6 +54,7 @@ export function Toolbar({
             <span className="grid h-9 w-9 place-items-center rounded-full bg-[#ffd84d]/15 text-[#ffd84d]"><Crown size={18} /></span>
             <h3 className="mt-3 pr-6 text-sm font-semibold text-white">{t("cameraUpgradeTitle")}</h3>
             <p className="mt-2 text-xs leading-5 text-white/60">{t("cameraUpgradeDescription")}</p>
+            {canRequestVerification ? <button type="button" onClick={onOpenVerificationRequest} className="mt-3 h-9 w-full rounded-md border border-mint/35 bg-mint/10 px-3 text-xs font-semibold text-mint hover:bg-mint/20">{t("requestVerification")}</button> : null}
             <button type="button" onClick={() => setCameraPopoverOpen(false)} className="mt-4 h-9 w-full rounded-md bg-mint px-3 text-xs font-semibold text-ink hover:bg-mint/90">{t("gotIt")}</button>
             <span aria-hidden="true" className="absolute left-1/2 top-full h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-[#ffd84d]/30 bg-[#182635]" />
           </div>

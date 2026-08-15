@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { HttpError } from "../errors/httpError.js";
 import { issueAppJwt, verifyAppJwt } from "./jwt.js";
 import { verifyGoogleIdToken } from "./providers/googleProvider.js";
@@ -6,8 +6,16 @@ import { findUserById, upsertGoogleUser } from "../users/userRepository.js";
 import { activateAdminIfEligible, findActiveAdminForUser } from "../admin/adminRepository.js";
 import { issueAdminJwt } from "../admin/adminJwt.js";
 import { getRewardSummary } from "../rewards/rewardRepository.js";
+import { createVerificationRequest, getMyVerificationRequest } from "../users/verificationRequestRepository.js";
 
 export const authRouter = Router();
+
+function requireApplicationUser(request: Request) {
+  const authorization = request.header("authorization") ?? "";
+  const [scheme, token] = authorization.split(" ");
+  if (scheme !== "Bearer" || !token) throw new HttpError(401, "Authentication token is required.");
+  return verifyAppJwt(token).userId;
+}
 
 authRouter.post("/google", async (request, response, next) => {
   try {
@@ -41,6 +49,22 @@ authRouter.get("/rewards", async (request, response, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+authRouter.get("/verification-request", async (request, response, next) => {
+  try {
+    response.json({ request: await getMyVerificationRequest(requireApplicationUser(request)) });
+  } catch (error) { next(error); }
+});
+
+authRouter.post("/verification-request", async (request, response, next) => {
+  try {
+    const message = typeof request.body?.message === "string" ? request.body.message.trim() : "";
+    const communityCommitment = request.body?.communityCommitment === true;
+    if (message.length < 20 || message.length > 2_000) throw new HttpError(400, "The request message must be between 20 and 2000 characters.");
+    if (!communityCommitment) throw new HttpError(400, "Community commitment is required.");
+    response.status(201).json({ request: await createVerificationRequest(requireApplicationUser(request), message, communityCommitment) });
+  } catch (error) { next(error); }
 });
 
 authRouter.get("/me", async (request, response, next) => {

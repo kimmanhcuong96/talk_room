@@ -29,6 +29,7 @@ type HomePageProps = {
   onCreateRoom: (name: string, primaryLanguage: RoomLanguage, primaryLanguageLevel: RoomLanguageLevel, secondaryLanguage: RoomLanguage | null, capacity: number) => void;
   createRoomError: string | null;
   onOpenInfoPage: (page: InfoPage) => void;
+  onOpenVerificationRequest: () => void;
 };
 
 type RoomDensity = "3x" | "2x" | "1x";
@@ -116,7 +117,8 @@ export function HomePage({
   onJoin,
   onCreateRoom,
   createRoomError,
-  onOpenInfoPage
+  onOpenInfoPage,
+  onOpenVerificationRequest
 }: HomePageProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [density, setDensity] = useState<RoomDensity>("3x");
@@ -366,6 +368,7 @@ export function HomePage({
                           <span>{t("adminArea")}</span>
                         </a>
                       ) : null}
+                      {user.role === "unverified" ? <button type="button" onClick={() => { setUserMenuOpen(false); onOpenVerificationRequest(); }} className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-mint/15 px-3 text-sm font-medium text-mint transition hover:bg-mint/25"><ShieldCheck size={16} /><span>{t("requestVerification")}</span></button> : null}
                     </div>
                   </div>
                 ) : null}
@@ -486,7 +489,7 @@ export function HomePage({
               <div>
                 <h2 className="text-xl font-semibold">{t("createRoom")}</h2>
                 <p className="mt-2 text-sm leading-6 text-white/60">
-                  {canCreateRoom ? t("createRoomDescription") : t("createRoomVerifiedOnly")}
+                  {canCreateRoom ? t("createRoomDescription") : <>{t("createRoomVerifiedOnly")} {user ? <button type="button" onClick={onOpenVerificationRequest} className="font-semibold text-mint underline underline-offset-2">{t("requestVerification")}</button> : null}</>}
                 </p>
               </div>
               <button
@@ -596,7 +599,7 @@ export function HomePage({
                     </select>
                   </label>
                 </div>
-                {createRoomError ? <p className="mt-3 text-sm text-coral">{createRoomError}</p> : null}
+                {createRoomError ? <div className="mt-3 grid gap-2"><p className="text-sm text-coral">{createRoomError}</p>{!canCreateRoom ? <button type="button" onClick={onOpenVerificationRequest} className="text-left text-xs font-semibold text-mint underline underline-offset-2">{t("requestVerification")}</button> : null}</div> : null}
                 <div className="mt-5 flex justify-end gap-3">
                   <button type="button" onClick={() => setCreateRoomOpen(false)} className="h-10 rounded-md bg-white/5 px-4 text-sm text-white/75 hover:bg-white/10">
                     {t("cancel")}

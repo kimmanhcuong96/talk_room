@@ -7,10 +7,12 @@ export type AdminTranslationKey =
   | "adminNotInvited" | "adminSuspended" | "cannotChangeSelf" | "googleAccountConflict" | "lastLogin" | "lastOwnerProtected" | "loading" | "manage" | "next" | "noAdmins" | "noUsers" | "owner" | "ownerOnly"
   | "pageOf" | "previous" | "requestFailed" | "role" | "save" | "search" | "searchUsers" | "signOut" | "status" | "suspend"
   | "suspended" | "userManagement" | "userManagementDescription" | "userRoleSupporter" | "userRoleUnverified"
-  | "userRoleVerified" | "users" | "rewardPoints" | "rewardStreak" | "pointsToday" | "rewardByType" | "topEarners";
+  | "userRoleVerified" | "users" | "rewardPoints" | "rewardStreak" | "pointsToday" | "rewardByType" | "topEarners"
+  | "verificationRequests" | "verificationRequestsDescription" | "verificationMessage" | "commitment" | "approve" | "reject" | "noVerificationRequests" | "reviewed";
 
 const copies: Record<Language, Record<AdminTranslationKey, string>> = {
   en: {
+    verificationRequests: "Verification requests", verificationRequestsDescription: "Review community commitment requests from unverified users.", verificationMessage: "Message", commitment: "Commitment", approve: "Approve", reject: "Reject", noVerificationRequests: "No pending requests.", reviewed: "Reviewed",
     accessDenied: "You do not have permission to access this page.", account: "Account", actions: "Actions", active: "Active",
     admin: "Admin", adminAlreadyExists: "An admin account with this email already exists.", adminArea: "Administration", adminLoginDescription: "Sign in with an invited Google account to continue.",
     adminNotInvited: "This Google account has not been invited to the admin area.", adminSuspended: "This admin account is suspended.",
@@ -24,6 +26,7 @@ const copies: Record<Language, Record<AdminTranslationKey, string>> = {
     userRoleSupporter: "Supporter", userRoleUnverified: "Unverified", userRoleVerified: "Verified", users: "Users", rewardPoints: "Points", rewardStreak: "Streak", pointsToday: "Points issued today", rewardByType: "Last 30 days by type", topEarners: "Top earners (30 days)"
   },
   vi: {
+    verificationRequests: "Yêu cầu xác minh", verificationRequestsDescription: "Xem xét cam kết cộng đồng từ người dùng chưa xác minh.", verificationMessage: "Lời nhắn", commitment: "Cam kết", approve: "Duyệt", reject: "Từ chối", noVerificationRequests: "Không có yêu cầu đang chờ.", reviewed: "Đã xem xét",
     accessDenied: "Bạn không có quyền truy cập trang này.", account: "Tài khoản", actions: "Thao tác", active: "Đang hoạt động",
     admin: "Admin", adminAlreadyExists: "Đã tồn tại tài khoản admin với email này.", adminArea: "Quản trị hệ thống", adminLoginDescription: "Đăng nhập bằng tài khoản Google đã được mời để tiếp tục.",
     adminNotInvited: "Tài khoản Google này chưa được mời vào khu vực quản trị.", adminSuspended: "Tài khoản admin này đã bị khóa.",
@@ -37,6 +40,7 @@ const copies: Record<Language, Record<AdminTranslationKey, string>> = {
     userRoleSupporter: "Supporter", userRoleUnverified: "Chưa xác minh", userRoleVerified: "Đã xác minh", users: "Người dùng", rewardPoints: "Điểm", rewardStreak: "Chuỗi", pointsToday: "Điểm phát hành hôm nay", rewardByType: "30 ngày gần nhất theo loại", topEarners: "Người nhận nhiều điểm nhất (30 ngày)"
   },
   zh: {
+    verificationRequests: "认证申请", verificationRequestsDescription: "审核未验证用户提交的社区承诺申请。", verificationMessage: "留言", commitment: "承诺", approve: "通过", reject: "拒绝", noVerificationRequests: "没有待处理的申请。", reviewed: "已审核",
     accessDenied: "你没有权限访问此页面。", account: "账户", actions: "操作", active: "启用", admin: "管理员", adminAlreadyExists: "此邮箱的管理员账户已存在。", adminArea: "系统管理",
     adminNotInvited: "此 Google 账户尚未受邀进入管理区域。", adminSuspended: "此管理员账户已停用。",
     adminLoginDescription: "请使用已受邀的 Google 账户登录。", adminManagement: "管理员用户", adminManagementDescription: "邀请、更新或停用管理员账户。",
@@ -49,6 +53,7 @@ const copies: Record<Language, Record<AdminTranslationKey, string>> = {
     userRoleUnverified: "未验证", userRoleVerified: "已验证", users: "用户", rewardPoints: "积分", rewardStreak: "连续天数", pointsToday: "今日发放积分", rewardByType: "最近30天按类型", topEarners: "积分最高用户（30天）"
   },
   ja: {
+    verificationRequests: "認証申請", verificationRequestsDescription: "未認証ユーザーのコミュニティ参加申請を審査します。", verificationMessage: "メッセージ", commitment: "同意", approve: "承認", reject: "却下", noVerificationRequests: "保留中の申請はありません。", reviewed: "審査済み",
     accessDenied: "このページにアクセスする権限がありません。", account: "アカウント", actions: "操作", active: "有効", admin: "管理者", adminAlreadyExists: "このメールアドレスの管理者はすでに存在します。",
     adminNotInvited: "この Google アカウントは管理エリアに招待されていません。", adminSuspended: "この管理者アカウントは停止されています。",
     adminArea: "システム管理", adminLoginDescription: "招待済みの Google アカウントでログインしてください。", adminManagement: "管理者ユーザー",

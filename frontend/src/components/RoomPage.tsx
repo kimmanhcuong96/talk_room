@@ -36,6 +36,7 @@ type RoomPageProps = {
   language: Language;
   role: UserRole;
   onLeave: () => void;
+  onOpenVerificationRequest: () => void;
 };
 
 function getYouTubeErrorMessage(language: Language, error: string) {
@@ -46,7 +47,7 @@ function getYouTubeErrorMessage(language: Language, error: string) {
   return youtubeTranslate(language, "failed");
 }
 
-export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl, isConnected, connectionError, language, role, onLeave }: RoomPageProps) {
+export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl, isConnected, connectionError, language, role, onLeave, onOpenVerificationRequest }: RoomPageProps) {
   const [chatOpen, setChatOpen] = useState(false);
   const [roomConnectionError, setRoomConnectionError] = useState<string | null>(null);
   const [mediaNotice, setMediaNotice] = useState<string | null>(null);
@@ -188,6 +189,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
             ? "roomLanguagesMustDiffer"
             : "roomLanguagePermissionDenied";
       setLanguageEditorError(translate(language, errorKey));
+      if (message === "ROOM_LANGUAGE_PERMISSION_DENIED" && role === "unverified") setMediaNotice(translate(language, "roomLanguagePermissionDenied"));
     };
 
     setCanManageLanguages(false);
@@ -201,7 +203,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
       socket.off("room-languages-updated", handleLanguagesUpdated);
       socket.off("room-language-error", handleLanguageError);
     };
-  }, [language, room.id, socket]);
+  }, [language, role, room.id, socket]);
 
   useEffect(() => setYoutubeVideo(room.youtubeVideo ? { ...room.youtubeVideo, updatedAt: Date.now() } : null), [room.youtubeVideo]);
 
@@ -227,6 +229,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
     const handleError = (message: string) => {
       setYoutubeSaving(false);
       setYoutubeSettingsError(getYouTubeErrorMessage(language, message));
+      if (message === "ROOM_YOUTUBE_PERMISSION_DENIED" && role === "unverified") setMediaNotice(translate(language, "roomLanguagePermissionDenied"));
     };
     socket.on("room-youtube-permission", handlePermission);
     socket.on("room-youtube-updated", handleUpdated);
@@ -237,7 +240,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
       socket.off("room-youtube-updated", handleUpdated);
       socket.off("room-youtube-error", handleError);
     };
-  }, [canEditYoutube, language, room.id, socket]);
+  }, [canEditYoutube, language, role, room.id, socket]);
 
   useEffect(() => {
     if (!youtubeSaving) return;
@@ -301,6 +304,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
     const handleError = (message: string) => {
       setTopicSaving(false);
       setTopicEditorError(roomTopicTranslate(language, message === "ROOM_TOPIC_PERMISSION_DENIED" ? "denied" : "invalid"));
+      if (message === "ROOM_TOPIC_PERMISSION_DENIED" && role === "unverified") setMediaNotice(translate(language, "roomLanguagePermissionDenied"));
     };
     socket.on("room-topic-permission", handlePermission);
     socket.on("room-topic-updated", handleUpdated);
@@ -311,7 +315,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
       socket.off("room-topic-updated", handleUpdated);
       socket.off("room-topic-error", handleError);
     };
-  }, [language, room.id, socket]);
+  }, [language, role, room.id, socket]);
 
   useEffect(() => {
     if (!topicSaving) return;
@@ -528,6 +532,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
             >
               {mediaNotice ? <AlertTriangle className="mt-0.5 shrink-0" size={16} /> : <CheckCircle2 className="mt-0.5 shrink-0" size={16} />}
               <span className="min-w-0 flex-1 leading-5">{mediaNotice ?? successNotice}</span>
+              {mediaNotice && role === "unverified" ? <button type="button" onClick={onOpenVerificationRequest} className="shrink-0 text-xs font-semibold underline underline-offset-2">{t("requestVerification")}</button> : null}
             </div>
           ) : null}
           <div className="min-h-0 flex-1">
@@ -557,6 +562,8 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
           onToggleMic={toggleMic}
           onToggleCamera={toggleCamera}
           onLeave={onLeave}
+          onOpenVerificationRequest={onOpenVerificationRequest}
+          canRequestVerification={role === "unverified"}
         />
       </section>
 

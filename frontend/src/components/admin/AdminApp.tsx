@@ -33,6 +33,7 @@ import { VirtualUsersPage } from "./VirtualUsersSettings";
 import { UsageAnalyticsPage } from "./UsageAnalyticsPage";
 import { AdminReloadButton } from "./AdminReloadButton";
 import { LLMUsagePage } from "./LLMUsagePage";
+import { VerificationRequestsPage } from "./VerificationRequestsPage";
 
 const LANGUAGE_STORAGE_KEY = "me2talk:language";
 const LEGACY_LANGUAGE_STORAGE_KEY = "english-talk-rooms:language";
@@ -106,6 +107,7 @@ function Dashboard({ session, t }: { session: AdminSession; t: Translator }) {
   const moderation = adminModerationCopy(getAdminLanguage());
   const cards = [
     { page: "users" as const, icon: Users, title: t("userManagement"), description: t("userManagementDescription"), allowed: true },
+    { page: "verification-requests" as const, icon: ShieldCheck, title: t("verificationRequests"), description: t("verificationRequestsDescription"), allowed: true },
     { page: "virtual-users" as const, icon: Bot, title: "Virtual Users", description: "Manage the 15 fixed chat bot profiles and view their live room status.", allowed: true },
     { page: "llm-usage" as const, icon: BrainCircuit, title: "LLM Usage", description: "Monitor Virtual User LLM requests, token usage, providers, and models.", allowed: true },
     { page: "reports" as const, icon: Flag, title: moderation.title, description: moderation.description, allowed: true },
@@ -322,9 +324,10 @@ export function AdminApp() {
   if (!session) return <main className="grid min-h-screen place-items-center bg-ink text-white"><LoaderCircle size={28} className="animate-spin text-mint" /></main>;
 
   const signOut = () => { clearAdminToken(); setSession(null); };
-  const pageTitle = page === "users" ? t("userManagement") : page === "virtual-users" ? "Virtual Users" : page === "llm-usage" ? "LLM Usage" : page === "admins" ? t("adminManagement") : page === "reports" ? adminModerationCopy(language).title : page === "analytics" ? adminAnalyticsCopy(language).title : t("adminArea");
+  const pageTitle = page === "users" ? t("userManagement") : page === "verification-requests" ? t("verificationRequests") : page === "virtual-users" ? "Virtual Users" : page === "llm-usage" ? "LLM Usage" : page === "admins" ? t("adminManagement") : page === "reports" ? adminModerationCopy(language).title : page === "analytics" ? adminAnalyticsCopy(language).title : t("adminArea");
   let content: ReactNode = <Dashboard session={session} t={t} />;
   if (page === "users") content = <UsersPage session={session} language={language} t={t} />;
+  if (page === "verification-requests") content = <VerificationRequestsPage token={session.token} language={language} t={t} />;
   if (page === "admins") content = <AdminsPage session={session} language={language} t={t} />;
   if (page === "reports") content = <ReportsPage session={session} language={language} backLabel={t("backToDashboard")} previousLabel={t("previous")} nextLabel={t("next")} loadingLabel={t("loading")} pageLabel={(current, pages) => t("pageOf", { page: current, pages })} />;
   if (page === "virtual-users") content = <VirtualUsersPage token={session.token} language={language} />;

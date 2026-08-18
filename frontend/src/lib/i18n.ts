@@ -75,6 +75,7 @@ export type TranslationKey =
   | "primaryLanguage"
   | "secondaryLanguage"
   | "optional"
+  | "openMe2listen"
   | "openMe2write"
   | "selectLanguage"
   | "roomPrimaryLanguageRequired"
@@ -203,6 +204,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     nicknameRequired: "Please enter a nickname.",
     nicknamePlaceholder: "Enter your nickname",
     privacyPolicy: "Privacy Policy",
+    openMe2listen: "Open Me2Listen in a new tab",
     openMe2write: "Open Me2write writing checker in a new tab",
     readyAccess: "Ready access",
     role: "Account type",
@@ -329,6 +331,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     nicknameRequired: "Vui lòng nhập tên hiển thị.",
     nicknamePlaceholder: "Nhập tên của bạn",
     privacyPolicy: "Chính sách riêng tư",
+    openMe2listen: "Mở Me2Listen trong tab mới",
     openMe2write: "Mở công cụ kiểm tra bài viết Me2write trong tab mới",
     readyAccess: "Sẵn sàng vào phòng",
     role: "Loại tài khoản",
@@ -455,6 +458,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     nicknameRequired: "请输入昵称。",
     nicknamePlaceholder: "输入你的昵称",
     privacyPolicy: "隐私政策",
+    openMe2listen: "在新标签页中打开 Me2Listen",
     openMe2write: "在新标签页中打开 Me2write 写作检查工具",
     readyAccess: "准备进入",
     role: "账户类型",
@@ -581,6 +585,7 @@ const translations: Record<Language, Record<TranslationKey, string>> = {
     nicknameRequired: "ニックネームを入力してください。",
     nicknamePlaceholder: "ニックネームを入力",
     privacyPolicy: "プライバシーポリシー",
+    openMe2listen: "Me2Listen を新しいタブで開く",
     openMe2write: "Me2write ライティングチェッカーを新しいタブで開く",
     readyAccess: "入室準備",
     role: "アカウント種別",

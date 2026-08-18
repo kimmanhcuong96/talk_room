@@ -192,9 +192,9 @@ export function VideoTile({
           />
         )
       ) : (
-        <div className="grid h-full w-full place-items-center rounded-lg bg-field">
+        <div className="room-participant-placeholder grid h-full w-full place-items-center rounded-lg bg-field">
           {stream && !muted ? <audio ref={audioRef} autoPlay playsInline /> : null}
-          <div className="group/avatar relative">
+          <div className="room-participant-avatar group/avatar relative">
             <AvatarBadge avatar={avatar} size={compact ? "md" : "lg"} />
             {isSpeaking ? (
               <span className="absolute -inset-2 rounded-full border-2 border-mint opacity-80 animate-ping" />
@@ -209,12 +209,12 @@ export function VideoTile({
         </div>
       ) : null}
 
-      <div className={`absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 rounded-b-lg bg-black/55 backdrop-blur ${compact ? "px-2 py-1.5" : "px-3 py-2"}`}>
+      <div className={`room-participant-meta absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 rounded-b-lg bg-black/55 backdrop-blur ${compact ? "px-2 py-1.5" : "px-3 py-2"}`}>
         <span className="flex min-w-0 items-center gap-2">
           {compact ? null : <AvatarBadge avatar={avatar} size="sm" />}
-          <span className={`${compact ? "text-xs" : "text-sm"} truncate font-medium text-white`}>{nickname}</span>
+          <span className={`room-participant-name ${compact ? "text-xs" : "text-sm"} truncate font-medium text-white`}>{nickname}</span>
         </span>
-        <span className={`flex shrink-0 items-center ${compact ? "gap-1" : "gap-2"} text-white/80`}>
+        <span className={`room-participant-controls flex shrink-0 items-center ${compact ? "gap-1" : "gap-2"} text-white/80`}>
           <span className="flex items-center gap-1">
             {micEnabled ? <Mic size={compact ? 13 : 16} className={isSpeaking ? "text-mint" : undefined} /> : <MicOff size={compact ? 13 : 16} />}
             {micEnabled && !compact ? (

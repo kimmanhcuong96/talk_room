@@ -35,6 +35,7 @@ type HomePageProps = {
 
 type RoomDensity = "3x" | "2x" | "1x";
 const ME2WRITE_URL = "https://write-checker.pages.dev/";
+const ME2LISTEN_URL = "https://me2listen.com/";
 
 async function copyReferralUrl(value: string) {
   if (navigator.clipboard?.writeText) {
@@ -224,9 +225,30 @@ export function HomePage({
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-3 sm:justify-start">
-            <p className="text-sm font-medium uppercase tracking-wide text-mint">me2talk - Me to talk</p>
-            <ThemeToggle language={language} />
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <p className="mr-1 text-base font-semibold uppercase tracking-wide text-mint drop-shadow-[0_0_10px_rgba(69,212,131,0.28)]">me2talk - Me to talk</p>
+            <a
+              href={ME2LISTEN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={t("openMe2listen")}
+              aria-label={t("openMe2listen")}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-mint/35 bg-mint/10 px-3 text-xs font-semibold text-mint transition hover:border-mint/55 hover:bg-mint/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint/45"
+            >
+              <span>Me2Listen</span>
+              <ExternalLink size={14} aria-hidden="true" />
+            </a>
+            <a
+              href={ME2WRITE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={t("openMe2write")}
+              aria-label={t("openMe2write")}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-mint/35 bg-mint/10 px-3 text-xs font-semibold text-mint transition hover:border-mint/55 hover:bg-mint/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint/45"
+            >
+              <span>Me2write</span>
+              <ExternalLink size={14} aria-hidden="true" />
+            </a>
           </div>
           <h1 className="mt-2 text-4xl font-semibold text-white sm:text-5xl">{t("title")}</h1>
           <p className={`mt-3 flex items-center gap-2 text-sm ${isConnected ? "text-mint" : "text-coral"}`}>
@@ -237,15 +259,22 @@ export function HomePage({
             {isConnected ? t("serverConnected") : t("connectingServer")}
           </p>
         </div>
-        <div className="grid w-full max-w-sm grid-cols-2 items-start gap-3">
+        <div className="w-full max-w-sm">
+          <div className="mb-3 grid grid-cols-2 gap-3">
+            <span aria-hidden="true" />
+            <div className="flex justify-end">
+              <ThemeToggle language={language} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 items-start gap-3">
           <section className="min-w-0">
             {isAuthLoading ? (
-              <div className="grid h-12 w-full place-items-center rounded-md border border-white/10 bg-panel shadow-xl shadow-black/15">
+              <div className="home-account-summary grid h-12 w-full place-items-center rounded-md border border-white/10 bg-panel shadow-xl shadow-black/15">
                 <LoaderCircle size={18} className="animate-spin text-mint" aria-hidden="true" />
               </div>
             ) : user ? (
               <div ref={userMenuRef} className="relative">
-                <div className="flex h-12 min-w-0 items-center gap-2 rounded-md border border-white/10 bg-panel px-2 shadow-xl shadow-black/15">
+                <div className="home-account-summary flex h-12 min-w-0 items-center gap-2 rounded-md border border-white/10 bg-panel px-2 shadow-xl shadow-black/15">
                   <button
                     type="button"
                     aria-expanded={userMenuOpen}
@@ -463,6 +492,7 @@ export function HomePage({
               ) : null}
             </div>
           </div>
+          </div>
         </div>
       </header>
 
@@ -634,7 +664,7 @@ export function HomePage({
       ) : null}
 
       <section className="flex flex-col gap-4">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <button
             type="button"
             onClick={() => setCreateRoomOpen(true)}
@@ -644,17 +674,6 @@ export function HomePage({
             <Plus size={18} />
             {t("createGroup")}
           </button>
-          <a
-            href={ME2WRITE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            title={t("openMe2write")}
-            aria-label={t("openMe2write")}
-            className="inline-flex h-10 min-w-0 items-center justify-center gap-2 rounded-md border border-mint/35 bg-mint/10 px-4 text-sm font-semibold text-mint transition hover:border-mint/55 hover:bg-mint/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint/45"
-          >
-            <span className="truncate">Me2write</span>
-            <ExternalLink size={16} className="shrink-0" aria-hidden="true" />
-          </a>
           {/* <button
             type="button"
             className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#ffd84d] px-4 text-sm font-semibold text-[#171100] transition hover:bg-[#f0c930]"

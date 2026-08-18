@@ -55,7 +55,7 @@ export function ReportsPage({ session, language, backLabel, previousLabel, nextL
       <select value={status} onChange={(event) => setStatus(event.target.value)} className="h-10 rounded-md border border-white/10 bg-field px-3"><option value="">{c.all}</option><option value="pending">{c.pending}</option><option value="blocked">{c.blocked}</option><option value="dismissed">{c.dismissed}</option></select>
       <label className="grid gap-1 text-xs text-white/55">{c.from}<input type="date" value={from} onChange={(event) => setFrom(event.target.value)} className="h-10 rounded-md border border-white/10 bg-field px-3 text-sm text-white"/></label>
       <label className="grid gap-1 text-xs text-white/55">{c.to}<input type="date" value={to} onChange={(event) => setTo(event.target.value)} className="h-10 rounded-md border border-white/10 bg-field px-3 text-sm text-white"/></label>
-      <button className="self-end h-10 rounded-md bg-[#258ff4] px-4 text-sm font-semibold">{c.apply}</button>
+      <button className="self-end h-10 rounded-md bg-[#258ff4] px-4 text-sm font-semibold text-static-white">{c.apply}</button>
     </form>
     <div className="flex justify-end"><AdminReloadButton language={language} loading={loading} onClick={() => void load()} /></div>
     {error ? <div className="rounded-md border border-coral/40 bg-coral/15 px-4 py-3 text-sm text-coral">{error}</div> : null}

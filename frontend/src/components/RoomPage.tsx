@@ -23,6 +23,7 @@ import { roomTopicTranslate } from "../lib/roomTopicI18n";
 import { YouTubeVideoDock, YouTubeVideoStage } from "./RoomYouTube";
 import { YouTubeSettings } from "./RoomYouTubeSettings";
 import { youtubeTranslate } from "../lib/youtubeI18n";
+import { ThemeToggle } from "./ThemeToggle";
 
 type RoomPageProps = {
   socket: AppSocket;
@@ -473,6 +474,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
             <p className="text-xs text-white/50 sm:text-sm">{t("speakers", { count: remotePeers.length + 1 })}</p>
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle language={language} compact />
             {canEditYoutube ? (
               <button type="button" title={youtubeTranslate(language, "manage")} aria-label={youtubeTranslate(language, "manage")} onClick={openYoutubeSettings} className="inline-flex h-9 items-center gap-2 rounded-md border border-red-400/25 bg-red-500/10 px-2.5 text-red-300 transition hover:bg-red-500/15 sm:px-3">
                 <Youtube size={19}/><span className="hidden text-sm font-medium lg:inline">{youtubeTranslate(language, "share")}</span>
@@ -528,7 +530,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
             <div
               role="status"
               aria-live="polite"
-              className={`absolute left-2 top-2 z-20 flex w-[calc(100%-1rem)] max-w-sm items-start gap-2 rounded-lg border px-3 py-2 text-xs shadow-xl shadow-black/30 backdrop-blur sm:left-4 sm:top-4 sm:text-sm ${mediaNotice ? "border-coral/40 bg-[#241713]/95 text-coral" : "border-mint/40 bg-[#10241a]/95 text-mint"}`}
+              className={`absolute left-2 top-2 z-20 flex w-[calc(100%-1rem)] max-w-sm items-start gap-2 rounded-lg border bg-panel/95 px-3 py-2 text-xs shadow-xl shadow-black/30 backdrop-blur sm:left-4 sm:top-4 sm:text-sm ${mediaNotice ? "border-coral/40 text-coral" : "border-mint/40 text-mint"}`}
             >
               {mediaNotice ? <AlertTriangle className="mt-0.5 shrink-0" size={16} /> : <CheckCircle2 className="mt-0.5 shrink-0" size={16} />}
               <span className="min-w-0 flex-1 leading-5">{mediaNotice ?? successNotice}</span>

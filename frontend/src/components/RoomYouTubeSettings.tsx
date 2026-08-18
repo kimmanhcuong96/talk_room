@@ -89,7 +89,7 @@ export function YouTubeSettings({
                     >
                       <span className="relative block aspect-video overflow-hidden bg-black">
                         <img src={video.thumbnailUrl} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover transition group-hover:scale-[1.03]" />
-                        <span className="absolute inset-0 grid place-items-center bg-black/10"><span className="grid h-8 w-10 place-items-center rounded-lg bg-red-600 text-white shadow-lg"><Play size={15} fill="currentColor" /></span></span>
+                        <span className="absolute inset-0 grid place-items-center bg-black/10"><span className="grid h-8 w-10 place-items-center rounded-lg bg-red-600 text-static-white shadow-lg"><Play size={15} fill="currentColor" /></span></span>
                       </span>
                       <span className="block px-2.5 py-2">
                         <span className="line-clamp-2 min-h-9 text-xs font-semibold leading-[18px] text-white/90">{video.title}</span>
@@ -107,7 +107,7 @@ export function YouTubeSettings({
           <div>{currentVideo ? <button disabled={saving} type="button" onClick={onRemove} className="inline-flex h-10 items-center gap-2 rounded-md bg-coral/10 px-3 text-sm text-coral hover:bg-coral/20 disabled:opacity-40"><Trash2 size={16} />{t("remove")}</button> : null}</div>
           <div className="flex gap-2">
             <button disabled={saving} type="button" onClick={onClose} className="h-10 rounded-md bg-white/5 px-4 text-sm text-white/65 hover:bg-white/10 disabled:opacity-40">{t("cancel")}</button>
-            <button disabled={saving || !url.trim()} className="h-10 rounded-md bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-500 disabled:cursor-wait disabled:opacity-40">{saving ? "..." : currentVideo ? t("replace") : t("add")}</button>
+            <button disabled={saving || !url.trim()} className="h-10 rounded-md bg-red-600 px-4 text-sm font-semibold text-static-white hover:bg-red-500 disabled:cursor-wait disabled:opacity-40">{saving ? "..." : currentVideo ? t("replace") : t("add")}</button>
           </div>
         </div>
       </form>

@@ -2,6 +2,7 @@ import { ArrowLeft, BookOpen, HeartHandshake, Languages, Mail, MessageCircle, Sh
 import type { ReactNode } from "react";
 import { type InfoPageCopy, type Language, infoPageCopies, privacyContentResponsibility, privacyEnforcementNotice, privacyEnforcementSummary, rewardPolicyCopies, translate } from "../lib/i18n";
 import type { InfoPage as InfoPageName } from "../lib/routes";
+import { ThemeToggle } from "./ThemeToggle";
 
 type InfoPageProps = {
   page: InfoPageName;
@@ -101,7 +102,7 @@ function AboutContent({ copy }: { copy: NonNullable<InfoPageCopy["about"]> }) {
 
 function RewardPolicyContent({ language }: { language: Language }) {
   const copy = rewardPolicyCopies[language];
-  return <div className="grid gap-8"><div className="rounded-lg border border-[#ffd84d]/25 bg-[#ffd84d]/10 p-4 text-sm leading-6 text-white/80"><strong className="text-[#ffd84d]">{copy.summaryLabel}</strong> {copy.summary}</div>{copy.sections.map((section, sectionIndex) => <section key={section.heading}><h2 className="text-xl font-semibold text-white">{section.heading}</h2><p className="mt-3 leading-7 text-white/68">{(sectionIndex < 2 ? section.body.split(/(\d+)/g) : [section.body]).map((part, index) => sectionIndex < 2 && /^\d+$/.test(part) ? <strong key={index} className="font-bold text-[#ffd84d]">{part}</strong> : <span key={index}>{part}</span>)}</p></section>)}</div>;
+  return <div className="grid gap-8"><div className="rounded-lg border border-reward/25 bg-reward/10 p-4 text-sm leading-6 text-white/80"><strong className="text-reward">{copy.summaryLabel}</strong> {copy.summary}</div>{copy.sections.map((section, sectionIndex) => <section key={section.heading}><h2 className="text-xl font-semibold text-white">{section.heading}</h2><p className="mt-3 leading-7 text-white/68">{(sectionIndex < 2 ? section.body.split(/(\d+)/g) : [section.body]).map((part, index) => sectionIndex < 2 && /^\d+$/.test(part) ? <strong key={index} className="font-bold text-reward">{part}</strong> : <span key={index}>{part}</span>)}</p></section>)}</div>;
 }
 
 function renderContent(page: InfoPageName, copy: InfoPageCopy, language: Language): ReactNode {
@@ -127,10 +128,13 @@ export function InfoPage({ page, language, onBack }: InfoPageProps) {
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl px-4 py-8 text-white sm:px-6 lg:px-8">
-      <button type="button" onClick={onBack} className="inline-flex h-10 items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 text-sm text-white/75 transition hover:bg-white/10">
-        <ArrowLeft size={17} />
-        {translate(language, "backToRooms")}
-      </button>
+      <div className="flex items-center justify-between gap-3">
+        <button type="button" onClick={onBack} className="inline-flex h-10 items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 text-sm text-white/75 transition hover:bg-white/10">
+          <ArrowLeft size={17} />
+          {translate(language, "backToRooms")}
+        </button>
+        <ThemeToggle language={language} />
+      </div>
       <header className="mt-10 border-b border-white/10 pb-10">
         <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-mint">
           <HeroIcon size={19} />

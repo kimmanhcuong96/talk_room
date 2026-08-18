@@ -35,7 +35,7 @@ export function RoomLanguageEditor({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 px-4 backdrop-blur-sm">
-      <section role="dialog" aria-modal="true" aria-labelledby="room-language-settings-title" className="w-full max-w-md rounded-lg border border-white/10 bg-[#182635] p-5 shadow-2xl shadow-black/45">
+      <section role="dialog" aria-modal="true" aria-labelledby="room-language-settings-title" className="w-full max-w-md rounded-lg border border-white/10 bg-panel p-5 shadow-2xl shadow-black/45">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 place-items-center rounded-lg bg-mint/10 text-mint"><Languages size={20} /></span>
@@ -67,7 +67,7 @@ export function RoomLanguageEditor({
               className="h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
             >
               {roomLanguages.map((roomLanguage) => (
-                <option key={roomLanguage.code} value={roomLanguage.code} className="bg-[#182635] text-white">{roomLanguage.nativeName}</option>
+                <option key={roomLanguage.code} value={roomLanguage.code} className="bg-field text-white">{roomLanguage.nativeName}</option>
               ))}
             </select>
           </label>
@@ -82,7 +82,7 @@ export function RoomLanguageEditor({
               className="h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
             >
               {roomLanguageLevels.map((level) => (
-                <option key={level.code} value={level.code} className="bg-[#182635] text-white">{level.label}</option>
+                <option key={level.code} value={level.code} className="bg-field text-white">{level.label}</option>
               ))}
             </select>
           </label>
@@ -95,9 +95,9 @@ export function RoomLanguageEditor({
               onChange={(event) => setSecondary(event.target.value as RoomLanguage | "")}
               className="mt-2 h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
             >
-              <option value="" className="bg-[#182635] text-white">{t("selectLanguage")}</option>
+              <option value="" className="bg-field text-white">{t("selectLanguage")}</option>
               {roomLanguages.filter((roomLanguage) => roomLanguage.code !== primary).map((roomLanguage) => (
-                <option key={roomLanguage.code} value={roomLanguage.code} className="bg-[#182635] text-white">{roomLanguage.nativeName}</option>
+                <option key={roomLanguage.code} value={roomLanguage.code} className="bg-field text-white">{roomLanguage.nativeName}</option>
               ))}
             </select>
           </label>

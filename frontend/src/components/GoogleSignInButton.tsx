@@ -136,13 +136,13 @@ export function GoogleSignInButton({
           onClick={handleClick}
           className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-md px-3 text-sm font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${
             variant === "google-blue"
-              ? "border border-[#1a73e8] bg-[#1a73e8] text-white hover:bg-[#1765cc] hover:shadow"
-              : "border border-[#dadce0] bg-white text-[#3c4043] hover:bg-[#f8fafd] hover:shadow"
+              ? "border border-[#1a73e8] bg-[#1a73e8] text-static-white hover:bg-[#1765cc] hover:shadow"
+              : "border border-[#dadce0] bg-static-white text-[#3c4043] hover:bg-[#f8fafd] hover:shadow"
           }`}
         >
           <span
             className={`grid h-5 w-5 place-items-center rounded-full text-sm font-bold ${
-              variant === "google-blue" ? "bg-white text-[#4285f4]" : "border border-[#dadce0] text-[#4285f4]"
+              variant === "google-blue" ? "bg-static-white text-[#4285f4]" : "border border-[#dadce0] text-[#4285f4]"
             }`}
           >
             G

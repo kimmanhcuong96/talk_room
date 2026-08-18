@@ -11,6 +11,7 @@ import { SeoContent } from "./SeoContent";
 import { getRoomLanguageLevelLabel, getRoomLanguageName, roomLanguageLevels, roomLanguages, type RoomLanguage, type RoomLanguageLevel } from "../lib/roomLanguages";
 import { RoomLanguageTags } from "./RoomLanguageTags";
 import { RoomParticipantAvatars } from "./RoomParticipantAvatars";
+import { ThemeToggle } from "./ThemeToggle";
 
 type HomePageProps = {
   rooms: RoomSummary[];
@@ -81,7 +82,7 @@ function FlagIcon({ language }: { language: Language }) {
 
   if (language === "ja") {
     return (
-      <span className="grid h-4 w-6 place-items-center overflow-hidden rounded-sm bg-white shadow-sm">
+      <span className="grid h-4 w-6 place-items-center overflow-hidden rounded-sm bg-static-white shadow-sm">
         <span className="h-2 w-2 rounded-full bg-[#bc002d]" />
       </span>
     );
@@ -89,12 +90,12 @@ function FlagIcon({ language }: { language: Language }) {
 
   return (
     <span className="relative h-4 w-6 overflow-hidden rounded-sm bg-[#012169] shadow-sm">
-      <span className="absolute left-1/2 top-1/2 h-[2px] w-8 -translate-x-1/2 -translate-y-1/2 rotate-[34deg] bg-white" />
-      <span className="absolute left-1/2 top-1/2 h-[2px] w-8 -translate-x-1/2 -translate-y-1/2 -rotate-[34deg] bg-white" />
+      <span className="absolute left-1/2 top-1/2 h-[2px] w-8 -translate-x-1/2 -translate-y-1/2 rotate-[34deg] bg-static-white" />
+      <span className="absolute left-1/2 top-1/2 h-[2px] w-8 -translate-x-1/2 -translate-y-1/2 -rotate-[34deg] bg-static-white" />
       <span className="absolute left-1/2 top-1/2 h-[1px] w-8 -translate-x-1/2 -translate-y-1/2 rotate-[34deg] bg-[#c8102e]" />
       <span className="absolute left-1/2 top-1/2 h-[1px] w-8 -translate-x-1/2 -translate-y-1/2 -rotate-[34deg] bg-[#c8102e]" />
-      <span className="absolute inset-y-0 left-1/2 w-[5px] -translate-x-1/2 bg-white" />
-      <span className="absolute inset-x-0 top-1/2 h-[5px] -translate-y-1/2 bg-white" />
+      <span className="absolute inset-y-0 left-1/2 w-[5px] -translate-x-1/2 bg-static-white" />
+      <span className="absolute inset-x-0 top-1/2 h-[5px] -translate-y-1/2 bg-static-white" />
       <span className="absolute inset-y-0 left-1/2 w-[3px] -translate-x-1/2 bg-[#c8102e]" />
       <span className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 bg-[#c8102e]" />
     </span>
@@ -222,8 +223,11 @@ export function HomePage({
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-4 py-8 sm:px-6 lg:px-8">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-mint">me2talk - Me to talk</p>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-3 sm:justify-start">
+            <p className="text-sm font-medium uppercase tracking-wide text-mint">me2talk - Me to talk</p>
+            <ThemeToggle language={language} />
+          </div>
           <h1 className="mt-2 text-4xl font-semibold text-white sm:text-5xl">{t("title")}</h1>
           <p className={`mt-3 flex items-center gap-2 text-sm ${isConnected ? "text-mint" : "text-coral"}`}>
             <span
@@ -274,7 +278,7 @@ export function HomePage({
                 </div>
 
                 {userMenuOpen ? (
-                  <div className="absolute left-0 z-30 mt-2 w-[calc(200%+0.75rem)] max-w-[calc(100vw-2rem)] rounded-lg border border-white/10 bg-[#182635] p-4 text-white shadow-2xl shadow-black/40">
+                  <div className="absolute left-0 z-30 mt-2 w-[calc(200%+0.75rem)] max-w-[calc(100vw-2rem)] rounded-lg border border-white/10 bg-panel p-4 text-white shadow-2xl shadow-black/40">
                     <div className="flex min-w-0 items-center gap-3">
                       {user.avatarUrl ? (
                         <img
@@ -303,7 +307,7 @@ export function HomePage({
                           <span className="shrink-0 text-white/55">{t("role")}:</span>
                           <span className={`truncate rounded-full px-2 py-0.5 text-xs font-semibold ${
                             user.role === "supporter"
-                              ? "bg-[#ffd84d]/15 text-[#ffd84d]"
+                              ? "bg-reward/15 text-reward"
                               : user.role === "verified"
                                 ? "bg-mint/15 text-mint"
                                 : "bg-coral/15 text-coral"
@@ -311,10 +315,10 @@ export function HomePage({
                         </div>
                       </div>
                       {rewards ? (
-                        <div className="mt-1 rounded-lg border border-[#ffd84d]/20 bg-[#ffd84d]/8 p-3">
+                        <div className="mt-1 rounded-lg border border-reward/20 bg-reward/10 p-3">
                           <div className="flex items-center justify-between gap-3">
-                            <span className="flex items-center gap-2 font-medium text-white/75"><Sparkles size={16} className="text-[#ffd84d]" />{t("points")}</span>
-                            <strong className="text-lg text-[#ffd84d]">{rewards.totalPoints.toLocaleString()}</strong>
+                            <span className="flex items-center gap-2 font-medium text-white/75"><Sparkles size={16} className="text-reward" />{t("points")}</span>
+                            <strong className="text-lg text-reward">{rewards.totalPoints.toLocaleString()}</strong>
                           </div>
                           {!rewards.eligible ? <p className="mt-2 text-xs leading-5 text-white/60">{t("rewardEligibleOnly")}</p> : <>
                           <div className="mt-2 grid grid-cols-3 gap-x-2 gap-y-1 text-[11px] text-white/55">
@@ -331,7 +335,7 @@ export function HomePage({
                             <span>{t("highestStreak")}<strong className="block text-white/85">{rewards.highestStreakDays}d</strong></span>
                             {rewards.nextStreakMilestone ? <span className="col-span-2">{t("nextStreakMilestone", { days: rewards.nextStreakMilestone })}<span className="mt-1 block h-1 overflow-hidden rounded bg-white/10"><span className="block h-full rounded bg-[#ffd84d]" style={{ width: `${Math.min(100, rewards.currentStreakDays / rewards.nextStreakMilestone * 100)}%` }} /></span></span> : null}
                           </div>
-                          {rewards.recentTransactions.length ? <details className="mt-2 text-[11px] text-white/60"><summary className="cursor-pointer">{t("recentRewards")}</summary><ul className="mt-1 max-h-28 space-y-1 overflow-auto">{rewards.recentTransactions.map((item) => <li key={item.id} className="flex justify-between gap-2"><span className="truncate">{rewardEventLabels[item.eventType] ?? t("points")}</span><strong className="text-[#ffd84d]">{item.points > 0 ? "+" : ""}{item.points}</strong></li>)}</ul></details> : null}
+                          {rewards.recentTransactions.length ? <details className="mt-2 text-[11px] text-white/60"><summary className="cursor-pointer">{t("recentRewards")}</summary><ul className="mt-1 max-h-28 space-y-1 overflow-auto">{rewards.recentTransactions.map((item) => <li key={item.id} className="flex justify-between gap-2"><span className="truncate">{rewardEventLabels[item.eventType] ?? t("points")}</span><strong className="text-reward">{item.points > 0 ? "+" : ""}{item.points}</strong></li>)}</ul></details> : null}
                           </>}
                         </div>
                       ) : null}
@@ -339,7 +343,7 @@ export function HomePage({
                         <button
                           type="button"
                           onClick={() => { setUserMenuOpen(false); onOpenInfoPage("rewards"); }}
-                          className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-md bg-[#ffd84d]/10 px-2 text-xs font-semibold text-[#ffd84d] transition hover:bg-[#ffd84d]/20"
+                          className="flex h-9 min-w-0 items-center justify-center gap-2 rounded-md bg-reward/10 px-2 text-xs font-semibold text-reward transition hover:bg-reward/20"
                         >
                           <Sparkles size={14} /><span className="truncate">{t("points")}</span>
                         </button>
@@ -433,7 +437,7 @@ export function HomePage({
               </button>
 
               {languageMenuOpen ? (
-                <div className="absolute right-0 z-20 mt-2 w-full overflow-hidden rounded-md border border-white/10 bg-[#101c28] shadow-2xl shadow-black/35">
+                <div className="absolute right-0 z-20 mt-2 w-full overflow-hidden rounded-md border border-white/10 bg-panel shadow-2xl shadow-black/35">
                   {languages.map((option) => {
                     const selected = language === option.value;
 
@@ -464,7 +468,7 @@ export function HomePage({
 
       {oauthMenuOpen ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4 backdrop-blur-sm">
-          <section className="flex min-h-64 w-full max-w-sm flex-col rounded-lg border border-black/10 bg-white p-5 text-[#202124] shadow-2xl shadow-black/40">
+          <section className="flex min-h-64 w-full max-w-sm flex-col rounded-lg border border-black/10 bg-static-white p-5 text-[#202124] shadow-2xl shadow-black/40">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="truncate text-lg font-semibold text-[#202124]">{t("chooseSignInMethod")}</h2>
@@ -498,7 +502,7 @@ export function HomePage({
 
       {createRoomOpen ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 px-4 backdrop-blur-sm">
-          <section className="w-full max-w-md rounded-lg border border-white/10 bg-[#182635] p-5 text-white shadow-2xl shadow-black/40">
+          <section className="w-full max-w-md rounded-lg border border-white/10 bg-panel p-5 text-white shadow-2xl shadow-black/40">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-xl font-semibold">{t("createRoom")}</h2>
@@ -562,7 +566,7 @@ export function HomePage({
                       className="h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
                     >
                       {roomLanguages.map((roomLanguage) => (
-                        <option key={roomLanguage.code} value={roomLanguage.code} className="bg-[#182635] text-white">
+                        <option key={roomLanguage.code} value={roomLanguage.code} className="bg-field text-white">
                           {roomLanguage.nativeName}
                         </option>
                       ))}
@@ -578,7 +582,7 @@ export function HomePage({
                       className="h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
                     >
                       {roomLanguageLevels.map((level) => (
-                        <option key={level.code} value={level.code} className="bg-[#182635] text-white">{level.label}</option>
+                        <option key={level.code} value={level.code} className="bg-field text-white">{level.label}</option>
                       ))}
                     </select>
                   </label>
@@ -593,9 +597,9 @@ export function HomePage({
                       onChange={(event) => setSecondaryLanguage(event.target.value as RoomLanguage | "")}
                       className="h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
                     >
-                      <option value="" className="bg-[#182635] text-white">{t("selectLanguage")}</option>
+                      <option value="" className="bg-field text-white">{t("selectLanguage")}</option>
                       {roomLanguages.filter((roomLanguage) => roomLanguage.code !== primaryLanguage).map((roomLanguage) => (
-                        <option key={roomLanguage.code} value={roomLanguage.code} className="bg-[#182635] text-white">
+                        <option key={roomLanguage.code} value={roomLanguage.code} className="bg-field text-white">
                           {roomLanguage.nativeName}
                         </option>
                       ))}
@@ -610,7 +614,7 @@ export function HomePage({
                       onChange={(event) => setRoomCapacity(Number(event.target.value))}
                       className="h-11 w-full rounded-md border border-white/10 bg-field px-3 text-sm text-white outline-none focus:border-mint"
                     >
-                      {[1, 2, 3, 4].map((value) => <option key={value} value={value} className="bg-[#182635] text-white">{value}</option>)}
+                      {[1, 2, 3, 4].map((value) => <option key={value} value={value} className="bg-field text-white">{value}</option>)}
                     </select>
                   </label>
                 </div>
@@ -619,7 +623,7 @@ export function HomePage({
                   <button type="button" onClick={() => setCreateRoomOpen(false)} className="h-10 rounded-md bg-white/5 px-4 text-sm text-white/75 hover:bg-white/10">
                     {t("cancel")}
                   </button>
-                  <button type="submit" disabled={hasShortRoomName} className="h-10 rounded-md bg-[#258ff4] px-4 text-sm font-semibold text-white hover:bg-[#1d7edb] disabled:cursor-not-allowed disabled:opacity-40">
+                  <button type="submit" disabled={hasShortRoomName} className="h-10 rounded-md bg-[#258ff4] px-4 text-sm font-semibold text-static-white hover:bg-[#1d7edb] disabled:cursor-not-allowed disabled:opacity-40">
                     {t("createRoom")}
                   </button>
                 </div>
@@ -635,7 +639,7 @@ export function HomePage({
             type="button"
             onClick={() => setCreateRoomOpen(true)}
             title={!canCreateRoom ? t("createRoomVerifiedOnly") : undefined}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#258ff4] px-4 text-sm font-semibold text-white transition hover:bg-[#1d7edb]"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-[#258ff4] px-4 text-sm font-semibold text-static-white transition hover:bg-[#1d7edb]"
           >
             <Plus size={18} />
             {t("createGroup")}
@@ -692,7 +696,7 @@ export function HomePage({
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row">
-          <div className="flex min-w-0 flex-1 rounded-md border border-[#258ff4]/80 bg-[#0b1622]/80">
+          <div className="flex min-w-0 flex-1 rounded-md border border-[#258ff4]/50 bg-panel/90">
             <button
               aria-label="Search settings"
               title="Search settings"
@@ -709,7 +713,7 @@ export function HomePage({
             />
             <button
               type="button"
-              className="inline-flex h-10 w-24 shrink-0 items-center justify-center gap-2 border-l border-[#258ff4]/70 text-sm font-medium text-white transition hover:bg-[#258ff4]/10"
+              className="inline-flex h-10 w-24 shrink-0 items-center justify-center gap-2 border-l border-[#258ff4]/50 text-sm font-medium text-white transition hover:bg-[#258ff4]/10"
             >
               <Search size={16} />
               {t("search")}
@@ -748,7 +752,7 @@ export function HomePage({
               type="button"
               aria-pressed={selectedLanguageTag === tag.code}
               onClick={() => setSelectedLanguageTag((current) => current === tag.code ? null : tag.code)}
-              className={`h-8 shrink-0 rounded-full px-3 text-xs font-semibold transition ${selectedLanguageTag === tag.code ? "bg-[#258ff4] text-white" : "bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"}`}
+              className={`h-8 shrink-0 rounded-full px-3 text-xs font-semibold transition ${selectedLanguageTag === tag.code ? "bg-[#258ff4] text-static-white" : "bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"}`}
             >
               {tag.nativeName} ({tag.count})
             </button>

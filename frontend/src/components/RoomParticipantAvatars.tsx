@@ -29,7 +29,7 @@ export function RoomParticipantAvatars({ participants, language }: { participant
             </button>
             <div
               role="tooltip"
-              className="pointer-events-none invisible absolute bottom-full right-0 z-30 mb-2 w-max max-w-56 translate-y-1 rounded-md border border-white/10 bg-[#0b1622] px-3 py-2 opacity-0 shadow-xl shadow-black/35 transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100"
+              className="pointer-events-none invisible absolute bottom-full right-0 z-30 mb-2 w-max max-w-56 translate-y-1 rounded-md border border-white/10 bg-panel px-3 py-2 opacity-0 shadow-xl shadow-black/35 transition group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100"
             >
               <p className="max-w-48 truncate text-sm font-semibold text-white">{participant.nickname}</p>
               <p className="mt-0.5 text-xs text-white/55">{roleLabel}</p>

@@ -114,7 +114,7 @@ export function VirtualUsersPage({ token, language }: { token: string; language:
     <section className="rounded-xl border border-white/10 bg-panel p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div><h2 className="text-lg font-semibold">{presenceT.title}</h2><p className="mt-1 text-sm text-white/55">{presenceT.description(activePresenceBots)}</p></div>
-        <div className="flex items-end gap-2"><label className="text-sm text-white/65">{presenceT.totalLabel}<input type="number" min={0} step={1} value={totalPresenceBots} onChange={(event) => setTotalPresenceBots(Number(event.target.value))} className="mt-1 h-10 w-44 rounded-md border border-white/10 bg-field px-3 text-white"/></label><button disabled={saving || !Number.isSafeInteger(totalPresenceBots) || totalPresenceBots < 0} onClick={() => void savePresence()} className="inline-flex h-10 items-center gap-2 rounded-md bg-[#258ff4] px-4 text-sm font-semibold disabled:opacity-40"><Save size={16}/>{presenceT.save}</button></div>
+      <div className="flex items-end gap-2"><label className="text-sm text-white/65">{presenceT.totalLabel}<input type="number" min={0} step={1} value={totalPresenceBots} onChange={(event) => setTotalPresenceBots(Number(event.target.value))} className="mt-1 h-10 w-44 rounded-md border border-white/10 bg-field px-3 text-white"/></label><button disabled={saving || !Number.isSafeInteger(totalPresenceBots) || totalPresenceBots < 0} onClick={() => void savePresence()} className="inline-flex h-10 items-center gap-2 rounded-md bg-[#258ff4] px-4 text-sm font-semibold text-static-white disabled:opacity-40"><Save size={16}/>{presenceT.save}</button></div>
       </div>
     </section>
     {error ? <p className="rounded-md border border-coral/30 bg-coral/10 px-4 py-3 text-sm text-coral">{error}</p> : null}
@@ -145,7 +145,7 @@ export function VirtualUsersPage({ token, language }: { token: string; language:
         <label className="flex items-center gap-3 text-sm font-medium sm:col-span-2"><input type="checkbox" checked={editing.enabled} onChange={(e) => setEditing({ ...editing, enabled: e.target.checked })} className="h-4 w-4 accent-[#258ff4]"/>{t.enabled}</label>
       </div>
       {notice ? <p className="mt-4 text-sm text-mint">{notice}</p> : null}{error ? <p className="mt-4 text-sm text-coral">{error}</p> : null}
-      <button disabled={saving} onClick={() => void save()} className="mt-5 inline-flex h-10 items-center gap-2 rounded-md bg-[#258ff4] px-5 text-sm font-semibold disabled:opacity-40"><Save size={16}/>{saving ? t.saving : t.save}</button>
+      <button disabled={saving} onClick={() => void save()} className="mt-5 inline-flex h-10 items-center gap-2 rounded-md bg-[#258ff4] px-5 text-sm font-semibold text-static-white disabled:opacity-40"><Save size={16}/>{saving ? t.saving : t.save}</button>
     </section></div> : null}
   </div>;
 }

@@ -11,6 +11,16 @@
     <meta property="og:description" content="Practice languages, share your thoughts, and connect through live voice conversations." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary" />
+    <script>
+      (() => {
+        try {
+          const theme = localStorage.getItem("me2talk:theme");
+          document.documentElement.dataset.theme = theme === "light" ? "light" : "dark";
+        } catch {
+          document.documentElement.dataset.theme = "dark";
+        }
+      })();
+    </script>
     <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

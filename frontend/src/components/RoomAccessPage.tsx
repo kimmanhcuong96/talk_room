@@ -3,6 +3,7 @@ import { type Language, translate } from "../lib/i18n";
 import type { RoomSummary } from "../types/realtime";
 import { resolveGuestNickname } from "../lib/nickname";
 import { RoomLanguageTags } from "./RoomLanguageTags";
+import { ThemeToggle } from "./ThemeToggle";
 
 type RoomAccessPageProps = {
   room: RoomSummary;
@@ -38,14 +39,17 @@ export function RoomAccessPage({
   return (
     <main className="grid min-h-screen place-items-center px-4 py-8 text-white">
       <section className="w-full max-w-xl rounded-lg border border-white/10 bg-panel p-5 shadow-2xl shadow-black/30">
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex h-10 items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 text-sm text-white/75 transition hover:bg-white/10"
-        >
-          <ArrowLeft size={17} />
-          {t("backToRooms")}
-        </button>
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex h-10 items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 text-sm text-white/75 transition hover:bg-white/10"
+          >
+            <ArrowLeft size={17} />
+            {t("backToRooms")}
+          </button>
+          <ThemeToggle language={language} />
+        </div>
 
         <div className="mt-6">
           <p className="text-sm font-medium uppercase tracking-wide text-mint">{t("readyAccess")}</p>

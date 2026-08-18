@@ -85,7 +85,7 @@ export function VideoTile({
       setProfilePositionReady(false);
     }, 120);
   };
-  const profileCard = <div id={profileId} ref={profileCardRef} role="dialog" aria-label={nickname} onMouseEnter={openProfile} onMouseLeave={closeProfile} onFocus={openProfile} onBlur={closeProfile} style={{ left: profilePosition.left, top: profilePosition.top, maxHeight: "calc(100dvh - 16px)" }} className={`pointer-events-auto fixed z-[9999] w-[min(14rem,calc(100vw-1rem))] overflow-y-auto rounded-xl border border-white/15 bg-[#091521]/95 p-3 text-left shadow-2xl shadow-black/40 backdrop-blur-md transition-opacity duration-150 ${showProfile && profileOpen && profilePositionReady ? "visible opacity-100" : "invisible opacity-0"}`}>
+  const profileCard = <div id={profileId} ref={profileCardRef} role="dialog" aria-label={nickname} onMouseEnter={openProfile} onMouseLeave={closeProfile} onFocus={openProfile} onBlur={closeProfile} style={{ left: profilePosition.left, top: profilePosition.top, maxHeight: "calc(100dvh - 16px)" }} className={`pointer-events-auto fixed z-[9999] w-[min(14rem,calc(100vw-1rem))] overflow-y-auto rounded-xl border border-white/15 bg-panel/95 p-3 text-left shadow-2xl shadow-black/40 backdrop-blur-md transition-opacity duration-150 ${showProfile && profileOpen && profilePositionReady ? "visible opacity-100" : "invisible opacity-0"}`}>
     <div className="flex items-center gap-2"><AvatarBadge avatar={avatar} size="sm" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold text-white">{nickname}</p><p className="text-xs text-white/55">{roleLabel}</p></div></div>
     <div className="mt-3 grid grid-cols-2 gap-1.5 text-[11px] text-white/65"><span className="rounded-md bg-white/5 px-2 py-1">{micEnabled ? <Mic size={13} className="mr-1 inline text-mint"/> : <MicOff size={13} className="mr-1 inline text-white/45"/>}{t(micEnabled ? "micUnmute" : "micMute")}</span><span className="rounded-md bg-white/5 px-2 py-1">{cameraEnabled ? <Video size={13} className="mr-1 inline text-mint"/> : <VideoOff size={13} className="mr-1 inline text-white/45"/>}{t(cameraEnabled ? "videoOn" : "videoOff")}</span></div>
     {favoriteEnabled && onToggleFavorite ? <button type="button" title={t(favorited ? "unfavoriteUser" : "favoriteUser")} aria-pressed={favorited} onClick={(event) => { event.stopPropagation(); onToggleFavorite(); }} onKeyDown={(event) => event.stopPropagation()} className={`mt-3 flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/60 ${favorited ? "border-rose-300/70 bg-rose-500/25 text-rose-100 hover:bg-rose-500/35" : "border-white/15 bg-white/5 text-white/75 hover:border-rose-300/60 hover:bg-rose-500/20 hover:text-rose-100"}`}><Heart size={15} fill={favorited ? "currentColor" : "none"}/><span>{t(favorited ? "unfavoriteUser" : "favoriteUser")}</span></button> : null}
@@ -160,7 +160,7 @@ export function VideoTile({
         event.preventDefault();
         onClick();
       }}
-      className={`group relative h-full min-h-0 w-full overflow-visible rounded-lg border bg-black transition ${
+      className={`theme-dark-surface group relative h-full min-h-0 w-full overflow-visible rounded-lg border bg-black transition ${
         onClick ? "cursor-pointer outline-none hover:border-[#258ff4]/80 focus-visible:border-[#258ff4] focus-visible:ring-2 focus-visible:ring-[#258ff4]/35" : ""
       } ${
         selected

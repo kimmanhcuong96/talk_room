@@ -476,7 +476,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
           <div className="flex items-center gap-2">
             <ThemeToggle language={language} compact />
             {canEditYoutube ? (
-              <button type="button" title={youtubeTranslate(language, "manage")} aria-label={youtubeTranslate(language, "manage")} onClick={openYoutubeSettings} className="inline-flex h-9 items-center gap-2 rounded-md border border-red-400/25 bg-red-500/10 px-2.5 text-red-300 transition hover:bg-red-500/15 sm:px-3">
+              <button type="button" title={youtubeTranslate(language, "manage")} aria-label={youtubeTranslate(language, "manage")} onClick={openYoutubeSettings} className="room-youtube-action inline-flex h-9 items-center gap-2 rounded-md border border-red-400/25 bg-red-500/10 px-2.5 text-red-300 transition hover:bg-red-500/15 sm:px-3">
                 <Youtube size={19}/><span className="hidden text-sm font-medium lg:inline">{youtubeTranslate(language, "share")}</span>
               </button>
             ) : null}
@@ -486,7 +486,7 @@ export function RoomPage({ socket, room, nickname, guestId, authToken, avatarUrl
                 title={roomTopicTranslate(language, "edit")}
                 aria-label={roomTopicTranslate(language, "edit")}
                 onClick={() => { setTopicEditorError(null); setTopicEditorOpen(true); }}
-                className="inline-flex h-9 items-center gap-2 rounded-md border border-violet-300/20 bg-violet-400/10 px-2.5 text-violet-200 transition hover:bg-violet-400/15 sm:px-3"
+                className="room-topic-action inline-flex h-9 items-center gap-2 rounded-md border border-violet-300/20 bg-violet-400/10 px-2.5 text-violet-200 transition hover:bg-violet-400/15 sm:px-3"
               >
                 <Palette size={18}/><span className="hidden text-sm font-medium md:inline">{roomTopicTranslate(language, "edit")}</span>
               </button>

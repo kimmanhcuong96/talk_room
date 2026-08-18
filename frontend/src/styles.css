@@ -88,6 +88,26 @@ body {
   color: rgba(23, 59, 47, 0.72);
 }
 
+:root[data-theme="light"] .room-youtube-action {
+  color: #991b1b;
+  background-color: rgba(220, 38, 38, 0.08);
+  border-color: rgba(185, 28, 28, 0.3);
+}
+
+:root[data-theme="light"] .room-youtube-action:hover {
+  background-color: rgba(220, 38, 38, 0.14);
+}
+
+:root[data-theme="light"] .room-topic-action {
+  color: #5b21b6;
+  background-color: rgba(109, 40, 217, 0.08);
+  border-color: rgba(91, 33, 182, 0.28);
+}
+
+:root[data-theme="light"] .room-topic-action:hover {
+  background-color: rgba(109, 40, 217, 0.14);
+}
+
 .theme-dark-surface {
   --color-ink: 13 17 23;
   --color-panel: 20 26 35;

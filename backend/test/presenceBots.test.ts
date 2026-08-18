@@ -5,6 +5,7 @@ import {
   addUserToRoom,
   addVirtualUserToRoom,
   createRoom,
+  getRoomSummary,
   getRoomUsers,
   removePresenceBotFromRoom,
   removeUser,
@@ -23,11 +24,27 @@ test("presence bots only enter inactive rooms and re-check capacity on every joi
   assert.equal(second.role, "unverified");
   assert.equal(first.micEnabled || first.cameraEnabled || first.screenSharing, false);
   assert.equal(addPresenceBotToRoom(room.id, "three"), null);
+  assert.equal(addVirtualUserToRoom(room.id, { id: "blocked-by-capacity", name: "Virtual", avatarUrl: null }), null);
+  assert.equal(addUserToRoom(room.id, {
+    socketId: "human:blocked-by-capacity", nickname: "Human", avatar: "🐼", role: "unverified",
+    micEnabled: false, cameraEnabled: false, screenSharing: false, screenTrackId: null, senderType: "human"
+  }).ok, false);
+  assert.equal(getRoomSummary(room.id)?.canJoin, false);
   assert.equal(getRoomUsers(room.id).length, 2);
   assert.equal(getRoomUsers(room.id).find((user) => user.socketId === first.socketId)?.nickname, first.nickname);
 
   removePresenceBotFromRoom(room.id, "one");
   removePresenceBotFromRoom(room.id, "two");
+});
+
+test("a capacity-four room can never contain a fifth presence bot", () => {
+  const room = createRoom("Four bot limit", "en", "any", null, "test-owner", 4);
+  for (let index = 1; index <= 4; index += 1) {
+    assert.ok(addPresenceBotToRoom(room.id, `limit-${index}`, () => index / 10));
+  }
+  assert.equal(addPresenceBotToRoom(room.id, "limit-5"), null);
+  assert.equal(getRoomUsers(room.id).filter((user) => user.senderType === "presence_bot").length, 4);
+  for (let index = 1; index <= 4; index += 1) removePresenceBotFromRoom(room.id, `limit-${index}`);
 });
 
 test("presence bots reject rooms containing a real or conversational virtual user", () => {
@@ -43,4 +60,17 @@ test("presence bots reject rooms containing a real or conversational virtual use
   addVirtualUserToRoom(virtualRoom.id, { id: "virtual-test", name: "Virtual", avatarUrl: null });
   assert.equal(addPresenceBotToRoom(virtualRoom.id, "virtual-room"), null);
   removeVirtualUserByBotId(virtualRoom.id, "virtual-test");
+});
+
+test("a virtual user never joins a room containing presence bots", () => {
+  const room = createRoom("Presence only for real users", "en", "any", null, "test-owner", 2);
+  addPresenceBotToRoom(room.id, "capacity-one", () => 0);
+  assert.equal(addVirtualUserToRoom(room.id, { id: "virtual-blocked", name: "Virtual", avatarUrl: null }), null);
+  assert.equal(addUserToRoom(room.id, {
+    socketId: "human:partial-capacity", nickname: "Human", avatar: "🐼", role: "unverified",
+    micEnabled: false, cameraEnabled: false, screenSharing: false, screenTrackId: null, senderType: "human"
+  }).ok, true);
+  assert.equal(getRoomUsers(room.id).length, room.capacity);
+  removeUser("human:partial-capacity");
+  removePresenceBotFromRoom(room.id, "capacity-one");
 });

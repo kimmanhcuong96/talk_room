@@ -79,7 +79,7 @@ export function getRoomSummaries(): RoomSummary[] {
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
     capacity: room.capacity,
-    canJoin: realUserCount < room.capacity,
+    canJoin: room.users.length < room.capacity,
     suggestedGuestNumber: realUserCount + 1,
     topic: room.topic,
     youtubeVideo: getYouTubeVideoSnapshot(room),
@@ -105,7 +105,7 @@ export function getRoomSummary(roomId: string): RoomSummary | undefined {
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
     capacity: room.capacity,
-    canJoin: realUserCount < room.capacity,
+    canJoin: room.users.length < room.capacity,
     suggestedGuestNumber: realUserCount + 1,
     topic: room.topic,
     youtubeVideo: getYouTubeVideoSnapshot(room),
@@ -258,7 +258,7 @@ export function updateRoomLanguages(
     secondaryLanguage: room.secondaryLanguage,
     users: room.users.length,
     capacity: room.capacity,
-    canJoin: realUserCount < room.capacity,
+    canJoin: room.users.length < room.capacity,
     suggestedGuestNumber: realUserCount + 1,
     topic: room.topic,
     youtubeVideo: getYouTubeVideoSnapshot(room),
@@ -293,6 +293,10 @@ export function getRoomHumanCount(roomId: string) {
 
 export function getRoomVirtualUser(roomId: string) {
   return getRoomUsers(roomId).find((user) => user.senderType === "virtual_user");
+}
+
+export function hasRoomPresenceBots(roomId: string) {
+  return getRoomUsers(roomId).some((user) => user.senderType === "presence_bot");
 }
 
 export function hasPresenceBot(roomId: string, botId: string) {
@@ -330,7 +334,7 @@ export function removePresenceBotFromRoom(roomId: string, botId: string) {
 
 export function addVirtualUserToRoom(roomId: string, profile: { id: string; name: string; avatarUrl: string | null }) {
   const room = rooms.get(roomId);
-  if (!room || getRoomHumanCount(roomId) > 1 || room.users.some((user) => user.senderType === "virtual_user")) return null;
+  if (!room || room.users.length >= room.capacity || hasRoomPresenceBots(roomId) || getRoomHumanCount(roomId) > 1 || room.users.some((user) => user.senderType === "virtual_user")) return null;
   const user: RoomUser = {
     socketId: `virtual:${profile.id}`,
     nickname: profile.name,
@@ -386,7 +390,7 @@ export function addUserToRoom(roomId: string, user: RoomUser): { ok: true; users
   }
 
   const realUserCount = room.users.filter((candidate) => candidate.senderType === "human").length;
-  if (user.senderType === "human" && realUserCount >= room.capacity) {
+  if (user.senderType === "human" && (realUserCount >= room.capacity || room.users.length >= room.capacity)) {
     return { ok: false, reason: "Room is full." };
   }
 

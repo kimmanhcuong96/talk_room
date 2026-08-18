@@ -63,7 +63,7 @@ Migration `012_create_user_points.sql` adds referral codes, favorites, daily act
 
 Migration `013_extend_reward_system.sql` upgrades existing ledger event names without changing earned balances, then adds chat/join idempotency, eligibility history, qualifying active days, and persistent streak milestones. If `012` is already installed, run only `013` next; do not rerun `012`.
 
-Migration `015_create_app_settings.sql` adds the single persisted Presence Bot setting, `totalPresenceBots`. A value of `0` disables the pool. Presence Bots only occupy rooms without real or conversational Virtual Users, never use chat/LLM/media features, and keep only temporary in-memory identities while present in a room.
+Migration `015_create_app_settings.sql` adds the single persisted Presence Bot setting, `totalPresenceBots`. A value of `0` disables the pool. Presence Bots only occupy rooms without real or conversational Virtual Users, never use chat/LLM/media features, and keep only temporary in-memory identities while present in a room. A room filled to capacity by Presence Bots is not joinable, and conversational Virtual Users exclude every room that contains a Presence Bot from random assignment.
 
 To enable Cloudflare Workers AI chat locally, copy `.env.example` to `.env`, fill in `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_AI_API_TOKEN`, then set `LLM_PROVIDER=cloudflare` and `LLM_MODEL=@cf/meta/llama-3.1-8b-instruct-fast`. Apply `005_create_virtual_users.sql` before starting the backend. The key must stay in the backend `.env`; do not add it to `frontend/.env.local` or commit it.
 

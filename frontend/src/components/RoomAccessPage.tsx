@@ -30,7 +30,7 @@ export function RoomAccessPage({
   onReady,
   onBack
 }: RoomAccessPageProps) {
-  const isFull = room.users >= room.capacity;
+  const isFull = !room.canJoin;
   const guestNickname = resolveGuestNickname(nickname, suggestedNickname);
   const effectiveNickname = authenticatedNickname || guestNickname;
   const disabled = !effectiveNickname || isFull;

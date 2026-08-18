@@ -7,6 +7,7 @@ import {
   getRoomSummaries,
   getSystemRoomIds,
   getRoomVirtualUser,
+  hasRoomPresenceBots,
   removeVirtualUserByBotId,
   updateVirtualUserProfileInRoom
 } from "../rooms/roomStore.js";
@@ -129,7 +130,7 @@ function assignVirtualUser(io: AppServer, roomId: string, random = Math.random) 
   const pendingJoin = pendingInitialJoinTimers.get(roomId);
   if (pendingJoin) clearTimeout(pendingJoin);
   pendingInitialJoinTimers.delete(roomId);
-  if ((withdrawnRooms.get(roomId) ?? 0) > Date.now()) return null;
+  if ((withdrawnRooms.get(roomId) ?? 0) > Date.now() || hasRoomPresenceBots(roomId)) return null;
   const profile = pool.assign(roomId, random);
   if (!profile) return null;
   const user = addVirtualUserToRoom(roomId, profile);
@@ -153,7 +154,8 @@ export function rebalanceWaitingVirtualUsers(io: AppServer, random = Math.random
   // Repair pool assignments if an empty-room reset removed the corresponding room participant.
   for (const item of pool.list()) {
     const roomId = item.runtime.roomId;
-    if (roomId && !getRoomVirtualUser(roomId)) pool.releaseRoom(roomId);
+    if (roomId && hasRoomPresenceBots(roomId)) releaseVirtualUser(io, roomId);
+    else if (roomId && !getRoomVirtualUser(roomId)) pool.releaseRoom(roomId);
   }
 
   const humanOccupiedRoomCount = getRoomSummaries().filter((room) => getRoomHumanCount(room.id) > 0).length;
@@ -166,7 +168,7 @@ export function rebalanceWaitingVirtualUsers(io: AppServer, random = Math.random
 
   const currentWaitingCount = systemRoomIds.filter((roomId) => getRoomHumanCount(roomId) === 0 && getRoomVirtualUser(roomId)).length;
   const eligibleRoomIds = shuffled(
-    systemRoomIds.filter((roomId) => getRoomHumanCount(roomId) === 0 && !getRoomVirtualUser(roomId)),
+    systemRoomIds.filter((roomId) => getRoomHumanCount(roomId) === 0 && !getRoomVirtualUser(roomId) && !hasRoomPresenceBots(roomId)),
     random
   );
   for (const roomId of eligibleRoomIds.slice(0, Math.max(0, target - currentWaitingCount))) {
@@ -246,10 +248,10 @@ function cancelInitialVirtualUserJoin(roomId: string) {
 }
 
 function scheduleInitialVirtualUserJoin(io: AppServer, roomId: string, random = Math.random) {
-  if (pendingInitialJoinTimers.has(roomId) || getRoomVirtualUser(roomId) || getRoomHumanCount(roomId) !== 1) return false;
+  if (pendingInitialJoinTimers.has(roomId) || getRoomVirtualUser(roomId) || hasRoomPresenceBots(roomId) || getRoomHumanCount(roomId) !== 1) return false;
   const timer = setTimeout(() => {
     pendingInitialJoinTimers.delete(roomId);
-    if (getRoomHumanCount(roomId) !== 1 || getRoomVirtualUser(roomId)) return;
+    if (getRoomHumanCount(roomId) !== 1 || getRoomVirtualUser(roomId) || hasRoomPresenceBots(roomId)) return;
     assignVirtualUser(io, roomId, random);
     rebalanceWaitingVirtualUsers(io, random);
   }, randomDelay(3_000, 10_000, random));
@@ -306,6 +308,11 @@ export function reconcileVirtualUserForRoom(io: AppServer, roomId: string, previ
   if ((withdrawnRooms.get(roomId) ?? 0) <= Date.now()) withdrawnRooms.delete(roomId);
   const humanCount = getRoomHumanCount(roomId);
   const existing = getRoomVirtualUser(roomId);
+  if (existing && hasRoomPresenceBots(roomId)) {
+    releaseVirtualUser(io, roomId);
+    rebalanceWaitingVirtualUsers(io);
+    return;
+  }
   if (humanCount >= 2) {
     cancelInitialVirtualUserJoin(roomId);
     if (existing && (previousHumanCount ?? humanCount - 1) === 1) {
@@ -313,7 +320,8 @@ export function reconcileVirtualUserForRoom(io: AppServer, roomId: string, previ
     }
   } else if (humanCount === 1 && !existing) {
     cancelSecondUserLeave(roomId);
-    if (delayInitialAssignment) scheduleInitialVirtualUserJoin(io, roomId);
+    if (hasRoomPresenceBots(roomId)) cancelInitialVirtualUserJoin(roomId);
+    else if (delayInitialAssignment) scheduleInitialVirtualUserJoin(io, roomId);
     else assignVirtualUser(io, roomId);
   } else if (humanCount === 0 && !existing && pool.list().some((item) => item.runtime.roomId === roomId)) {
     cancelInitialVirtualUserJoin(roomId);
@@ -637,7 +645,7 @@ export function applyVirtualUserProfile(io: AppServer, profile: VirtualUserProfi
     io.emit("room-list", getRoomSummaries());
   }
   for (const room of getRoomSummaries()) {
-    if (getRoomHumanCount(room.id) === 1 && !getRoomVirtualUser(room.id)) assignVirtualUser(io, room.id);
+    if (getRoomHumanCount(room.id) === 1 && !getRoomVirtualUser(room.id) && !hasRoomPresenceBots(room.id)) assignVirtualUser(io, room.id);
   }
   rebalanceWaitingVirtualUsers(io);
 }
@@ -650,7 +658,7 @@ export async function initializeVirtualUserService(io: AppServer) {
   }
   pool.replaceProfiles(profiles);
   for (const room of getRoomSummaries()) {
-    if (getRoomHumanCount(room.id) === 1 && !getRoomVirtualUser(room.id)) assignVirtualUser(io, room.id);
+    if (getRoomHumanCount(room.id) === 1 && !getRoomVirtualUser(room.id) && !hasRoomPresenceBots(room.id)) assignVirtualUser(io, room.id);
   }
   rebalanceWaitingVirtualUsers(io);
   if (!proactiveCheckTimer) {

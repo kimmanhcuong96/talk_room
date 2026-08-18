@@ -1,7 +1,9 @@
 import {
   addPresenceBotToRoom,
   getPublicRoomUsers,
+  getRoomSummary,
   getRoomSummaries,
+  getRoomUsers,
   hasPresenceBot,
   removePresenceBotFromRoom
 } from "../rooms/roomStore.js";
@@ -52,6 +54,31 @@ function releaseBot(io: AppServer, botId: string) {
   if (removed) emitMembership(io, runtime.roomId, removed, false);
 }
 
+function trimPresenceBotsToRoomCapacity(io: AppServer, roomId: string) {
+  const room = getRoomSummary(roomId);
+  if (!room) return 0;
+  const excess = Math.max(0, room.users - room.capacity);
+  if (excess === 0) return 0;
+
+  const candidates = shuffle(getRoomUsers(roomId).filter((user) => user.senderType === "presence_bot"));
+  let released = 0;
+  for (const user of candidates.slice(0, excess)) {
+    const botId = user.socketId.startsWith("presence:") ? user.socketId.slice("presence:".length) : "";
+    const runtime = activeBots.get(botId);
+    if (runtime?.roomId === roomId) {
+      releaseBot(io, botId);
+      released += 1;
+      continue;
+    }
+    const removed = botId ? removePresenceBotFromRoom(roomId, botId) : null;
+    if (removed) {
+      emitMembership(io, roomId, removed, false);
+      released += 1;
+    }
+  }
+  return released;
+}
+
 function eligibleRoomIds() {
   const eligible = getRoomSummaries()
     .filter((room) => room.users < room.capacity
@@ -79,6 +106,8 @@ function allocateBot(io: AppServer, botId: string) {
 
 export async function reconcilePresenceBots(io: AppServer) {
   configuredTotal = await getTotalPresenceBots();
+
+  for (const room of getRoomSummaries()) trimPresenceBotsToRoomCapacity(io, room.id);
 
   for (const [botId, runtime] of activeBots) {
     const ordinal = Number(botId.slice("presence-".length));

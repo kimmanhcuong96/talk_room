@@ -2,7 +2,9 @@ import { Bot, ChevronLeft, Download, LoaderCircle, Save, Upload, X } from "lucid
 import { useEffect, useRef, useState } from "react";
 import {
   getVirtualUsers,
+  getPresenceBotSettings,
   importVirtualUserProfiles,
+  savePresenceBotSettings,
   saveVirtualUserProfile,
   type AdminVirtualUser,
   type VirtualUserProfile
@@ -10,6 +12,7 @@ import {
 import type { Language } from "../../lib/i18n";
 import { adminPath } from "../../lib/routes";
 import { AdminReloadButton } from "./AdminReloadButton";
+import { presenceBotCopy } from "./presenceBotI18n";
 
 const labels = {
   en: { title: "Virtual Users", description: "15 fixed chat identities. Profiles can be edited, but bots cannot be added, removed, or renamed by ID.", back: "Back to dashboard", bot: "Bot", name: "Name", status: "Status", room: "Room", actions: "Actions", edit: "Edit", enabled: "Enabled", avatar: "Avatar URL", level: "English level", personality: "Personality", interests: "Interests (comma separated)", style: "Speaking style", probability: "Reply probability", proactiveProbability: "Proactive message probability", save: "Save profile", saving: "Saving...", available: "Available", active: "Active", loadFailed: "Could not load virtual users.", saved: "Profile updated." },
@@ -18,7 +21,10 @@ const labels = {
 
 export function VirtualUsersPage({ token, language }: { token: string; language: Language }) {
   const t = language === "vi" ? labels.vi : labels.en;
+  const presenceT = presenceBotCopy(language);
   const [items, setItems] = useState<AdminVirtualUser[]>([]);
+  const [totalPresenceBots, setTotalPresenceBots] = useState(0);
+  const [activePresenceBots, setActivePresenceBots] = useState(0);
   const [editing, setEditing] = useState<VirtualUserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -29,14 +35,21 @@ export function VirtualUsersPage({ token, language }: { token: string; language:
 
   useEffect(() => {
     let cancelled = false;
-    const load = () => getVirtualUsers(token)
-      .then((users) => { if (!cancelled) { setItems(users); setError(null); } })
-      .catch(() => { if (!cancelled) setError(t.loadFailed); })
+    const load = () => Promise.allSettled([getVirtualUsers(token), getPresenceBotSettings(token)])
+      .then(([users, presence]) => {
+        if (cancelled) return;
+        if (users.status === "fulfilled") setItems(users.value);
+        if (presence.status === "fulfilled") {
+          setTotalPresenceBots(presence.value.totalPresenceBots);
+          setActivePresenceBots(presence.value.activePresenceBots);
+        }
+        setError(users.status === "rejected" ? t.loadFailed : presence.status === "rejected" ? presenceT.loadFailed : null);
+      })
       .finally(() => { if (!cancelled) setLoading(false); });
     void load();
     const interval = window.setInterval(() => void load(), 5_000);
     return () => { cancelled = true; window.clearInterval(interval); };
-  }, [token, refreshNonce]);
+  }, [token, refreshNonce, presenceT.loadFailed, t.loadFailed]);
 
   const save = async () => {
     if (!editing) return;
@@ -47,6 +60,18 @@ export function VirtualUsersPage({ token, language }: { token: string; language:
       setEditing(updated.profile); setNotice(t.saved);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : t.loadFailed);
+    } finally { setSaving(false); }
+  };
+
+  const savePresence = async () => {
+    setSaving(true); setError(null); setNotice(null);
+    try {
+      const updated = await savePresenceBotSettings(token, totalPresenceBots);
+      setTotalPresenceBots(updated.totalPresenceBots);
+      setActivePresenceBots(updated.activePresenceBots);
+      setNotice(presenceT.saved);
+    } catch {
+      setError(presenceT.saveFailed);
     } finally { setSaving(false); }
   };
 
@@ -85,6 +110,12 @@ export function VirtualUsersPage({ token, language }: { token: string; language:
     </div>
     <section className="rounded-xl border border-white/10 bg-panel p-5">
       <div className="flex items-start gap-3"><span className="grid h-11 w-11 place-items-center rounded-lg bg-[#258ff4]/15 text-[#55aaff]"><Bot size={22}/></span><div><h2 className="text-xl font-semibold">{t.title} ({items.length || 15})</h2><p className="mt-1 text-sm leading-6 text-white/55">{t.description}</p></div></div>
+    </section>
+    <section className="rounded-xl border border-white/10 bg-panel p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div><h2 className="text-lg font-semibold">{presenceT.title}</h2><p className="mt-1 text-sm text-white/55">{presenceT.description(activePresenceBots)}</p></div>
+        <div className="flex items-end gap-2"><label className="text-sm text-white/65">{presenceT.totalLabel}<input type="number" min={0} step={1} value={totalPresenceBots} onChange={(event) => setTotalPresenceBots(Number(event.target.value))} className="mt-1 h-10 w-44 rounded-md border border-white/10 bg-field px-3 text-white"/></label><button disabled={saving || !Number.isSafeInteger(totalPresenceBots) || totalPresenceBots < 0} onClick={() => void savePresence()} className="inline-flex h-10 items-center gap-2 rounded-md bg-[#258ff4] px-4 text-sm font-semibold disabled:opacity-40"><Save size={16}/>{presenceT.save}</button></div>
+      </div>
     </section>
     {error ? <p className="rounded-md border border-coral/30 bg-coral/10 px-4 py-3 text-sm text-coral">{error}</p> : null}
     {notice && !editing ? <p className="rounded-md border border-mint/30 bg-mint/10 px-4 py-3 text-sm text-mint">{notice}</p> : null}

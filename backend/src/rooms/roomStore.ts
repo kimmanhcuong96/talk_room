@@ -5,6 +5,12 @@ import { getVirtualUserAvatar } from "../virtualUsers/virtualUserAvatar.js";
 
 const ROOM_CAPACITY = 4;
 
+const presenceNameParts = {
+  first: ["Al", "Em", "Li", "Mi", "No", "Oli", "Eli", "Ari", "Leo", "Sofi"],
+  last: ["ex", "ma", "am", "a", "ah", "via", "an", "a", "n", "a"]
+} as const;
+const presenceAvatars = ["🦊", "🐼", "🐨", "🐯", "🦁", "🐸", "🐙", "🐳", "🦄", "🐧"] as const;
+
 const roomNames = [
   "English Beginner",
   "English Intermediate",
@@ -199,7 +205,7 @@ export function resetRoomSessionIfEmpty(roomId: string) {
   room.topic = room.defaults.topic;
   room.youtubeVideo = null;
   room.messages = [];
-  room.users = [];
+  room.users = room.users.filter((user) => user.senderType === "presence_bot");
   return true;
 }
 
@@ -262,7 +268,7 @@ export function updateRoomLanguages(
 
 export function deleteUserCreatedRoomIfEmpty(roomId: string) {
   const room = rooms.get(roomId);
-  if (!room || room.source !== "user" || room.users.length > 0) {
+  if (!room || room.source !== "user" || room.users.some((user) => user.senderType !== "presence_bot")) {
     return false;
   }
   return rooms.delete(roomId);
@@ -270,7 +276,7 @@ export function deleteUserCreatedRoomIfEmpty(roomId: string) {
 
 export function isUserCreatedRoomEmpty(roomId: string) {
   const room = rooms.get(roomId);
-  return Boolean(room && room.source === "user" && room.users.length === 0);
+  return Boolean(room && room.source === "user" && room.users.every((user) => user.senderType === "presence_bot"));
 }
 
 export function getRoomUsers(roomId: string): RoomUser[] {
@@ -287,6 +293,39 @@ export function getRoomHumanCount(roomId: string) {
 
 export function getRoomVirtualUser(roomId: string) {
   return getRoomUsers(roomId).find((user) => user.senderType === "virtual_user");
+}
+
+export function hasPresenceBot(roomId: string, botId: string) {
+  return getRoomUsers(roomId).some((user) => user.senderType === "presence_bot" && user.socketId === `presence:${botId}`);
+}
+
+export function addPresenceBotToRoom(roomId: string, botId: string, random = Math.random) {
+  const room = rooms.get(roomId);
+  if (!room) return null;
+  const hasActiveMember = room.users.some((user) => user.senderType === "human" || user.senderType === "virtual_user");
+  if (hasActiveMember || room.users.length >= room.capacity || hasPresenceBot(roomId, botId)) return null;
+
+  const nameIndex = Math.floor(random() * presenceNameParts.first.length);
+  const user: RoomUser = {
+    socketId: `presence:${botId}`,
+    nickname: `${presenceNameParts.first[nameIndex] ?? "Al"}${presenceNameParts.last[nameIndex] ?? "ex"}`,
+    avatar: presenceAvatars[Math.floor(random() * presenceAvatars.length)] ?? presenceAvatars[0],
+    role: random() < 0.5 ? "verified" : "unverified",
+    micEnabled: false,
+    cameraEnabled: false,
+    screenSharing: false,
+    screenTrackId: null,
+    senderType: "presence_bot"
+  };
+  room.users.push(user);
+  return user;
+}
+
+export function removePresenceBotFromRoom(roomId: string, botId: string) {
+  const room = rooms.get(roomId);
+  if (!room) return null;
+  const index = room.users.findIndex((user) => user.senderType === "presence_bot" && user.socketId === `presence:${botId}`);
+  return index < 0 ? null : room.users.splice(index, 1)[0] ?? null;
 }
 
 export function addVirtualUserToRoom(roomId: string, profile: { id: string; name: string; avatarUrl: string | null }) {

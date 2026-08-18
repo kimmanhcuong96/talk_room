@@ -75,7 +75,7 @@ function scheduleEmptyRoomDeletion(io: AppServer, roomId: string) {
 
 function emitRoomLanguagePermissions(io: AppServer, roomId: string) {
   for (const user of getRoomUsers(roomId)) {
-    if (user.senderType === "virtual_user") continue;
+    if (user.senderType !== "human") continue;
     const connectedSocket = io.sockets.sockets.get(user.socketId);
     io.to(user.socketId).emit("room-language-permission", {
       roomId,
@@ -86,7 +86,7 @@ function emitRoomLanguagePermissions(io: AppServer, roomId: string) {
 
 function emitRoomModerationPermissions(io: AppServer, roomId: string) {
   for (const user of getRoomUsers(roomId)) {
-    if (user.senderType === "virtual_user") continue;
+    if (user.senderType !== "human") continue;
     const connectedSocket = io.sockets.sockets.get(user.socketId);
     io.to(user.socketId).emit("room-moderation-permission", {
       roomId,
@@ -97,7 +97,7 @@ function emitRoomModerationPermissions(io: AppServer, roomId: string) {
 
 function emitRoomTopicPermissions(io: AppServer, roomId: string) {
   for (const user of getRoomUsers(roomId)) {
-    if (user.senderType === "virtual_user") continue;
+    if (user.senderType !== "human") continue;
     const connectedSocket = io.sockets.sockets.get(user.socketId);
     io.to(user.socketId).emit("room-topic-permission", {
       roomId,
@@ -108,7 +108,7 @@ function emitRoomTopicPermissions(io: AppServer, roomId: string) {
 
 function emitRoomYouTubePermissions(io: AppServer, roomId: string) {
   for (const user of getRoomUsers(roomId)) {
-    if (user.senderType === "virtual_user") continue;
+    if (user.senderType !== "human") continue;
     const connectedSocket = io.sockets.sockets.get(user.socketId);
     io.to(user.socketId).emit("room-youtube-permission", {
       roomId,
@@ -624,7 +624,7 @@ export function registerSocketHandlers(io: AppServer) {
         socket.emit("moderation-error", "INVALID_REPORT_REASON");
         return;
       }
-      if (targetUser.senderType === "virtual_user") {
+      if (targetUser.senderType !== "human") {
         socket.emit("moderation-success", { action: "report", targetSocketId });
         return;
       }
@@ -673,7 +673,7 @@ export function registerSocketHandlers(io: AppServer) {
         socket.emit("moderation-error", "ROOM_BLOCK_PERMISSION_DENIED");
         return;
       }
-      if (targetUser.senderType === "virtual_user") {
+      if (targetUser.senderType !== "human") {
         socket.emit("moderation-success", { action: "block", targetSocketId });
         return;
       }
@@ -843,7 +843,7 @@ export function registerSocketHandlers(io: AppServer) {
       const peerUser = roomId
         ? getRoomUsers(roomId).find((user) => user.socketId === payload?.peerId)
         : undefined;
-      if (!payload || typeof payload.peerId !== "string" || !roomId || !peerUser || peerUser.senderType === "virtual_user") {
+      if (!payload || typeof payload.peerId !== "string" || !roomId || !peerUser || peerUser.senderType !== "human") {
         return;
       }
 

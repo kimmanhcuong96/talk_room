@@ -407,7 +407,7 @@ export function useWebRTC(socket: AppSocket, localStream: MediaStream | null) {
         return [...current, user];
       });
 
-      if (user.senderType === "virtual_user") return;
+      if (user.senderType !== "human") return;
 
       const connection = await ensurePeerConnection(user.socketId);
       if (!connection) {

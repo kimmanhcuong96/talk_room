@@ -11,6 +11,7 @@ import { registerSocketHandlers } from "./socket/registerSocketHandlers.js";
 import type { AppServer } from "./types/socket.js";
 import { webrtcRouter } from "./webrtc/webrtcRoutes.js";
 import { initializeVirtualUserService } from "./virtualUsers/virtualUserService.js";
+import { initializePresenceBotService } from "./presenceBots/presenceBotService.js";
 
 const app = express();
 
@@ -53,6 +54,9 @@ app.set("io", io);
 registerSocketHandlers(io);
 void initializeVirtualUserService(io).catch((error) => {
   console.error("Unable to initialize virtual users. Run all database migrations.", error);
+});
+void initializePresenceBotService(io).catch((error) => {
+  console.error("Unable to initialize presence bots. Run all database migrations.", error);
 });
 
 httpServer.listen(env.port, () => {

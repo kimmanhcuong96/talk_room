@@ -71,6 +71,7 @@ export type VirtualUserProfile = {
 };
 export type VirtualUserRuntime = { botId: string; status: "AVAILABLE" | "ACTIVE"; roomId?: string };
 export type AdminVirtualUser = { profile: VirtualUserProfile; runtime: VirtualUserRuntime };
+export type PresenceBotSettings = { totalPresenceBots: number; activePresenceBots: number };
 export type WebRtcUsageMetric = { seconds: number; connections: number };
 export type WebRtcUsage = { daily: Record<"stun" | "turn", WebRtcUsageMetric>; weekly: Record<"stun" | "turn", WebRtcUsageMetric>; monthly: Record<"stun" | "turn", WebRtcUsageMetric>; yearly: Record<"stun" | "turn", WebRtcUsageMetric>; series: Array<{ date: string; transport: "stun" | "turn"; seconds: number; connections: number }> };
 export type TurnUsageStatus = { configured: boolean; checkedAt: string | null; egressBytes: number | null; egressMb: number | null; egressGb: number | null; limitGb: number; turnAllowed: boolean };
@@ -252,6 +253,20 @@ export async function dismissModerationReport(token: string, reportId: string) {
 export async function getVirtualUsers(token: string) {
   const response = await fetch(`${apiUrl}/admin/virtual-users`, { headers: authHeaders(token) });
   return (await parseResponse<{ virtualUsers: AdminVirtualUser[] }>(response)).virtualUsers;
+}
+
+export async function getPresenceBotSettings(token: string) {
+  const response = await fetch(`${apiUrl}/admin/presence-bots`, { headers: authHeaders(token) });
+  return parseResponse<PresenceBotSettings>(response);
+}
+
+export async function savePresenceBotSettings(token: string, totalPresenceBots: number) {
+  const response = await fetch(`${apiUrl}/admin/presence-bots`, {
+    method: "PATCH",
+    headers: authHeaders(token, true),
+    body: JSON.stringify({ totalPresenceBots })
+  });
+  return parseResponse<PresenceBotSettings>(response);
 }
 
 export async function saveVirtualUserProfile(token: string, profile: VirtualUserProfile) {

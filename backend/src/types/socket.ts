@@ -11,7 +11,7 @@ export type RoomUser = {
   cameraEnabled: boolean;
   screenSharing: boolean;
   screenTrackId: string | null;
-  senderType: "human" | "virtual_user";
+  senderType: "human" | "virtual_user" | "presence_bot";
   isAuthenticated?: boolean;
   virtualUserId?: string;
 };

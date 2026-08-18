@@ -22,7 +22,7 @@ type VideoTileProps = {
   favorited?: boolean;
   onToggleFavorite?: () => void;
   profileRole?: UserRole;
-  senderType?: "human" | "virtual_user";
+  senderType?: "human" | "virtual_user" | "presence_bot";
   showProfile?: boolean;
 };
 

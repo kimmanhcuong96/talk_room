@@ -34,6 +34,8 @@ import { getLLMUsageSummary } from "../usage/llmUsage.js";
 import { getResponseUsageSummary } from "../usage/responseUsage.js";
 import { getAdminRewardOverview } from "../rewards/rewardRepository.js";
 import { listVerificationRequests, reviewVerificationRequest, reviewVerificationRequests, type VerificationRequestStatus } from "../users/verificationRequestRepository.js";
+import { getTotalPresenceBots, updateTotalPresenceBots } from "../settings/appSettings.js";
+import { getPresenceBotStatus, refreshPresenceBots } from "../presenceBots/presenceBotService.js";
 
 const userRoles = new Set<UserRole>(["unverified", "verified", "supporter"]);
 const adminRoles = new Set<AdminRole>(["owner", "admin"]);
@@ -231,6 +233,29 @@ adminRouter.get("/virtual-users", requireAdmin, async (_request, response, next)
     const virtualUsers = getVirtualUsersForAdmin();
     if (virtualUsers.length !== 15) throw new HttpError(503, "Virtual Users are not initialized. Run all database migrations.");
     response.json({ virtualUsers });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get("/presence-bots", requireAdmin, async (_request, response, next) => {
+  try {
+    const { activePresenceBots } = getPresenceBotStatus();
+    response.json({ totalPresenceBots: await getTotalPresenceBots(), activePresenceBots });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.patch("/presence-bots", requireAdmin, async (request, response, next) => {
+  try {
+    const totalPresenceBots = request.body?.totalPresenceBots;
+    if (!Number.isSafeInteger(totalPresenceBots) || totalPresenceBots < 0) {
+      throw new HttpError(400, "totalPresenceBots must be a non-negative integer.");
+    }
+    await updateTotalPresenceBots(totalPresenceBots);
+    await refreshPresenceBots();
+    response.json({ totalPresenceBots, activePresenceBots: getPresenceBotStatus().activePresenceBots });
   } catch (error) {
     next(error);
   }

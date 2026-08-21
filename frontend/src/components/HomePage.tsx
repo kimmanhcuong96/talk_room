@@ -34,7 +34,7 @@ type HomePageProps = {
 };
 
 type RoomDensity = "3x" | "2x" | "1x";
-const ME2WRITE_URL = "https://write-checker.pages.dev/";
+const ME2WRITE_URL = "https://write.me2listen.com";
 const ME2LISTEN_URL = "https://me2listen.com/";
 
 async function copyReferralUrl(value: string) {
@@ -228,25 +228,25 @@ export function HomePage({
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             <p className="mr-1 text-base font-semibold uppercase tracking-wide text-mint drop-shadow-[0_0_10px_rgba(69,212,131,0.28)]">me2talk - Me to talk</p>
             <a
-              href={ME2LISTEN_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              title={t("openMe2listen")}
-              aria-label={t("openMe2listen")}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-mint/35 bg-mint/10 px-3 text-xs font-semibold text-mint transition hover:border-mint/55 hover:bg-mint/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint/45"
-            >
-              <span>Me2Listen</span>
-              <ExternalLink size={14} aria-hidden="true" />
-            </a>
-            <a
               href={ME2WRITE_URL}
               target="_blank"
               rel="noopener noreferrer"
               title={t("openMe2write")}
               aria-label={t("openMe2write")}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-mint/35 bg-mint/10 px-3 text-xs font-semibold text-mint transition hover:border-mint/55 hover:bg-mint/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint/45"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-mint/20 bg-mint/5 px-3 text-xs font-semibold text-mint/80 transition hover:border-mint/35 hover:bg-mint/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mint/30"
             >
               <span>Me2write</span>
+              <ExternalLink size={14} aria-hidden="true" />
+            </a>
+            <a
+              href={ME2LISTEN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={t("openMe2listen")}
+              aria-label={t("openMe2listen")}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-orange-300/20 bg-orange-300/5 px-3 text-xs font-semibold text-orange-300/80 transition hover:border-orange-300/35 hover:bg-orange-300/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300/30"
+            >
+              <span>Me2Listen</span>
               <ExternalLink size={14} aria-hidden="true" />
             </a>
           </div>

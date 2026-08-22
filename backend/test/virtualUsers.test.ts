@@ -10,6 +10,8 @@ import { buildLLMMessages, CloudflareWorkersAIProvider } from "../src/virtualUse
 import { validateBotResponse } from "../src/virtualUsers/responseValidator.js";
 import { countBotResponseSentences, fitBotResponseToSentenceCount, selectSentenceCount } from "../src/virtualUsers/responseValidator.js";
 import { assessEnglishMessage } from "../src/virtualUsers/languageDetection.js";
+import { getVirtualUserAvatar } from "../src/virtualUsers/virtualUserAvatar.js";
+import { virtualUserGeneratedAvatars } from "../src/virtualUsers/virtualUserAvatars.js";
 import { isUserRejectingBot } from "../src/virtualUsers/toxicity.js";
 import { VIRTUAL_USER_IDS, type ConversationContext, type LLMProvider, type LLMUsageCoordinator, type VirtualUserProfile } from "../src/virtualUsers/virtualUserTypes.js";
 import { addUserToRoom, createRoom, getRoomHumanCount, getRoomMessages, getRoomVirtualUser, removeUser } from "../src/rooms/roomStore.js";
@@ -35,6 +37,20 @@ const makeMessage = (roomId: string, text: string, index = 0) => ({
 test("defines exactly 15 immutable virtual user identities", () => {
   assert.equal(VIRTUAL_USER_IDS.length, 15);
   assert.deepEqual(VIRTUAL_USER_IDS, Array.from({ length: 15 }, (_, index) => `bot-${String(index + 1).padStart(2, "0")}`));
+});
+
+test("each virtual user has a unique generated avatar that remains fixed by ID", () => {
+  const avatars = Object.values(virtualUserGeneratedAvatars);
+  assert.equal(avatars.length, VIRTUAL_USER_IDS.length);
+  assert.equal(new Set(avatars).size, VIRTUAL_USER_IDS.length);
+  assert.equal(avatars.filter((avatar) => avatar.startsWith("initials:")).length, 12);
+  assert.equal(avatars.filter((avatar) => avatar.startsWith("google-default:")).length, 3);
+  for (const id of VIRTUAL_USER_IDS) {
+    const original = getVirtualUserAvatar({ id, avatarUrl: null });
+    assert.equal(original, getVirtualUserAvatar({ id, avatarUrl: null }));
+    assert.equal(original, getVirtualUserAvatar({ id, avatarUrl: "" }));
+  }
+  assert.equal(getVirtualUserAvatar({ id: "bot-01", avatarUrl: "https://example.com/custom.png" }), "https://example.com/custom.png");
 });
 
 test("bot pool assigns atomically, never puts one bot in two rooms, and releases it", () => {

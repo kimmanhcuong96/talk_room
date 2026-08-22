@@ -2,14 +2,9 @@ import type { ChatMessage, RoomSummary, RoomTopic, RoomUser, RoomYouTubeVideo } 
 import { randomUUID } from "node:crypto";
 import type { RoomLanguage, RoomLanguageLevel } from "./roomLanguages.js";
 import { getVirtualUserAvatar } from "../virtualUsers/virtualUserAvatar.js";
+import { selectPresenceBotIdentity } from "../presenceBots/presenceBotIdentities.js";
 
 const ROOM_CAPACITY = 4;
-
-const presenceNameParts = {
-  first: ["Al", "Em", "Li", "Mi", "No", "Oli", "Eli", "Ari", "Leo", "Sofi"],
-  last: ["ex", "ma", "am", "a", "ah", "via", "an", "a", "n", "a"]
-} as const;
-const presenceAvatars = ["🦊", "🐼", "🐨", "🐯", "🦁", "🐸", "🐙", "🐳", "🦄", "🐧"] as const;
 
 const roomNames = [
   "English Beginner",
@@ -309,11 +304,11 @@ export function addPresenceBotToRoom(roomId: string, botId: string, random = Mat
   const hasActiveMember = room.users.some((user) => user.senderType === "human" || user.senderType === "virtual_user");
   if (hasActiveMember || room.users.length >= room.capacity || hasPresenceBot(roomId, botId)) return null;
 
-  const nameIndex = Math.floor(random() * presenceNameParts.first.length);
+  const identity = selectPresenceBotIdentity(random);
   const user: RoomUser = {
     socketId: `presence:${botId}`,
-    nickname: `${presenceNameParts.first[nameIndex] ?? "Al"}${presenceNameParts.last[nameIndex] ?? "ex"}`,
-    avatar: presenceAvatars[Math.floor(random() * presenceAvatars.length)] ?? presenceAvatars[0],
+    nickname: identity.name,
+    avatar: identity.avatar,
     role: random() < 0.5 ? "verified" : "unverified",
     micEnabled: false,
     cameraEnabled: false,

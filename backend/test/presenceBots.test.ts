@@ -11,6 +11,28 @@ import {
   removeUser,
   removeVirtualUserByBotId
 } from "../src/rooms/roomStore.js";
+import { presenceBotIdentityPool, presenceBotNames, selectPresenceBotIdentity } from "../src/presenceBots/presenceBotIdentities.js";
+
+test("presence identity pool provides one hundred names, eighty initial avatars, and twenty Google-style defaults", () => {
+  assert.equal(presenceBotNames.length, 100);
+  assert.equal(presenceBotIdentityPool.length, 100);
+  assert.equal(new Set(presenceBotNames).size, 100);
+  assert.equal(new Set(presenceBotIdentityPool.map((identity) => identity.avatar)).size, 100);
+  const initialAvatars = presenceBotIdentityPool.filter((identity) => identity.avatar.startsWith("initials:"));
+  const googleDefaultAvatars = presenceBotIdentityPool.filter((identity) => identity.avatar.startsWith("google-default:"));
+  assert.equal(initialAvatars.length, 80);
+  assert.equal(googleDefaultAvatars.length, 20);
+  for (const identity of initialAvatars) {
+    const match = identity.avatar.match(/^initials:([^:]+):(\d{1,3})$/);
+    assert.ok(match);
+    assert.ok(Array.from(decodeURIComponent(match[1] ?? "")).length <= 2);
+  }
+  for (const identity of googleDefaultAvatars) {
+    assert.match(identity.avatar, /^google-default:[0-3]:\d{1,3}$/);
+  }
+  assert.equal(selectPresenceBotIdentity(() => 0), presenceBotIdentityPool[0]);
+  assert.equal(selectPresenceBotIdentity(() => 0.999), presenceBotIdentityPool[99]);
+});
 
 test("presence bots only enter inactive rooms and re-check capacity on every join", () => {
   const room = createRoom("Presence test", "en", "any", null, "test-owner", 2);

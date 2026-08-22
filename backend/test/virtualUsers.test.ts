@@ -44,7 +44,7 @@ test("each virtual user has a unique generated avatar that remains fixed by ID",
   assert.equal(avatars.length, VIRTUAL_USER_IDS.length);
   assert.equal(new Set(avatars).size, VIRTUAL_USER_IDS.length);
   assert.equal(avatars.filter((avatar) => avatar.startsWith("initials:")).length, 12);
-  assert.equal(avatars.filter((avatar) => avatar.startsWith("google-default:")).length, 3);
+  assert.equal(avatars.filter((avatar) => avatar.startsWith("/avatars/bot-scenes/virtual-")).length, 3);
   for (const id of VIRTUAL_USER_IDS) {
     const original = getVirtualUserAvatar({ id, avatarUrl: null });
     assert.equal(original, getVirtualUserAvatar({ id, avatarUrl: null }));

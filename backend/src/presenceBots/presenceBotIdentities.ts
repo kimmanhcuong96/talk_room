@@ -44,6 +44,11 @@ export const presenceBotNames = [
   ...indianNames
 ] as const;
 
+export const presenceBotIllustrationAvatars = Array.from(
+  { length: 20 },
+  (_, index) => `/avatars/bot-scenes/presence-${String(index + 1).padStart(2, "0")}.svg`
+);
+
 function initialsForName(name: string) {
   const words = name.trim().split(/\s+/u);
   if (words.length > 1) {
@@ -55,7 +60,7 @@ function initialsForName(name: string) {
 export const presenceBotIdentityPool = presenceBotNames.map((name, index) => {
   const hue = Math.round((index * 137.508) % 360);
   const avatar = index % 5 === 4
-    ? `google-default:${index % 4}:${hue}`
+    ? presenceBotIllustrationAvatars[Math.floor(index / 5)]!
     : `initials:${encodeURIComponent(initialsForName(name))}:${hue}`;
   return { name, avatar };
 });

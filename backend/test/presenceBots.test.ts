@@ -33,6 +33,32 @@ test("presence identity pool provides one hundred names, eighty initial avatars,
   }
   assert.equal(selectPresenceBotIdentity(() => 0), presenceBotIdentityPool[0]);
   assert.equal(selectPresenceBotIdentity(() => 0.999), presenceBotIdentityPool[99]);
+  assert.equal(
+    selectPresenceBotIdentity(() => 0, new Set(presenceBotIdentityPool.map((identity) => identity.avatar))),
+    null
+  );
+});
+
+test("presence identities are random without replacement across rooms and become reusable after leaving", () => {
+  const firstRoom = createRoom("Unique identity one", "en", "any", null, "test-owner", 1);
+  const secondRoom = createRoom("Unique identity two", "en", "any", null, "test-owner", 1);
+  const thirdRoom = createRoom("Reusable identity", "en", "any", null, "test-owner", 1);
+
+  const first = addPresenceBotToRoom(firstRoom.id, "unique-one", () => 0);
+  const second = addPresenceBotToRoom(secondRoom.id, "unique-two", () => 0);
+  assert.ok(first);
+  assert.ok(second);
+  assert.notEqual(second.nickname, first.nickname);
+  assert.notEqual(second.avatar, first.avatar);
+
+  removePresenceBotFromRoom(firstRoom.id, "unique-one");
+  const reused = addPresenceBotToRoom(thirdRoom.id, "unique-three", () => 0);
+  assert.ok(reused);
+  assert.equal(reused.nickname, first.nickname);
+  assert.equal(reused.avatar, first.avatar);
+
+  removePresenceBotFromRoom(secondRoom.id, "unique-two");
+  removePresenceBotFromRoom(thirdRoom.id, "unique-three");
 });
 
 test("presence bots only enter inactive rooms and re-check capacity on every join", () => {

@@ -304,7 +304,15 @@ export function addPresenceBotToRoom(roomId: string, botId: string, random = Mat
   const hasActiveMember = room.users.some((user) => user.senderType === "human" || user.senderType === "virtual_user");
   if (hasActiveMember || room.users.length >= room.capacity || hasPresenceBot(roomId, botId)) return null;
 
-  const identity = selectPresenceBotIdentity(random);
+  const unavailableAvatars = new Set(
+    [...rooms.values()].flatMap((candidateRoom) =>
+      candidateRoom.users
+        .filter((user) => user.senderType === "presence_bot")
+        .map((user) => user.avatar)
+    )
+  );
+  const identity = selectPresenceBotIdentity(random, unavailableAvatars);
+  if (!identity) return null;
   const user: RoomUser = {
     socketId: `presence:${botId}`,
     nickname: identity.name,

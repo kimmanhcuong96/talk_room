@@ -65,10 +65,17 @@ export const presenceBotIdentityPool = presenceBotNames.map((name, index) => {
   return { name, avatar };
 });
 
-export function selectPresenceBotIdentity(random = Math.random) {
+export function selectPresenceBotIdentity(
+  random = Math.random,
+  unavailableAvatars: ReadonlySet<string> = new Set()
+) {
+  const availableIdentities = unavailableAvatars.size === 0
+    ? presenceBotIdentityPool
+    : presenceBotIdentityPool.filter((identity) => !unavailableAvatars.has(identity.avatar));
+  if (availableIdentities.length === 0) return null;
   const index = Math.min(
-    presenceBotIdentityPool.length - 1,
-    Math.max(0, Math.floor(random() * presenceBotIdentityPool.length))
+    availableIdentities.length - 1,
+    Math.max(0, Math.floor(random() * availableIdentities.length))
   );
-  return presenceBotIdentityPool[index] ?? presenceBotIdentityPool[0]!;
+  return availableIdentities[index] ?? availableIdentities[0]!;
 }
